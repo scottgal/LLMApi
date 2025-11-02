@@ -242,6 +242,45 @@ Three ways to control response structure:
 2. **Query param**: `?shape=%7B%22field%22%3A%22type%22%7D` (URL-encoded JSON)
 3. **Body field**: `{"shape": {...}, "actualData": ...}`
 
+### Caching Multiple Responses via Shape
+
+You can instruct the middleware to pre-generate and cache multiple response variants for a specific request/shape by adding a special field inside the shape object: "$cache": N.
+
+- The cache key is derived from HTTP method + path (including query) + the sanitized shape (with $cache removed) using System.IO.Hashing XXHash64.
+- Up to N responses are prefetched from the LLM and stored in-memory (capped by MaxCachePerKey in options; default 5).
+- Subsequent non-streaming requests for the same key are served from a depleting queue; when exhausted, a fresh batch of N is prefetched automatically.
+- Streaming endpoints are not cached.
+
+Examples
+
+- Header shape:
+  X-Response-Shape: {"$cache":3,"orderId":"string","status":"string","items":[{"sku":"string","qty":0}]}
+
+- Body shape:
+  {
+  "shape": {
+  "$cache": 5,
+  "invoiceId": "string",
+  "customer": { "id": "string", "name": "string" },
+  "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],
+  "total": 0.0
+  }
+  }
+
+- Query param (URL-encoded):
+  ?shape=%7B%22%24cache%22%3A2%2C%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%7D%5D%7D
+
+Configuration
+
+- MaxCachePerKey (int, default 5): caps the number requested by "$cache" per key.
+
+Notes
+
+- The "$cache" hint is removed from the shape before it is sent to the LLM.
+- If "$cache" is omitted or 0, the request behaves as before (no caching/warmup).
+- Cached variants are kept in-memory for the app lifetime; restart clears the cache.
+
+
 ## Testing
 
 Use the included `LLMApi.http` file with:
@@ -366,40 +405,3 @@ This is a sample project demonstrating LLM-powered mock APIs. Feel free to fork 
 This is free and unencumbered software released into the public domain. See [LICENSE](LICENSE) for details or visit [unlicense.org](https://unlicense.org).
 
 
-### Caching Multiple Responses via Shape
-
-You can instruct the middleware to pre-generate and cache multiple response variants for a specific request/shape by adding a special field inside the shape object: "$cache": N.
-
-- The cache key is derived from HTTP method + path (including query) + the sanitized shape (with $cache removed) using System.IO.Hashing XXHash64.
-- Up to N responses are prefetched from the LLM and stored in-memory (capped by MaxCachePerKey in options; default 5).
-- Subsequent non-streaming requests for the same key are served from a depleting queue; when exhausted, a fresh batch of N is prefetched automatically.
-- Streaming endpoints are not cached.
-
-Examples
-
-- Header shape:
-  X-Response-Shape: {"$cache":3,"orderId":"string","status":"string","items":[{"sku":"string","qty":0}]}
-
-- Body shape:
-  {
-    "shape": {
-      "$cache": 5,
-      "invoiceId": "string",
-      "customer": { "id": "string", "name": "string" },
-      "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],
-      "total": 0.0
-    }
-  }
-
-- Query param (URL-encoded):
-  ?shape=%7B%22%24cache%22%3A2%2C%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%7D%5D%7D
-
-Configuration
-
-- MaxCachePerKey (int, default 5): caps the number requested by "$cache" per key.
-
-Notes
-
-- The "$cache" hint is removed from the shape before it is sent to the LLM.
-- If "$cache" is omitted or 0, the request behaves as before (no caching/warmup).
-- Cached variants are kept in-memory for the app lifetime; restart clears the cache.
