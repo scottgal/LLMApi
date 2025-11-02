@@ -182,14 +182,30 @@ To support others:
 
 ## Publishing NuGet Package
 
+### Automated Publishing via GitHub Actions (Recommended)
+
+This project uses **NuGet Trusted Publishers** for secure, keyless publishing:
+
+```bash
+# Update version in mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
+# Then create and push a version tag:
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+The GitHub Action will automatically:
+1. Build the solution
+2. Run all tests
+3. Pack the NuGet package
+4. Publish to NuGet.org using OIDC authentication (no API key needed!)
+
+**Setup**: See `.github/NUGET_SETUP.md` for configuring Trusted Publishers on NuGet.org.
+
+### Manual Publishing
+
 ```bash
 # Build release package
 dotnet pack mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj -c Release
-
-# Publish to NuGet.org (requires API key)
-dotnet nuget push mostlylucid.mockllmapi/bin/Release/mostlylucid.mockllmapi.1.0.0.nupkg \
-  --api-key YOUR_API_KEY \
-  --source https://api.nuget.org/v3/index.json
 
 # Publish to local feed for testing
 dotnet nuget push mostlylucid.mockllmapi/bin/Release/mostlylucid.mockllmapi.1.0.0.nupkg \
@@ -220,3 +236,7 @@ dotnet nuget push mostlylucid.mockllmapi/bin/Release/mostlylucid.mockllmapi.1.0.
 - Increase TimeoutSeconds in configuration
 - Check LLM server performance
 - Consider using faster/smaller model
+
+## License
+
+This project is released into the public domain under the [Unlicense](https://unlicense.org). See the LICENSE file for details. You are free to use, modify, and distribute this code without restriction.

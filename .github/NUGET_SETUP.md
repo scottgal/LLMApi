@@ -1,32 +1,26 @@
 # NuGet Publishing Setup
 
-This repository automatically publishes the `mostlylucid.mockllmapi` NuGet package when you create a version tag.
+This repository automatically publishes the `mostlylucid.mockllmapi` NuGet package when you create a version tag using **NuGet Trusted Publishers** (no API key required!).
 
 ## Setup Instructions
 
-### 1. Create NuGet API Key
+### Configure NuGet Trusted Publisher
 
-1. Go to [NuGet.org](https://www.nuget.org/)
-2. Sign in with your account
-3. Click your username → **API Keys**
-4. Click **Create**
+This project uses NuGet's Trusted Publishers feature, which uses OpenID Connect (OIDC) for secure, keyless authentication from GitHub Actions.
+
+1. Go to [NuGet.org](https://www.nuget.org/) and sign in
+2. Navigate to your package page (or create the package first with a manual upload)
+3. Go to **Manage Package** → **Trusted Publishers**
+4. Click **Add Trusted Publisher**
 5. Set the following:
-   - **Key Name**: `mostlylucid.mockllmapi GitHub Actions`
-   - **Select Scopes**: `Push new packages and package versions`
-   - **Select Packages**: `mostlylucid.mockllmapi` (or leave as `*` for all)
-   - **Glob Pattern**: `mostlylucid.mockllmapi*`
-6. Click **Create**
-7. **Copy the API key** (you won't see it again!)
+   - **Publisher Type**: GitHub Actions
+   - **Owner**: `mostlylucid` (your GitHub username/org)
+   - **Repository**: `mostlylucid.mockllmapi` (your repo name)
+   - **Workflow**: `publish-nuget.yml`
+   - **Environment**: (leave empty unless you use GitHub Environments)
+6. Click **Save**
 
-### 2. Add Secret to GitHub
-
-1. Go to your GitHub repository
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Set:
-   - **Name**: `NUGET_API_KEY`
-   - **Value**: Paste the API key from step 1
-5. Click **Add secret**
+That's it! No API keys needed. The workflow uses OIDC tokens automatically.
 
 ## Publishing a New Version
 
@@ -77,12 +71,13 @@ The package version comes from:
 - Increment the version number in the tag
 - The workflow uses `--skip-duplicate` flag to avoid errors
 
-**"API key is invalid"**
-- Check the secret is named exactly `NUGET_API_KEY`
-- Verify the API key hasn't expired
-- Regenerate the key on NuGet.org if needed
+**"Authentication failed" or "Forbidden"**
+- Verify the Trusted Publisher is configured correctly on NuGet.org
+- Check that the repository owner, name, and workflow file match exactly
+- Ensure the workflow has `id-token: write` permissions (already configured)
+- For first-time publish, you may need to manually upload v1.0.0, then configure Trusted Publisher for subsequent versions
 
-**Tests are failing**
+**"Tests are failing"**
 - The workflow won't publish if tests fail
 - Check the test results in the Actions tab
 - Fix the tests and create a new tag

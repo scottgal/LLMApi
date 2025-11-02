@@ -314,4 +314,4 @@ This is a sample project demonstrating LLM-powered mock APIs. Feel free to fork 
 
 ## License
 
-MIT License - This is a sample project for demonstration purposes.
+This is free and unencumbered software released into the public domain. See [LICENSE](LICENSE) for details or visit [unlicense.org](https://unlicense.org).
