@@ -1,0 +1,7 @@
+﻿services:
+  llmapi:
+    image: llmapi
+    build:
+      context: .
+      dockerfile: LLMApi/Dockerfile
+

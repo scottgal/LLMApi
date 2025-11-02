@@ -1,0 +1,110 @@
+@LLMApi_HostAddress = http://localhost:5116
+
+### GET example — list users with paging
+GET {{LLMApi_HostAddress}}/api/auto/users?limit=10&offset=0
+Accept: application/json
+
+###
+
+### GET example — list users with paging
+GET {{LLMApi_HostAddress}}/api/auto/citizens?limit=25&offset=0
+Accept: application/json
+
+###
+
+### GET example — list users with paging
+GET {{LLMApi_HostAddress}}/api/auto/citizens/133/details
+Accept: application/json
+
+###
+
+### POST example — create an order
+POST {{LLMApi_HostAddress}}/api/auto/orders
+Content-Type: application/json
+Accept: application/json
+
+{
+  "customerId": "cus_123",
+  "items": [
+    { "sku": "ABC-001", "qty": 2 },
+    { "sku": "XYZ-999", "qty": 1 }
+  ],
+  "notes": "Please deliver after 5pm"
+}
+
+###
+
+### PUT example — update an order
+PUT {{LLMApi_HostAddress}}/api/auto/orders/123
+Content-Type: application/json
+Accept: application/json
+
+{
+  "status": "shipped",
+  "trackingNumber": "TRACK-0001"
+}
+
+###
+
+### DELETE example — delete an order
+POST {{LLMApi_HostAddress}}/api/auto/orders/123
+Accept: application/json
+
+###
+
+### Arbitrary path — echo behavior demo
+POST {{LLMApi_HostAddress}}/api/auto/anything/goes/here?foo=bar
+Content-Type: application/json
+Accept: application/json
+
+{
+  "any": "payload",
+  "nested": { "a": 1 }
+}
+
+###
+
+### Shape example — query parameter (URL-encoded JSON)
+POST {{LLMApi_HostAddress}}/api/auto/orders?shape=%7B%22orderId%22%3A%22string%22%2C%22status%22%3A%22string%22%2C%22items%22%3A%5B%7B%22sku%22%3A%22string%22%2C%22qty%22%3A0%7D%5D%7D
+Content-Type: application/json
+Accept: application/json
+
+{
+  "customerId": "cus_123",
+  "items": [ { "sku": "ABC-001", "qty": 2 } ]
+}
+
+###
+
+### Shape example — header X-Response-Shape
+POST {{LLMApi_HostAddress}}/api/auto/orders
+X-Response-Shape: {"orderId":"string","realistic_random_address", "status":"string","items":[{"sku":"string",,"qty":0}]}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "customerId": "cus_123",
+  "items": [ { "sku": "ABC-001", "qty": 2 } ]
+}
+
+###
+
+### Shape example — body field `shape`
+POST {{LLMApi_HostAddress}}/api/auto/orders
+Content-Type: application/json
+Accept: application/json
+
+{
+  "shape": {
+    "orderId": "string",
+    "delivery_address" : "long random address",
+    "status": "string",
+    "items": [ { "sku": "string", "qty": 0 } ]
+  },
+  "customerId": "cus_123",
+  "items": [ { "sku": "ABC-001", "qty": 2 } ]
+}
+
+
+
+###
