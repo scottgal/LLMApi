@@ -75,17 +75,13 @@ public static class LLMockApiExtensions
                     var method = ctx.Request.Method;
                     var query = ctx.Request.QueryString.Value;
                     var body = await service.ReadBodyAsync(ctx.Request);
-                    var shape = service.ExtractShape(ctx.Request, body);
+                    var shape = service.ExtractShapeAndCacheCount(ctx.Request, body, out var cacheCount);
 
-                    var prompt = service.BuildPrompt(method, $"{pattern}/{path}{query}", body, shape, streaming: false);
+                    // Use service-level caching if requested via $cache inside shape
+                    var content = await service.GetResponseWithCachingAsync(method, $"{pattern}/{path}{query}", body, shape, cacheCount);
 
-                    using var client = service.CreateHttpClient();
-                    var request = service.BuildChatRequest(prompt, stream: false);
-                    var response = await client.PostAsJsonAsync("chat/completions", request);
-                    response.EnsureSuccessStatusCode();
-
-                    var result = await response.Content.ReadFromJsonAsync<ChatCompletionLite>();
-                    var content = result.FirstContent ?? "{}";
+                    // Optionally include schema in header
+                    service.TryAddSchemaHeader(ctx, shape);
 
                     ctx.Response.ContentType = "application/json";
                     await ctx.Response.WriteAsync(content);
@@ -120,6 +116,9 @@ public static class LLMockApiExtensions
                         ctx.Response.Headers.Connection = "keep-alive";
                         ctx.Response.ContentType = "text/event-stream";
 
+                        // Optionally include schema in header before any writes
+                        service.TryAddSchemaHeader(ctx, shape);
+
                         using var client = service.CreateHttpClient();
                         var req = service.BuildChatRequest(prompt, stream: true);
                         using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
@@ -146,7 +145,17 @@ public static class LLMockApiExtensions
                                 if (payload == "[DONE]")
                                 {
                                     var finalJson = accumulated.ToString();
-                                    await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { content = finalJson, done = true })}\n\n");
+                                    // Include schema in final event payload if enabled
+                                    object finalPayload;
+                                    if (service.ShouldIncludeSchema(ctx.Request) && !string.IsNullOrWhiteSpace(shape))
+                                    {
+                                        finalPayload = new { content = finalJson, done = true, schema = shape };
+                                    }
+                                    else
+                                    {
+                                        finalPayload = new { content = finalJson, done = true };
+                                    }
+                                    await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalPayload)}\n\n");
                                     await ctx.Response.Body.FlushAsync();
                                     break;
                                 }

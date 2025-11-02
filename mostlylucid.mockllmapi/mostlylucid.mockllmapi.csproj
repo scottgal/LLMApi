@@ -17,11 +17,16 @@
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>Latest: v1.0.5 — Add package icon; updated csproj to pack icon.png. Also: v1.0.4 — fix NuGet link in README; v1.0.2 — fix NuGet badge links. Full details in 'release notes.txt'.</PackageReleaseNotes>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
   </ItemGroup>
 
     <ItemGroup>
@@ -30,6 +35,9 @@
         </None>
         <None Include="..\README.md" Pack="true" PackagePath="">
             <Link>Properties\README.md</Link>
+        </None>
+        <None Include=".\release notes.txt" Pack="true" PackagePath="">
+            <Link>Properties\release notes.txt</Link>
         </None>
     </ItemGroup>
 

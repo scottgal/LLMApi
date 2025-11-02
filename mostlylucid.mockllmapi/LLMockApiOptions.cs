@@ -46,4 +46,16 @@ public class LLMockApiOptions
     /// Enable verbose logging (default: false)
     /// </summary>
     public bool EnableVerboseLogging { get; set; } = false;
+
+    /// <summary>
+    /// When enabled, includes the JSON shape/schema used to generate the response.
+    /// Can be overridden per request with ?includeSchema=true.
+    /// </summary>
+    public bool IncludeShapeInResponse { get; set; } = false;
+
+    /// <summary>
+    /// Max number of cached response variants to keep per unique key (method+path+shape).
+    /// Can be capped lower by the $cache value in shape; defaults to 5.
+    /// </summary>
+    public int MaxCachePerKey { get; set; } = 5;
 }

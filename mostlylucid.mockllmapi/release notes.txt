@@ -1,0 +1,50 @@
+﻿mostlylucid.mockllmapi — Release Notes
+
+Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
+
+v1.0.5 — 2025-11-02
+- Add package icon to NuGet package metadata.
+  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
+    - Declared <PackageIcon> icon.png
+    - Ensured icon.png is packed into the .nupkg
+  - Outcome: The package now displays a proper icon on NuGet.org and in IDE package managers.
+
+v1.0.4 — 2025-11-02
+- Fix package RepositoryUrl metadata (NuGet link) in project file.
+  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
+    - RepositoryUrl updated to https://github.com/scottgal/LLMApi
+
+v1.0.2 — 2025-11-02
+- Fix NuGet badge links in README for correct package name.
+  - Changed: README.md
+    - Updated badge image and target URLs to match the actual package ID.
+
+v1.0.1 — 2025-11-02
+- Add NuGet badges to README and tidy sample code formatting.
+  - Changed: README.md
+    - Added shields.io NuGet badges (version and downloads)
+  - Changed: LLMApi/Program.cs
+    - Minor formatting/cleanup
+
+v0.0.3 — 2025-11-02
+- Enhance NuGet publishing workflow with OIDC login and improve setup docs.
+  - Changed: .github/workflows/publish-nuget.yml
+    - Adjusted workflow to support OIDC-based authentication
+  - Changed: .github/NUGET_SETUP.md
+    - Updated instructions to reflect the improved workflow
+  - Changed: CLAUDE.md
+    - Documentation grooming
+
+v0.0.2 — 2025-11-02
+- Adopt Unlicense and refine NuGet publishing steps and workflow.
+  - Added: LICENSE (Unlicense)
+  - Changed: .github/workflows/publish-nuget.yml
+  - Changed: .github/NUGET_SETUP.md
+
+v0.0.1 — 2025-11-02
+- Switch license to Unlicense and update docs for GitHub Actions–based automated NuGet publishing.
+  - Summary commit: Switch license to Unlicense and update documentation for GitHub Actions-based automated NuGet publishing.
+
+Notes
+- Package versioning is driven by git tags (v.*): the NuGet release notes and this file reflect those tags.
+- See README.md for usage, configuration, and examples.

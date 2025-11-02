@@ -145,6 +145,52 @@ data: {"content":"{full json here}","done":true}
 
 ## Advanced Features
 
+### Response Schema Echo (Shape) Export
+
+You can optionally have the middleware echo back the JSON shape/schema that was used to generate the mock response.
+
+Configuration:
+- Option: IncludeShapeInResponse (bool, default false)
+- Per-request override: add query parameter includeSchema=true (or 1)
+- Header emitted: X-Response-Schema (only when a shape was provided and size ≤ 4000 chars)
+- Streaming: the final SSE event includes a schema field when enabled
+
+Examples:
+
+- Enable globally (appsettings.json):
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "IncludeShapeInResponse": true
+  }
+}
+```
+
+- Enable per request (overrides config):
+```bash
+curl "http://localhost:5000/api/mock/users?shape=%7B%22id%22%3A0%2C%22name%22%3A%22string%22%7D&includeSchema=true"
+```
+Response includes header:
+```
+X-Response-Schema: {"id":0,"name":"string"}
+```
+
+- Streaming: final event contains schema field when enabled
+```
+...
+data: {"content":"{full json}","done":true,"schema":{"id":0,"name":"string"}}
+```
+
+Notes:
+- If no shape was provided (via query/header/body), the header is not added
+- Very large shapes (> 4000 chars) are not added to the header to avoid transport issues, but normal response continues
+
+Use cases:
+- Client-side TypeScript type generation
+- API documentation and schema validation
+- Debugging shape parsing
+- Runtime validation
+
 ### Custom Prompt Templates
 
 Override the default prompts with your own:
@@ -318,3 +364,42 @@ This is a sample project demonstrating LLM-powered mock APIs. Feel free to fork 
 ## License
 
 This is free and unencumbered software released into the public domain. See [LICENSE](LICENSE) for details or visit [unlicense.org](https://unlicense.org).
+
+
+### Caching Multiple Responses via Shape
+
+You can instruct the middleware to pre-generate and cache multiple response variants for a specific request/shape by adding a special field inside the shape object: "$cache": N.
+
+- The cache key is derived from HTTP method + path (including query) + the sanitized shape (with $cache removed) using System.IO.Hashing XXHash64.
+- Up to N responses are prefetched from the LLM and stored in-memory (capped by MaxCachePerKey in options; default 5).
+- Subsequent non-streaming requests for the same key are served from a depleting queue; when exhausted, a fresh batch of N is prefetched automatically.
+- Streaming endpoints are not cached.
+
+Examples
+
+- Header shape:
+  X-Response-Shape: {"$cache":3,"orderId":"string","status":"string","items":[{"sku":"string","qty":0}]}
+
+- Body shape:
+  {
+    "shape": {
+      "$cache": 5,
+      "invoiceId": "string",
+      "customer": { "id": "string", "name": "string" },
+      "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],
+      "total": 0.0
+    }
+  }
+
+- Query param (URL-encoded):
+  ?shape=%7B%22%24cache%22%3A2%2C%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%7D%5D%7D
+
+Configuration
+
+- MaxCachePerKey (int, default 5): caps the number requested by "$cache" per key.
+
+Notes
+
+- The "$cache" hint is removed from the shape before it is sent to the LLM.
+- If "$cache" is omitted or 0, the request behaves as before (no caching/warmup).
+- Cached variants are kept in-memory for the app lifetime; restart clears the cache.

@@ -1,9 +1,5 @@
 @LLMApi_HostAddress = http://localhost:5116
 
-###############################################################################
-# NON-STREAMING ENDPOINTS (/api/mock/*)
-# Returns complete JSON response immediately
-###############################################################################
 
 ### GET example - list users with paging
 GET {{LLMApi_HostAddress}}/api/mock/users?limit=10&offset=0
@@ -133,3 +129,44 @@ Accept: text/event-stream
 }
 
 ###
+
+###############################################################################
+# CACHED RESPONSES VIA SHAPE ($cache)
+# Add "$cache": N inside the shape object to prefetch and cache N variants.
+# Caching applies to non-streaming endpoints only.
+###############################################################################
+
+### CACHE via HEADER: prefetch and cache 3 variants for this shape
+POST {{LLMApi_HostAddress}}/api/mock/orders
+X-Response-Shape: {"$cache":3,"orderId":"string","status":"string","total":0.0,"items":[{"sku":"string","qty":0}]}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "customerId": "cus_777",
+  "items": [ { "sku": "ABC-222", "qty": 1 } ]
+}
+
+###
+
+### CACHE via BODY FIELD: cache 5 variants
+POST {{LLMApi_HostAddress}}/api/mock/invoices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "shape": {
+    "$cache": 5,
+    "invoiceId": "string",
+    "customer": { "id": "string", "name": "string" },
+    "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],
+    "total": 0.0
+  },
+  "customerId": "cus_888"
+}
+
+###
+
+### CACHE via QUERY PARAM (URL-encoded JSON includes $cache)
+GET {{LLMApi_HostAddress}}/api/mock/users?shape=%7B%22%24cache%22%3A2%2C%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%7D%5D%7D
+Accept: application/json

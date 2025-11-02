@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using System.Net.Http;
+using System.Threading;
 using mostlylucid.mockllmapi;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,9 +11,58 @@ namespace LLMApi.Tests;
 
 public class LLMockApiServiceTests
 {
+    private class CountingHandler : HttpMessageHandler
+    {
+        private int _count;
+        public int Count => _count;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var n = Interlocked.Increment(ref _count);
+            var json = $"{{\"choices\":[{{\"message\":{{\"content\":\"resp-{n}\"}}}}]}}";
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+            return Task.FromResult(response);
+        }
+    }
     private class MockHttpClientFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new HttpClient();
+    }
+
+    private class CountingHandlerFactory
+    {
+        private int _count;
+        public int Count => _count;
+        public HttpClient CreateClient()
+        {
+            var handler = new LocalHandler(this);
+            return new HttpClient(handler) { BaseAddress = new Uri("http://example.com/v1/") };
+        }
+        private class LocalHandler : HttpMessageHandler
+        {
+            private readonly CountingHandlerFactory _factory;
+            public LocalHandler(CountingHandlerFactory factory) => _factory = factory;
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                var n = Interlocked.Increment(ref _factory._count);
+                var json = $"{{\"choices\":[{{\"message\":{{\"content\":\"resp-{n}\"}}}}]}}";
+                var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+                return Task.FromResult(response);
+            }
+        }
+    }
+
+    private class TestHttpClientFactory : IHttpClientFactory
+    {
+        private readonly CountingHandlerFactory _factory;
+        public TestHttpClientFactory(CountingHandlerFactory factory) => _factory = factory;
+        public HttpClient CreateClient(string name) => _factory.CreateClient();
+        public int Count => _factory.Count;
     }
 
     private LLMockApiService CreateService(LLMockApiOptions? options = null)
@@ -21,6 +72,14 @@ public class LLMockApiServiceTests
         var httpClientFactory = new MockHttpClientFactory();
         var logger = NullLogger<LLMockApiService>.Instance;
         return new LLMockApiService(optionsWrapper, httpClientFactory, logger);
+    }
+
+    private LLMockApiService CreateServiceWithFactory(TestHttpClientFactory factory, LLMockApiOptions? options = null)
+    {
+        options ??= new LLMockApiOptions { BaseUrl = "http://example.com/v1/", TimeoutSeconds = 5 };
+        var optionsWrapper = Options.Create(options);
+        var logger = NullLogger<LLMockApiService>.Instance;
+        return new LLMockApiService(optionsWrapper, factory, logger);
     }
 
     [Fact]
@@ -246,5 +305,154 @@ public class LLMockApiServiceTests
         // Assert
         Assert.Contains("Custom: GET /test body", result);
         Assert.Contains("seed:", result);
+    }
+    [Fact]
+    public void SchemaHeader_Added_WhenConfigEnabled_AndShapeExists()
+    {
+        var options = new LLMockApiOptions { IncludeShapeInResponse = true };
+        var service = CreateService(options);
+        var ctx = new DefaultHttpContext();
+        var shape = "{\"id\":0}";
+
+        service.TryAddSchemaHeader(ctx, shape);
+
+        Assert.True(ctx.Response.Headers.ContainsKey("X-Response-Schema"));
+        Assert.Equal(shape, ctx.Response.Headers["X-Response-Schema"].ToString());
+    }
+
+    [Fact]
+    public void SchemaHeader_Added_WhenQueryParamPresent()
+    {
+        var options = new LLMockApiOptions { IncludeShapeInResponse = false };
+        var service = CreateService(options);
+        var ctx = new DefaultHttpContext();
+        ctx.Request.QueryString = new QueryString("?includeSchema=true");
+        var shape = "{\"name\":\"string\"}";
+
+        service.TryAddSchemaHeader(ctx, shape);
+
+        Assert.True(ctx.Response.Headers.ContainsKey("X-Response-Schema"));
+        Assert.Equal(shape, ctx.Response.Headers["X-Response-Schema"].ToString());
+    }
+
+    [Fact]
+    public void SchemaHeader_NotAdded_WhenDisabled_AndNoQuery()
+    {
+        var options = new LLMockApiOptions { IncludeShapeInResponse = false };
+        var service = CreateService(options);
+        var ctx = new DefaultHttpContext();
+        var shape = "{\"price\":0.0}";
+
+        service.TryAddSchemaHeader(ctx, shape);
+
+        Assert.False(ctx.Response.Headers.ContainsKey("X-Response-Schema"));
+    }
+
+    [Fact]
+    public void SchemaHeader_NotAdded_WhenNoShapeProvided()
+    {
+        var options = new LLMockApiOptions { IncludeShapeInResponse = true };
+        var service = CreateService(options);
+        var ctx = new DefaultHttpContext();
+
+        service.TryAddSchemaHeader(ctx, null);
+
+        Assert.False(ctx.Response.Headers.ContainsKey("X-Response-Schema"));
+    }
+
+    [Fact]
+    public void SchemaHeader_Omitted_ForLargeShapes()
+    {
+        var options = new LLMockApiOptions { IncludeShapeInResponse = true };
+        var service = CreateService(options);
+        var ctx = new DefaultHttpContext();
+        var largeShape = new string('x', 4001);
+
+        // Should not throw and should not add header
+        service.TryAddSchemaHeader(ctx, largeShape);
+
+        Assert.False(ctx.Response.Headers.ContainsKey("X-Response-Schema"));
+    }
+
+    [Fact]
+    public async Task Caching_PrimesOnce_ThenServesFromCache_NoExtraFetches()
+    {
+        // Arrange
+        var counterFactory = new CountingHandlerFactory();
+        var httpFactory = new TestHttpClientFactory(counterFactory);
+        var service = CreateServiceWithFactory(httpFactory, new LLMockApiOptions { MaxCachePerKey = 5 });
+        var method = "GET";
+        var path = "/api/mock/test?x=1";
+        string? body = null;
+        var shape = "{\"a\":\"string\"}";
+
+        // Act - first call should prime 3 and serve 1
+        var r1 = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 3);
+        var countAfterFirst = httpFactory.Count;
+        // Second call should not trigger new upstream fetches (still serving from initial primed cache)
+        var r2 = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 3);
+        Assert.Equal(countAfterFirst, httpFactory.Count);
+        // Third call serves last cached item; background refill may start, so we do not assert count here
+        var r3 = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 3);
+
+        // Assert
+        Assert.Equal(3, countAfterFirst);
+        Assert.NotEqual(r1, r2);
+        Assert.NotEqual(r2, r3);
+    }
+
+    [Fact]
+    public async Task Caching_Depletes_TriggersBackgroundRefill()
+    {
+        // Arrange
+        var counterFactory = new CountingHandlerFactory();
+        var httpFactory = new TestHttpClientFactory(counterFactory);
+        var service = CreateServiceWithFactory(httpFactory, new LLMockApiOptions { MaxCachePerKey = 5 });
+        var method = "GET";
+        var path = "/api/mock/test?y=2";
+        string? body = null;
+        var shape = "{\"b\":\"string\"}";
+
+        // Deplete cache (N=2 for speed)
+        var a = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 2);
+        var b = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 2);
+        Assert.True(httpFactory.Count >= 2);
+
+        // This call empties queue and schedules background refill
+        var c = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 2);
+
+        // Wait for refill to happen (up to ~1s)
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (httpFactory.Count < 4 && sw.Elapsed < TimeSpan.FromSeconds(2))
+        {
+            await Task.Delay(50);
+        }
+        Assert.True(httpFactory.Count >= 4, $"Expected background refill to fetch 2 more, got {httpFactory.Count}");
+
+        // Next call should use cache (no new fetch during call)
+        var before = httpFactory.Count;
+        var d = await service.GetResponseWithCachingAsync(method, path, body, shape, cacheCount: 2);
+        Assert.Equal(before, httpFactory.Count);
+    }
+
+    [Fact]
+    public void ExtractShapeAndCacheCount_SanitizesAndParses()
+    {
+        // Arrange
+        var service = CreateService();
+        var ctx = new DefaultHttpContext();
+        ctx.Request.ContentType = "application/json";
+        // Manually craft JSON to ensure $cache property included
+        var body = "{\"shape\":{\"id\":\"string\",\"name\":\"string\",\"$cache\":3}}";
+
+        // Act
+        var sanitized = service.ExtractShapeAndCacheCount(ctx.Request, body, out var cacheCount);
+
+        // Assert
+        Assert.Equal(3, cacheCount);
+        Assert.NotNull(sanitized);
+        Assert.DoesNotContain("$cache", sanitized);
+        Assert.Contains("\"id\"", sanitized);
+        Assert.Contains("\"name\"", sanitized);
     }
 }
