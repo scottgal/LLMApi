@@ -184,8 +184,17 @@ To support others:
 
 ### Automated Publishing via GitHub Actions (Recommended)
 
-This project uses **NuGet Trusted Publishers** for secure, keyless publishing:
+This project uses **NuGet Trusted Publishers** for secure OIDC-based publishing.
 
+**One-time setup** (see `.github/NUGET_SETUP.md` for details):
+1. Add `NUGET_USERNAME` secret to GitHub (your NuGet.org profile name)
+2. Upload v1.0.0 manually to NuGet.org (first version only)
+3. Configure Trusted Publishing Policy on NuGet.org:
+   - Owner: `mostlylucid`
+   - Repository: `mostlylucid.mockllmapi`
+   - Workflow: `publish-nuget.yml`
+
+**Publishing a new version**:
 ```bash
 # Update version in mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
 # Then create and push a version tag:
@@ -197,9 +206,9 @@ The GitHub Action will automatically:
 1. Build the solution
 2. Run all tests
 3. Pack the NuGet package
-4. Publish to NuGet.org using OIDC authentication (no API key needed!)
-
-**Setup**: See `.github/NUGET_SETUP.md` for configuring Trusted Publishers on NuGet.org.
+4. Request temporary OIDC token from GitHub
+5. Exchange for short-lived NuGet API key (1-hour validity)
+6. Publish to NuGet.org
 
 ### Manual Publishing
 

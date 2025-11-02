@@ -56,14 +56,18 @@ jobs:
     - name: Pack NuGet package
       run: dotnet pack mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj --configuration Release --no-build --output ./artifacts
 
+    - name: Login to NuGet (OIDC)
+      id: nuget_login
+      uses: NuGet/login@v1
+      with:
+        user: 'mostlylucid'
+
     - name: Publish to NuGet (Trusted Publisher)
       run: |
-        # NuGet Trusted Publishers uses OIDC - requires .NET SDK 8.0.400+
-        dotnet --version
         dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ steps.nuget_login.outputs.NUGET_API_KEY }} \
           --source https://api.nuget.org/v3/index.json \
-          --skip-duplicate \
-          --no-symbols
+          --skip-duplicate
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

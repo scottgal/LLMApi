@@ -1,38 +1,55 @@
 # NuGet Publishing Setup
 
-This repository automatically publishes the `mostlylucid.mockllmapi` NuGet package when you create a version tag using **NuGet Trusted Publishers** (no API key required!).
+This repository automatically publishes the `mostlylucid.mockllmapi` NuGet package when you create a version tag using **NuGet Trusted Publishers** (no long-lived API key required!).
 
 ## Setup Instructions
 
-### Configure NuGet Trusted Publisher
+### 1. Add GitHub Secret
+
+First, add your NuGet username to GitHub Secrets:
+
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Set:
+   - **Name**: `NUGET_USERNAME`
+   - **Value**: Your NuGet.org username/profile (e.g., `mostlylucid` - NOT your email)
+5. Click **Add secret**
+
+### 2. Configure NuGet Trusted Publisher
 
 This project uses NuGet's Trusted Publishers feature, which uses OpenID Connect (OIDC) for secure, keyless authentication from GitHub Actions.
 
+### 3. Publish Your First Version
+
 **IMPORTANT**: For the first version (v1.0.0), you have two options:
 
-#### Option A: Manual First Upload (Recommended)
+#### Option A: Manual First Upload (Recommended for New Packages)
 1. Build the package locally: `cd mostlylucid.mockllmapi && dotnet pack -c Release`
 2. Go to [NuGet.org](https://www.nuget.org/), sign in, and click **Upload**
 3. Upload `mostlylucid.mockllmapi.1.0.0.nupkg` manually
-4. Once uploaded, go to **Manage Package** → **Trusted Publishers**
-5. Click **Add Trusted Publisher**
+4. Once uploaded, go to your **NuGet profile** (click your username) → **Trusted Publishing**
+5. Click **Add Trusted Publishing Policy**
 6. Set the following:
-   - **Publisher Type**: GitHub Actions
-   - **Owner**: `mostlylucid` (your GitHub username/org)
-   - **Repository**: `mostlylucid.mockllmapi` (your repo name)
-   - **Workflow**: `publish-nuget.yml`
-   - **Environment**: (leave empty)
-7. Click **Save**
+   - **GitHub Owner**: `mostlylucid` (your GitHub username/org - case-sensitive!)
+   - **GitHub Repository**: `mostlylucid.mockllmapi` (your repo name)
+   - **Workflow File**: `publish-nuget.yml` (filename only, no path)
+   - **Environment**: (leave empty unless you use GitHub Environments)
+7. Click **Create**
 
-Now all future versions can be published automatically via GitHub Actions!
+Now all future versions can be published automatically via GitHub Actions using OIDC!
 
-#### Option B: Reserve Package ID (If Available)
+#### Option B: Automated First Upload (If Package ID is Available)
 1. Go to [NuGet.org](https://www.nuget.org/) and sign in
-2. If NuGet allows package ID reservation, reserve `mostlylucid.mockllmapi`
-3. Configure Trusted Publisher (steps 4-7 above)
-4. Push tag and let GitHub Actions publish
+2. Navigate to your **NuGet profile** → **Trusted Publishing**
+3. Click **Add Trusted Publishing Policy** and configure (same as Option A step 6)
+4. Push a tag and let GitHub Actions publish:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
 
-**Note**: Requires .NET SDK 8.0.400+ for OIDC support (GitHub Actions has this by default).
+**Note**: This requires the package ID to not be taken. If the package doesn't exist yet and there's no trusted policy, you'll get a 401 error - use Option A instead.
 
 ## Publishing a New Version
 
