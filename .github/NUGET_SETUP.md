@@ -8,19 +8,31 @@ This repository automatically publishes the `mostlylucid.mockllmapi` NuGet packa
 
 This project uses NuGet's Trusted Publishers feature, which uses OpenID Connect (OIDC) for secure, keyless authentication from GitHub Actions.
 
-1. Go to [NuGet.org](https://www.nuget.org/) and sign in
-2. Navigate to your package page (or create the package first with a manual upload)
-3. Go to **Manage Package** → **Trusted Publishers**
-4. Click **Add Trusted Publisher**
-5. Set the following:
+**IMPORTANT**: For the first version (v1.0.0), you have two options:
+
+#### Option A: Manual First Upload (Recommended)
+1. Build the package locally: `cd mostlylucid.mockllmapi && dotnet pack -c Release`
+2. Go to [NuGet.org](https://www.nuget.org/), sign in, and click **Upload**
+3. Upload `mostlylucid.mockllmapi.1.0.0.nupkg` manually
+4. Once uploaded, go to **Manage Package** → **Trusted Publishers**
+5. Click **Add Trusted Publisher**
+6. Set the following:
    - **Publisher Type**: GitHub Actions
    - **Owner**: `mostlylucid` (your GitHub username/org)
    - **Repository**: `mostlylucid.mockllmapi` (your repo name)
    - **Workflow**: `publish-nuget.yml`
-   - **Environment**: (leave empty unless you use GitHub Environments)
-6. Click **Save**
+   - **Environment**: (leave empty)
+7. Click **Save**
 
-That's it! No API keys needed. The workflow uses OIDC tokens automatically.
+Now all future versions can be published automatically via GitHub Actions!
+
+#### Option B: Reserve Package ID (If Available)
+1. Go to [NuGet.org](https://www.nuget.org/) and sign in
+2. If NuGet allows package ID reservation, reserve `mostlylucid.mockllmapi`
+3. Configure Trusted Publisher (steps 4-7 above)
+4. Push tag and let GitHub Actions publish
+
+**Note**: Requires .NET SDK 8.0.400+ for OIDC support (GitHub Actions has this by default).
 
 ## Publishing a New Version
 
@@ -71,11 +83,16 @@ The package version comes from:
 - Increment the version number in the tag
 - The workflow uses `--skip-duplicate` flag to avoid errors
 
+**"401 Unauthorized" or "An API key must be provided"**
+- This happens if the package doesn't exist yet on NuGet.org
+- **Solution**: Manually upload v1.0.0 first (see Option A above), then configure Trusted Publisher
+- After that, all subsequent versions will work automatically via GitHub Actions
+
 **"Authentication failed" or "Forbidden"**
 - Verify the Trusted Publisher is configured correctly on NuGet.org
-- Check that the repository owner, name, and workflow file match exactly
+- Check that the repository owner, name, and workflow file match exactly (case-sensitive!)
 - Ensure the workflow has `id-token: write` permissions (already configured)
-- For first-time publish, you may need to manually upload v1.0.0, then configure Trusted Publisher for subsequent versions
+- Verify you're using .NET SDK 8.0.400+ (GitHub Actions runners should have this)
 
 **"Tests are failing"**
 - The workflow won't publish if tests fail
