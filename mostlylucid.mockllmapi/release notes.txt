@@ -2,6 +2,23 @@
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.0.6 — 2025-11-02
+- Add response caching and response-schema header; expand samples and tests.
+  - Changed: mostlylucid.mockllmapi/LLMockApiService.cs
+    - Implement service-level response caching via $cache in shape; primes N variants per key and refills in background.
+    - Added optional X-Response-Schema header with shape echo (bounded length) controlled by IncludeShapeInResponse or ?includeSchema=true.
+  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
+    - New options: IncludeShapeInResponse, MaxCachePerKey.
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Non-streaming endpoints now use caching when $cache is provided; add schema header when enabled.
+  - Changed: LLMApi/LLMApi.http
+    - Added sections for shape control, streaming endpoints, and caching examples.
+  - Changed: LLMApi.Tests/LLMockApiServiceTests.cs
+    - Added tests for cache priming/depletion/refill and shape sanitization.
+  - Changed: README.md
+    - Document new features and usage.
+  - Outcome: Faster repeat calls with controlled variability and optional visibility of the generation schema.
+
 v1.0.5 — 2025-11-02
 - Add package icon to NuGet package metadata.
   - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
