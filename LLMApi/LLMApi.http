@@ -1,25 +1,24 @@
 @LLMApi_HostAddress = http://localhost:5116
 
-### GET example — list users with paging
-GET {{LLMApi_HostAddress}}/api/auto/users?limit=10&offset=0
+###############################################################################
+# NON-STREAMING ENDPOINTS (/api/mock/*)
+# Returns complete JSON response immediately
+###############################################################################
+
+### GET example - list users with paging
+GET {{LLMApi_HostAddress}}/api/mock/users?limit=10&offset=0
 Accept: application/json
 
 ###
 
-### GET example — list users with paging
-GET {{LLMApi_HostAddress}}/api/auto/citizens?limit=25&offset=0
+### GET example - get single resource
+GET {{LLMApi_HostAddress}}/api/mock/products/42/details
 Accept: application/json
 
 ###
 
-### GET example — list users with paging
-GET {{LLMApi_HostAddress}}/api/auto/citizens/133/details
-Accept: application/json
-
-###
-
-### POST example — create an order
-POST {{LLMApi_HostAddress}}/api/auto/orders
+### POST example - create an order
+POST {{LLMApi_HostAddress}}/api/mock/orders
 Content-Type: application/json
 Accept: application/json
 
@@ -34,8 +33,8 @@ Accept: application/json
 
 ###
 
-### PUT example — update an order
-PUT {{LLMApi_HostAddress}}/api/auto/orders/123
+### PUT example - update resource
+PUT {{LLMApi_HostAddress}}/api/mock/orders/123
 Content-Type: application/json
 Accept: application/json
 
@@ -46,26 +45,20 @@ Accept: application/json
 
 ###
 
-### DELETE example — delete an order
-POST {{LLMApi_HostAddress}}/api/auto/orders/123
+### DELETE example - delete resource
+DELETE {{LLMApi_HostAddress}}/api/mock/orders/123
 Accept: application/json
 
 ###
 
-### Arbitrary path — echo behavior demo
-POST {{LLMApi_HostAddress}}/api/auto/anything/goes/here?foo=bar
-Content-Type: application/json
-Accept: application/json
+###############################################################################
+# SHAPE CONTROL - Specify exact JSON structure you want returned
+# Three ways: query param, header, or body field
+###############################################################################
 
-{
-  "any": "payload",
-  "nested": { "a": 1 }
-}
-
-###
-
-### Shape example — query parameter (URL-encoded JSON)
-POST {{LLMApi_HostAddress}}/api/auto/orders?shape=%7B%22orderId%22%3A%22string%22%2C%22status%22%3A%22string%22%2C%22items%22%3A%5B%7B%22sku%22%3A%22string%22%2C%22qty%22%3A0%7D%5D%7D
+### Shape via HEADER - cleanest approach
+POST {{LLMApi_HostAddress}}/api/mock/orders
+X-Response-Shape: {"orderId":"string","status":"string","total":0.0,"items":[{"sku":"string","qty":0}]}
 Content-Type: application/json
 Accept: application/json
 
@@ -76,35 +69,67 @@ Accept: application/json
 
 ###
 
-### Shape example — header X-Response-Shape
-POST {{LLMApi_HostAddress}}/api/auto/orders
-X-Response-Shape: {"orderId":"string","realistic_random_address", "status":"string","items":[{"sku":"string",,"qty":0}]}
-Content-Type: application/json
-Accept: application/json
-
-{
-  "customerId": "cus_123",
-  "items": [ { "sku": "ABC-001", "qty": 2 } ]
-}
-
-###
-
-### Shape example — body field `shape`
-POST {{LLMApi_HostAddress}}/api/auto/orders
+### Shape via BODY FIELD - useful when shape is complex
+POST {{LLMApi_HostAddress}}/api/mock/invoices
 Content-Type: application/json
 Accept: application/json
 
 {
   "shape": {
-    "orderId": "string",
-    "delivery_address" : "long random address",
-    "status": "string",
-    "items": [ { "sku": "string", "qty": 0 } ]
+    "invoiceId": "string",
+    "customer": {
+      "id": "string",
+      "name": "string",
+      "email": "string"
+    },
+    "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],
+    "total": 0.0
   },
-  "customerId": "cus_123",
-  "items": [ { "sku": "ABC-001", "qty": 2 } ]
+  "customerId": "cus_555"
 }
 
+###
 
+### Shape via QUERY PARAM - for GET requests (URL-encoded JSON)
+GET {{LLMApi_HostAddress}}/api/mock/users?limit=3&shape=%7B%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%2C%22email%22%3A%22string%22%7D%5D%7D
+Accept: application/json
+
+###
+
+###############################################################################
+# STREAMING ENDPOINTS (/api/mock/stream/*)
+# Returns Server-Sent Events (SSE) with JSON chunks as they're generated
+# Each event: data: {"chunk":"...", "done":false}
+# Final event: data: {"content":"full json", "done":true}
+###############################################################################
+
+### STREAM: Simple GET request
+GET {{LLMApi_HostAddress}}/api/mock/stream/products?category=electronics
+Accept: text/event-stream
+
+###
+
+### STREAM: POST with shape via header
+POST {{LLMApi_HostAddress}}/api/mock/stream/orders
+X-Response-Shape: {"orderId":"string","status":"string","items":[{"sku":"string","qty":0}]}
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "customerId": "cus_789",
+  "items": [ { "sku": "SKU-42", "qty": 3 } ]
+}
+
+###
+
+### STREAM: PUT request
+PUT {{LLMApi_HostAddress}}/api/mock/stream/tasks/T-123
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "status": "completed",
+  "result": "success"
+}
 
 ###

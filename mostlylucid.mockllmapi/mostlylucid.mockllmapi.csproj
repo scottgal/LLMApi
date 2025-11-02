@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>mostlylucid.mockllmapi</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>MostlyLucid</Authors>
+    <Company>MostlyLucid</Company>
+    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Perfect for prototyping, demos, and testing.</Description>
+    <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid</PackageTags>
+    <RepositoryUrl>https://github.com/mostlylucid/mostlylucid.mockllmapi</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
