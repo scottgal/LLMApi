@@ -16,6 +16,7 @@
     <RepositoryUrl>https://github.com/scottgal/LLMApi</RepositoryUrl>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
   </PropertyGroup>
 
