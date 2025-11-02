@@ -2,6 +2,9 @@
 
 A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Add intelligent mock endpoints to any project with just 2 lines of code!
 
+[![NuGet](https://img.shields.io/nuget/v/mostlylucid.llmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
+[![NuGet](https://img.shields.io/nuget/dt/mostlylucid.llmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
+
 ## Features
 
 - **🚀 Super Simple**: `Addmostlylucid.mockllmapi()` + `Mapmostlylucid.mockllmapi("/api/mock")` = instant mock API
