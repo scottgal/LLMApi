@@ -13,7 +13,7 @@
     <Company>mostlyLucid</Company>
     <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
     <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9</PackageTags>
-    <RepositoryUrl>https://github.com/mostlylucid/mostlylucid.mockllmapi</RepositoryUrl>
+    <RepositoryUrl>https://github.com/scottgal/LLMApi</RepositoryUrl>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
