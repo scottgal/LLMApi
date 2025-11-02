@@ -5,6 +5,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A5312C6A-B10D-47AD-AC8F-7799144D2508}"
 	ProjectSection(SolutionItems) = preProject
 		compose.yaml = compose.yaml
+		.github\workflows\build-test.yml = .github\workflows\build-test.yml
+		.github\workflows\publish-nuget.yml = .github\workflows\publish-nuget.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLMApi.Tests", "LLMApi.Tests\LLMApi.Tests.csproj", "{AF03E1ED-B3C1-4E5A-8848-F17472884CD8}"

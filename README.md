@@ -23,7 +23,7 @@ dotnet add package mostlylucid.mockllmapi
 
 ### Prerequisites
 
-1. Install [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (preview)
+1. Install [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 2. Install [Ollama](https://ollama.ai/) and pull a model:
    ```bash
    ollama pull llama3

@@ -170,7 +170,8 @@ To support others:
 
 ## Important Implementation Notes
 
-- **Target framework**: .NET 10.0 (preview) - will need updating when RTM
+- **Target frameworks**: .NET 8.0 and .NET 9.0 (multi-targeted for maximum compatibility)
+- **Demo project**: Runs on .NET 8.0
 - **No version overloading**: Currently only supports single configuration per app
 - **HttpClientFactory**: Required dependency - automatically registered by Addmostlylucid.mockllmapi
 - **Endpoint routing**: Requires `UseRouting()` called before `Mapmostlylucid.mockllmapi()`
