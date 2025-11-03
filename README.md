@@ -128,20 +128,493 @@ curl -X POST http://localhost:5000/api/mock/orders \
 
 LLM generates data matching your exact shape specification.
 
-### Streaming
+### Streaming (SSE - Server-Sent Events)
 
 ```bash
 curl -N http://localhost:5000/api/mock/stream/products?category=electronics \
   -H "Accept: text/event-stream"
 ```
 
-Returns Server-Sent Events as JSON is generated:
+Returns Server-Sent Events as JSON is generated token-by-token:
 ```
 data: {"chunk":"{","done":false}
 data: {"chunk":"\"id\"","done":false}
+data: {"chunk":":","done":false}
+data: {"chunk":"123","done":false}
 ...
-data: {"content":"{full json here}","done":true}
+data: {"content":"{\"id\":123,\"name\":\"Product\"}","done":true,"schema":"{...}"}
 ```
+
+**JavaScript Example:**
+```javascript
+const eventSource = new EventSource('/api/mock/stream/users?limit=5');
+
+eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.done) {
+        console.log('Complete:', data.content);
+        eventSource.close();
+    } else {
+        console.log('Chunk:', data.chunk);
+    }
+};
+```
+
+**With Shape Control:**
+```bash
+curl -N "http://localhost:5000/api/mock/stream/orders?shape=%7B%22id%22%3A0%2C%22items%22%3A%5B%5D%7D"
+```
+
+The streaming endpoint supports all the same features as regular endpoints:
+- Shape control (query param, header, or body)
+- JSON Schema support
+- Custom prompts
+- All HTTP methods (GET, POST, PUT, DELETE, PATCH)
+
+## SignalR Real-Time Data Streaming
+
+LLMock API includes optional SignalR support for continuous, real-time mock data generation. This is perfect for:
+- Dashboard prototypes requiring live updates
+- Testing real-time UI components
+- Demos with constantly changing data
+- WebSocket/SignalR integration testing
+
+### Quick Start with SignalR
+
+**1. Enable SignalR in your application:**
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add core LLMock API services
+builder.Services.AddLLMockApi(builder.Configuration);
+
+// Add SignalR services (optional, separate)
+builder.Services.AddLLMockSignalR(builder.Configuration);
+
+builder.Services.AddRazorPages(); // If using demo page
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map REST API endpoints
+app.MapLLMockApi("/api/mock", includeStreaming: true);
+
+// Map SignalR hub and management endpoints
+app.MapLLMockSignalR("/hub/mock", "/api/mock");
+
+app.Run();
+```
+
+**2. Configure in appsettings.json:**
+
+```json
+{
+  "MockLlmApi": {
+    "BaseUrl": "http://localhost:11434/v1/",
+    "ModelName": "llama3",
+    "Temperature": 1.2,
+
+    "SignalRPushIntervalMs": 5000,
+    "HubContexts": [
+      {
+        "Name": "weather",
+        "Method": "GET",
+        "Path": "/weather/current",
+        "Shape": "{\"temperature\":0,\"condition\":\"string\",\"humidity\":0,\"windSpeed\":0}"
+      },
+      {
+        "Name": "stocks",
+        "Method": "GET",
+        "Path": "/stocks/prices",
+        "Shape": "{\"symbol\":\"string\",\"price\":0.0,\"change\":0.0,\"volume\":0}"
+      }
+    ]
+  }
+}
+```
+
+**3. Connect from client:**
+
+```javascript
+// Using @microsoft/signalr
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hub/mock")
+    .withAutomaticReconnect()
+    .build();
+
+// Subscribe to a context
+connection.on("DataUpdate", (message) => {
+    console.log(`${message.context}:`, message.data);
+    // message.data contains generated JSON matching the shape
+    // message.timestamp is unix timestamp in ms
+});
+
+await connection.start();
+await connection.invoke("SubscribeToContext", "weather");
+```
+
+### Hub Context Configuration
+
+Each hub context simulates a complete API request and generates data continuously:
+
+```json
+{
+  "Name": "orders",              // Context name for SignalR group
+  "Description": "Order data",   // Optional: plain English description
+  "Method": "GET",                // HTTP method to simulate
+  "Path": "/orders/recent",       // Path to simulate
+  "Body": null,                   // Optional request body
+  "Shape": "{...}",              // JSON shape or JSON Schema
+  "IsJsonSchema": false           // Auto-detected if not specified
+}
+```
+
+**Using Plain English Descriptions:**
+
+Instead of manually writing JSON shapes, let the LLM generate them:
+
+```json
+{
+  "Name": "sensors",
+  "Description": "IoT sensor data with device ID, temperature, humidity, battery level, and last reading timestamp",
+  "Method": "GET",
+  "Path": "/sensors/readings"
+}
+```
+
+The LLM will automatically generate an appropriate JSON schema from the description!
+
+### Dynamic Context Creation API
+
+Create and manage SignalR contexts at runtime using the management API:
+
+#### Create Context
+
+```bash
+POST /api/mock/contexts
+Content-Type: application/json
+
+{
+  "name": "crypto",
+  "description": "Cryptocurrency prices with symbol, USD price, 24h change percentage, and market cap"
+}
+```
+
+Response:
+```json
+{
+  "message": "Context 'crypto' registered successfully",
+  "context": {
+    "name": "crypto",
+    "description": "Cryptocurrency prices...",
+    "method": "GET",
+    "path": "/crypto",
+    "shape": "{...generated JSON schema...}",
+    "isJsonSchema": true
+  }
+}
+```
+
+#### List All Contexts
+
+```bash
+GET /api/mock/contexts
+```
+
+Response:
+```json
+{
+  "contexts": [
+    {
+      "name": "weather",
+      "method": "GET",
+      "path": "/weather/current",
+      "shape": "{...}"
+    },
+    {
+      "name": "crypto",
+      "description": "Cryptocurrency prices...",
+      "shape": "{...}"
+    }
+  ],
+  "count": 2
+}
+```
+
+#### Get Specific Context
+
+```bash
+GET /api/mock/contexts/weather
+```
+
+Response:
+```json
+{
+  "name": "weather",
+  "method": "GET",
+  "path": "/weather/current",
+  "shape": "{\"temperature\":0,\"condition\":\"string\"}",
+  "isJsonSchema": false
+}
+```
+
+#### Delete Context
+
+```bash
+DELETE /api/mock/contexts/crypto
+```
+
+Response:
+```json
+{
+  "message": "Context 'crypto' deleted successfully"
+}
+```
+
+### Complete Client Example
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+</head>
+<body>
+    <h1>Live Weather Data</h1>
+    <div id="weather-data"></div>
+
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hub/mock")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("DataUpdate", (message) => {
+            if (message.context === "weather") {
+                const weatherDiv = document.getElementById("weather-data");
+                weatherDiv.innerHTML = `
+                    <h2>Current Weather</h2>
+                    <p>Temperature: ${message.data.temperature}°F</p>
+                    <p>Condition: ${message.data.condition}</p>
+                    <p>Humidity: ${message.data.humidity}%</p>
+                    <p>Updated: ${new Date(message.timestamp).toLocaleTimeString()}</p>
+                `;
+            }
+        });
+
+        connection.start()
+            .then(() => {
+                console.log("Connected to SignalR hub");
+                return connection.invoke("SubscribeToContext", "weather");
+            })
+            .then(() => {
+                console.log("Subscribed to weather context");
+            })
+            .catch(err => console.error(err));
+    </script>
+</body>
+</html>
+```
+
+### Dynamic Context Creation from UI
+
+```javascript
+async function createDynamicContext() {
+    // Create the context
+    const response = await fetch("/api/mock/contexts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            name: "stocks",
+            description: "Stock market data with ticker symbol, current price, daily change percentage, and trading volume"
+        })
+    });
+
+    const result = await response.json();
+    console.log("Context created:", result.context);
+
+    // Subscribe to receive data
+    await connection.invoke("SubscribeToContext", "stocks");
+    console.log("Now receiving live stock data!");
+}
+```
+
+### SignalR Hub Methods
+
+The `MockLlmHub` supports the following methods:
+
+**SubscribeToContext(string context)**
+- Subscribes the client to receive data updates for a specific context
+- Client will receive `DataUpdate` events with generated data
+
+**UnsubscribeFromContext(string context)**
+- Unsubscribes the client from a context
+- Client will no longer receive updates for that context
+
+**Events received by client:**
+
+**DataUpdate** - Contains generated mock data
+```javascript
+{
+    context: "weather",       // Context name
+    method: "GET",            // Simulated HTTP method
+    path: "/weather/current", // Simulated path
+    timestamp: 1699564820000, // Unix timestamp (ms)
+    data: {                   // Generated JSON matching the shape
+        temperature: 72,
+        condition: "Sunny",
+        humidity: 45,
+        windSpeed: 8
+    }
+}
+```
+
+**Subscribed** - Confirmation of subscription
+```javascript
+{
+    context: "weather",
+    message: "Subscribed to weather"
+}
+```
+
+**Unsubscribed** - Confirmation of unsubscription
+```javascript
+{
+    context: "weather",
+    message: "Unsubscribed from weather"
+}
+```
+
+### Configuration Options
+
+```json
+{
+  "MockLlmApi": {
+    "SignalRPushIntervalMs": 5000,  // Interval between data pushes (ms)
+    "HubContexts": [...]             // Array of pre-configured contexts
+  }
+}
+```
+
+### JSON Schema Support
+
+Hub contexts support both simple JSON shapes and full JSON Schema:
+
+**Simple Shape:**
+```json
+{
+  "Name": "users",
+  "Shape": "{\"id\":0,\"name\":\"string\",\"email\":\"string\"}"
+}
+```
+
+**JSON Schema:**
+```json
+{
+  "Name": "products",
+  "Shape": "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"number\"},\"name\":{\"type\":\"string\"},\"price\":{\"type\":\"number\"}},\"required\":[\"id\",\"name\",\"price\"]}",
+  "IsJsonSchema": true
+}
+```
+
+The system auto-detects JSON Schema by looking for `$schema`, `type`, or `properties` fields.
+
+### Architecture
+
+```mermaid
+graph TD
+    Client[SignalR Client] -->|Subscribe| Hub[MockLlmHub]
+    Hub -->|Join Group| Group[SignalR Group]
+    BG[Background Service] -->|Generate Data| LLM[Ollama LLM]
+    LLM -->|JSON Response| BG
+    BG -->|Push Data| Group
+    Group -->|DataUpdate Event| Client
+    API[Management API] -->|CRUD| Manager[DynamicHubContextManager]
+    Manager -->|Register/Unregister| BG
+```
+
+**Components:**
+- **MockLlmHub**: SignalR hub handling client connections and subscriptions
+- **MockDataBackgroundService**: Hosted service continuously generating data
+- **DynamicHubContextManager**: Thread-safe manager for runtime context registration
+- **HubContextConfig**: Configuration model for each data context
+
+### Use Cases
+
+**1. Dashboard Prototyping**
+```javascript
+// Subscribe to multiple data sources
+await connection.invoke("SubscribeToContext", "sales");
+await connection.invoke("SubscribeToContext", "traffic");
+await connection.invoke("SubscribeToContext", "alerts");
+// Now receiving live updates for all three!
+```
+
+**2. IoT Simulation**
+```json
+{
+  "Name": "sensors",
+  "Description": "IoT temperature sensors with device ID, current temperature, battery percentage, and signal strength",
+  "Path": "/iot/sensors"
+}
+```
+
+**3. Financial Data**
+```json
+{
+  "Name": "trading",
+  "Description": "Real-time stock trades with timestamp, symbol, price, volume, and buyer/seller IDs",
+  "Path": "/trading/live"
+}
+```
+
+**4. Gaming Leaderboard**
+```json
+{
+  "Name": "leaderboard",
+  "Description": "Gaming leaderboard with player name, score, rank, level, and country",
+  "Path": "/game/leaderboard"
+}
+```
+
+### Demo Applications
+
+The package includes two complete demo applications with interactive web interfaces:
+
+#### SignalR Demo (`/`)
+Real-time bidirectional communication with continuous data streaming:
+1. Enter a context name and plain English description
+2. System creates the context and generates appropriate JSON schema
+3. Automatically subscribes to the new context
+4. Displays live data updates in real-time (default: every 5 seconds)
+
+**Perfect for:** Dashboards, live monitoring, IoT simulations, real-time feeds
+
+#### SSE Streaming Demo (`/Streaming`)
+Server-Sent Events with progressive JSON generation:
+1. Configure HTTP method, path, and optional JSON shape
+2. Click "Start Streaming" to open EventSource connection
+3. Watch JSON being generated token-by-token in real-time
+4. Receive complete JSON when streaming finishes
+
+**Perfect for:** Observing LLM generation, debugging shapes, understanding streaming behavior
+
+**Run the demos:**
+```bash
+cd LLMApi
+dotnet run
+```
+
+Navigate to:
+- `http://localhost:5000` - SignalR real-time data streaming
+- `http://localhost:5000/Streaming` - SSE progressive generation
+
+Both demos include comprehensive documentation, examples, and code snippets!
 
 ## Advanced Features
 

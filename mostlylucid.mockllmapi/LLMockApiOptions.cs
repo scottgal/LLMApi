@@ -58,4 +58,40 @@ public class LLMockApiOptions
     /// Can be capped lower by the $cache value in shape; defaults to 5.
     /// </summary>
     public int MaxCachePerKey { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum delay in milliseconds between streaming chunks (default: 0 = no delay)
+    /// </summary>
+    public int StreamingChunkDelayMinMs { get; set; } = 0;
+
+    /// <summary>
+    /// Maximum delay in milliseconds between streaming chunks (default: 0 = no delay)
+    /// If set with Min, a random delay between Min and Max will be used
+    /// </summary>
+    public int StreamingChunkDelayMaxMs { get; set; } = 0;
+
+    /// <summary>
+    /// Minimum random delay in milliseconds before responding to any request (default: 0 = no delay)
+    /// </summary>
+    public int RandomRequestDelayMinMs { get; set; } = 0;
+
+    /// <summary>
+    /// Maximum random delay in milliseconds before responding to any request (default: 0 = no delay)
+    /// If set with Min, a random delay between Min and Max will be used
+    /// </summary>
+    public int RandomRequestDelayMaxMs { get; set; } = 0;
+
+    /// <summary>
+    /// Hub context configurations for SignalR (only used when AddLLMockSignalR is called)
+    /// Each context simulates an API request and generates data continuously
+    /// </summary>
+    public List<Models.HubContextConfig> HubContexts { get; set; } = new()
+    {
+        new Models.HubContextConfig { Name = "default", Method = "GET", Path = "/data" }
+    };
+
+    /// <summary>
+    /// Interval in milliseconds between background data generation pushes (default: 5000 = 5 seconds)
+    /// </summary>
+    public int SignalRPushIntervalMs { get; set; } = 5000;
 }

@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -6,27 +5,29 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using mostlylucid.mockllmapi.RequestHandlers;
+using mostlylucid.mockllmapi.Services;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
 /// Extension methods for adding LLMock API to ASP.NET Core applications
 /// </summary>
-public static class LLMockApiExtensions
+public static class LlMockApiExtensions
 {
-    /// <summary>
+    /// <summary>hich sends out objects as they arrive. 
     /// Adds LLMock API services to the service collection
     /// </summary>
     /// <param name="services">The service collection</param>
-    /// <param name="configuration">Configuration containing LLMockApi section</param>
+    /// <param name="configuration">Configuration containing MockLlmApi section</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddLLMockApi(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
-        services.AddHttpClient("LLMockApi");
-        services.AddScoped<LLMockApiService>();
+        RegisterServices(services);
         return services;
     }
 
@@ -41,9 +42,65 @@ public static class LLMockApiExtensions
         Action<LLMockApiOptions> configure)
     {
         services.Configure(configure);
-        services.AddHttpClient("LLMockApi");
-        services.AddScoped<LLMockApiService>();
+        RegisterServices(services);
         return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock SignalR services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">Configuration containing MockLlmApi section</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddLLMockSignalR(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        RegisterSignalRServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock SignalR services to the service collection with inline configuration
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configure">Action to configure options</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddLLMockSignalR(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        services.Configure(configure);
+        RegisterSignalRServices(services);
+        return services;
+    }
+
+    private static void RegisterServices(IServiceCollection services)
+    {
+        services.AddHttpClient("LLMockApi");
+
+        // Register all services
+        services.AddScoped<ShapeExtractor>();
+        services.AddScoped<PromptBuilder>();
+        services.AddScoped<LlmClient>();
+        services.AddSingleton<CacheManager>();
+        services.AddScoped<DelayHelper>();
+
+        // Register request handlers
+        services.AddScoped<RegularRequestHandler>();
+        services.AddScoped<StreamingRequestHandler>();
+
+        // Register main facade
+        services.AddScoped<LLMockApiService>();
+    }
+
+    private static void RegisterSignalRServices(IServiceCollection services)
+    {
+        // Register SignalR components
+        services.AddSignalR();
+        services.AddSingleton<DynamicHubContextManager>();
+        services.AddHostedService<MockDataBackgroundService>();
     }
 
     /// <summary>
@@ -68,32 +125,8 @@ public static class LLMockApiExtensions
 
         // Non-streaming endpoint
         routeBuilder.MapMethods(autoPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
-            async (HttpContext ctx, string path, LLMockApiService service, ILogger<LLMockApiService> logger) =>
-            {
-                try
-                {
-                    var method = ctx.Request.Method;
-                    var query = ctx.Request.QueryString.Value;
-                    var body = await service.ReadBodyAsync(ctx.Request);
-                    var shape = service.ExtractShapeAndCacheCount(ctx.Request, body, out var cacheCount);
-
-                    // Use service-level caching if requested via $cache inside shape
-                    var content = await service.GetResponseWithCachingAsync(method, $"{pattern}/{path}{query}", body, shape, cacheCount);
-
-                    // Optionally include schema in header
-                    service.TryAddSchemaHeader(ctx, shape);
-
-                    ctx.Response.ContentType = "application/json";
-                    await ctx.Response.WriteAsync(content);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error processing LLMock API request");
-                    ctx.Response.StatusCode = 500;
-                    ctx.Response.ContentType = "application/json";
-                    await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = ex.Message }));
-                }
-            });
+            HandleRegularRequest)
+            .WithName("LLMockApi-Regular");
 
         // Streaming endpoint
         if (includeStreaming)
@@ -101,129 +134,240 @@ public static class LLMockApiExtensions
             var streamPattern = $"{pattern.TrimEnd('/')}/stream/{{**path}}";
 
             routeBuilder.MapMethods(streamPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
-                async (HttpContext ctx, string path, LLMockApiService service, ILogger<LLMockApiService> logger) =>
-                {
-                    try
-                    {
-                        var method = ctx.Request.Method;
-                        var query = ctx.Request.QueryString.Value;
-                        var body = await service.ReadBodyAsync(ctx.Request);
-                        var shape = service.ExtractShape(ctx.Request, body);
-                        var prompt = service.BuildPrompt(method, $"{pattern}/stream/{path}{query}", body, shape, streaming: true);
-
-                        ctx.Response.StatusCode = 200;
-                        ctx.Response.Headers.CacheControl = "no-cache";
-                        ctx.Response.Headers.Connection = "keep-alive";
-                        ctx.Response.ContentType = "text/event-stream";
-
-                        // Optionally include schema in header before any writes
-                        service.TryAddSchemaHeader(ctx, shape);
-
-                        using var client = service.CreateHttpClient();
-                        var req = service.BuildChatRequest(prompt, stream: true);
-                        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-                        {
-                            Content = JsonContent.Create(req)
-                        };
-                        using var httpRes = await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ctx.RequestAborted);
-                        httpRes.EnsureSuccessStatusCode();
-
-                        await using var stream = await httpRes.Content.ReadAsStreamAsync(ctx.RequestAborted);
-                        using var reader = new StreamReader(stream);
-
-                        var accumulated = new System.Text.StringBuilder();
-
-                        while (!ctx.RequestAborted.IsCancellationRequested)
-                        {
-                            var line = await reader.ReadLineAsync();
-                            if (line == null) break;
-                            if (string.IsNullOrWhiteSpace(line)) continue;
-
-                            if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var payload = line.Substring(5).Trim();
-                                if (payload == "[DONE]")
-                                {
-                                    var finalJson = accumulated.ToString();
-                                    // Include schema in final event payload if enabled
-                                    object finalPayload;
-                                    if (service.ShouldIncludeSchema(ctx.Request) && !string.IsNullOrWhiteSpace(shape))
-                                    {
-                                        finalPayload = new { content = finalJson, done = true, schema = shape };
-                                    }
-                                    else
-                                    {
-                                        finalPayload = new { content = finalJson, done = true };
-                                    }
-                                    await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalPayload)}\n\n");
-                                    await ctx.Response.Body.FlushAsync();
-                                    break;
-                                }
-
-                                try
-                                {
-                                    using var doc = JsonDocument.Parse(payload);
-                                    var root = doc.RootElement;
-
-                                    if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
-                                    {
-                                        var choice = choices[0];
-                                        string? chunk = null;
-
-                                        if (choice.TryGetProperty("delta", out var delta) &&
-                                            delta.TryGetProperty("content", out var deltaContent))
-                                        {
-                                            chunk = deltaContent.GetString();
-                                        }
-                                        else if (choice.TryGetProperty("message", out var msg) &&
-                                                 msg.TryGetProperty("content", out var msgContent))
-                                        {
-                                            chunk = msgContent.GetString();
-                                        }
-
-                                        if (!string.IsNullOrEmpty(chunk))
-                                        {
-                                            accumulated.Append(chunk);
-                                            await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { chunk, done = false })}\n\n");
-                                            await ctx.Response.Body.FlushAsync();
-                                        }
-                                    }
-                                }
-                                catch
-                                {
-                                    // Skip malformed chunks
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Error processing LLMock API streaming request");
-                        await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { error = ex.Message })}\n\n");
-                        await ctx.Response.Body.FlushAsync();
-                    }
-                });
+                HandleStreamingRequest)
+                .WithName("LLMockApi-Streaming");
         }
 
         return app;
     }
-}
 
-internal struct ChatCompletionLite
-{
-    public ChoiceLite[] Choices { get; set; }
+    /// <summary>
+    /// Maps LLMock SignalR hub and management endpoints to the application
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="hubPattern">SignalR hub pattern (default: "/hub/mock")</param>
+    /// <param name="managementPattern">Management API pattern (default: "/api/mock")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockSignalR(
+        this IApplicationBuilder app,
+        string hubPattern = "/hub/mock",
+        string managementPattern = "/api/mock")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockSignalR requires endpoint routing. Call UseRouting() before MapLLMockSignalR().");
+        }
 
-    public string? FirstContent => Choices != null && Choices.Length > 0
-        ? Choices[0].Message.Content
-        : null;
-}
+        // Map SignalR hub
+        routeBuilder.MapHub<Hubs.MockLlmHub>(hubPattern);
 
-internal struct ChoiceLite
-{
-    public MessageLite Message { get; set; }
-}
+        // Add dynamic context management endpoints
+        var contextPattern = $"{managementPattern.TrimEnd('/')}/contexts";
 
-internal struct MessageLite
-{
-    public string Content { get; set; }
+        routeBuilder.MapPost(contextPattern, HandleCreateDynamicContext)
+            .WithName("LLMockApi-CreateContext");
+
+        routeBuilder.MapGet(contextPattern, HandleListContexts)
+            .WithName("LLMockApi-ListContexts");
+
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}", HandleGetContext)
+            .WithName("LLMockApi-GetContext");
+
+        routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", HandleDeleteContext)
+            .WithName("LLMockApi-DeleteContext");
+
+        return app;
+    }
+
+    private static async Task HandleRegularRequest(
+        HttpContext ctx,
+        string path,
+        LLMockApiService service,
+        ILogger<LLMockApiService> logger)
+    {
+        try
+        {
+            var method = ctx.Request.Method;
+            var query = ctx.Request.QueryString.Value;
+            var body = await service.ReadBodyAsync(ctx.Request);
+
+            // Extract pattern from route
+            var pattern = GetPatternFromPath(ctx.Request.Path, path);
+
+            var content = await service.HandleRequestAsync(
+                method,
+                $"{pattern}/{path}{query}",
+                body,
+                ctx.Request,
+                ctx,
+                ctx.RequestAborted);
+
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing LLMock API request");
+            ctx.Response.StatusCode = 500;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = ex.Message }));
+        }
+    }
+
+    private static async Task HandleStreamingRequest(
+        HttpContext ctx,
+        string path,
+        LLMockApiService service,
+        ILogger<LLMockApiService> logger)
+    {
+        try
+        {
+            var method = ctx.Request.Method;
+            var query = ctx.Request.QueryString.Value;
+            var body = await service.ReadBodyAsync(ctx.Request);
+
+            // Extract pattern from route
+            var pattern = GetPatternFromPath(ctx.Request.Path, path, isStreaming: true);
+
+            await service.HandleStreamingRequestAsync(
+                method,
+                $"{pattern}/stream/{path}{query}",
+                body,
+                ctx.Request,
+                ctx,
+                ctx.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing LLMock API streaming request");
+            await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { error = ex.Message })}\n\n");
+            await ctx.Response.Body.FlushAsync();
+        }
+    }
+
+    private static string GetPatternFromPath(string fullPath, string capturedPath, bool isStreaming = false)
+    {
+        var pathStr = fullPath.ToString();
+        var suffix = isStreaming ? $"/stream/{capturedPath}" : $"/{capturedPath}";
+        if (pathStr.EndsWith(suffix))
+        {
+            return pathStr.Substring(0, pathStr.Length - suffix.Length);
+        }
+        return pathStr;
+    }
+
+    private static async Task<IResult> HandleCreateDynamicContext(
+        HttpContext ctx,
+        DynamicHubContextManager contextManager,
+        LlmClient llmClient,
+        ILogger<DynamicHubContextManager> logger)
+    {
+        try
+        {
+            using var reader = new StreamReader(ctx.Request.Body);
+            var json = await reader.ReadToEndAsync();
+            var config = JsonSerializer.Deserialize<Models.HubContextConfig>(json);
+
+            if (config == null || string.IsNullOrWhiteSpace(config.Name))
+            {
+                return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
+            }
+
+            // If description is provided but no shape, use LLM to generate shape
+            if (!string.IsNullOrWhiteSpace(config.Description) && string.IsNullOrWhiteSpace(config.Shape))
+            {
+                var shapePrompt = $@"Based on this description, generate a JSON schema that defines the data structure.
+Description: {config.Description}
+
+Return ONLY valid JSON schema with no additional text. Include:
+- type, properties, required fields
+- Appropriate data types (string, number, boolean, object, array)
+- Clear descriptions for each property
+
+Example format:
+{{
+  ""type"": ""object"",
+  ""properties"": {{
+    ""fieldName"": {{
+      ""type"": ""string"",
+      ""description"": ""Description of field""
+    }}
+  }},
+  ""required"": [""fieldName""]
+}}";
+
+                try
+                {
+                    var shape = await llmClient.GetCompletionAsync(shapePrompt, ctx.RequestAborted);
+                    config.Shape = shape;
+                    config.IsJsonSchema = true;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to generate shape from description, using description as-is");
+                    config.Shape = config.Description;
+                }
+            }
+
+            var success = contextManager.RegisterContext(config);
+
+            if (success)
+            {
+                return Results.Ok(new
+                {
+                    message = $"Context '{config.Name}' registered successfully",
+                    context = config
+                });
+            }
+            else
+            {
+                return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating dynamic context");
+            return Results.Problem(ex.Message);
+        }
+    }
+
+    private static IResult HandleListContexts(
+        DynamicHubContextManager contextManager)
+    {
+        var contexts = contextManager.GetAllContexts();
+        return Results.Ok(new { contexts, count = contexts.Count });
+    }
+
+    private static IResult HandleGetContext(
+        string contextName,
+        DynamicHubContextManager contextManager)
+    {
+        var context = contextManager.GetContext(contextName);
+
+        if (context != null)
+        {
+            return Results.Ok(context);
+        }
+        else
+        {
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+        }
+    }
+
+    private static IResult HandleDeleteContext(
+        string contextName,
+        DynamicHubContextManager contextManager)
+    {
+        var success = contextManager.UnregisterContext(contextName);
+
+        if (success)
+        {
+            return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
+        }
+        else
+        {
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+        }
+    }
 }
