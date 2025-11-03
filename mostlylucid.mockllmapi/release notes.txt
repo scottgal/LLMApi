@@ -2,6 +2,95 @@
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.1.0 — 2025-11-03
+- Major SignalR enhancements: Full context lifecycle management, interactive demo UI improvements, enhanced data display, and simplified configuration.
+  - Added: SignalR Context Lifecycle Management
+    - New endpoints: POST /api/mock/contexts/{name}/start and /stop for runtime control
+    - Contexts can now be started/stopped dynamically without deletion
+    - Active/inactive status tracking with visual indicators in UI
+  - Added: Connection Tracking
+    - Real-time connection count per context
+    - Automatic increment/decrement on subscribe/unsubscribe
+    - Displayed in context management panel
+  - Added: Interactive Management UI (Index.cshtml - SignalR Demo)
+    - New 3-column layout with "Active Contexts" panel
+    - Live context list with status badges (Active/Stopped)
+    - Per-context controls: Connect, Disconnect, Start, Stop, Delete
+    - Auto-refresh on context creation/modification
+    - Quick-start example buttons for 5 pre-configured scenarios:
+      * IoT Sensors
+      * Stock Market
+      * E-commerce Orders
+      * Server Metrics
+      * Gaming Leaderboard
+  - Added: JSON Syntax Highlighting
+    - Dark-themed code display with color-coded JSON elements
+    - Keys (red), strings (green), numbers (orange), booleans (cyan), null (purple)
+    - No external dependencies - lightweight built-in highlighter
+    - Clean, readable display of streaming data
+  - Added: Automatic appsettings Context Registration
+    - Contexts configured in appsettings.json now automatically appear in Active Contexts panel
+    - Seamless integration between static configuration and dynamic management
+    - Full lifecycle control (start/stop/delete) for all context types
+  - Added: Simplified SignalR Configuration
+    - Context creation now requires only Name and Description (HTTP Method/Path no longer exposed to users)
+    - Method/Path/Body fields are now internal - used only for LLM prompt context
+    - Clearer separation: SignalR uses WebSockets, not HTTP
+    - More intuitive configuration focused on what data to generate, not how
+  - Added: SSE Demo Quick-Start Buttons (Streaming.cshtml)
+    - 4 one-click streaming examples:
+      * User List
+      * Product Catalog
+      * Order Details
+      * Weather Data
+    - Auto-populate form and start streaming
+  - Added: Smart Adaptive Response Caching for SignalR Contexts
+    - Instant first messages: Cache pre-filled on startup for all active contexts
+    - Adaptive batch sizing: Measures first response generation time, calculates optimal batch size (pushInterval / generationTime)
+    - Per-context cache queues to store pre-generated responses
+    - Background refilling: Auto-refills when cache drops below 50%
+    - Intelligent batching: Generates exactly enough responses to fill the time until next push
+    - Significantly reduces LLM load and improves response consistency
+    - Example: If generation takes 500ms and push interval is 5000ms, system automatically batches 10 responses
+  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
+    - Added IsActive property (default: true) for start/stop functionality
+    - Added ConnectionCount property for tracking connected clients
+  - Changed: mostlylucid.mockllmapi/Services/DynamicHubContextManager.cs
+    - New methods: StartContext, StopContext, IncrementConnectionCount, DecrementConnectionCount
+    - Thread-safe connection tracking
+  - Changed: mostlylucid.mockllmapi/Hubs/MockLlmHub.cs
+    - Integration with DynamicHubContextManager for connection tracking
+    - Subscribe/Unsubscribe now update connection counts
+  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
+    - Only generates data for active contexts
+    - Registers appsettings contexts with DynamicHubContextManager on startup
+    - Unified context processing (static and dynamic contexts treated equally)
+    - Smart adaptive batching: Measures generation time, calculates optimal batch size per context
+    - Pre-fills all active context caches on startup for instant first messages
+    - Per-context cache queues with intelligent prefilling and refilling
+    - Added comprehensive logging for context processing and batch sizing
+    - Shows configured contexts and calculated batch sizes on startup
+  - Changed: LLMApi/Pages/Index.cshtml
+    - Fixed Unix timestamp (milliseconds) handling for proper time display
+    - Display shows only JSON data (extracts message.data field)
+    - Added syntaxHighlight() function for color-coded JSON
+    - Improved error handling for missing/invalid message fields
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Fixed duplicate context registration bug (was binding config twice)
+    - AddLLMockSignalR no longer re-configures options
+    - Support for both JSON and form-encoded context creation
+    - New management endpoints for start/stop operations
+  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
+    - Removed default "default" context to prevent duplication issues
+  - Outcome:
+    - Complete lifecycle management of SignalR contexts
+    - Better visibility into active connections and data generation
+    - Improved developer experience with interactive UI and beautiful data display
+    - Faster prototyping with quick-start examples
+    - More reliable context management with proper state tracking
+    - Reduced LLM load with intelligent caching
+    - Seamless integration of static and dynamic contexts
+
 v1.0.6 — 2025-11-02
 - Add response caching and response-schema header; expand samples and tests.
   - Changed: mostlylucid.mockllmapi/LLMockApiService.cs

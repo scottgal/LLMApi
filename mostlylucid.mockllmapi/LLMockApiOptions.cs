@@ -85,10 +85,7 @@ public class LLMockApiOptions
     /// Hub context configurations for SignalR (only used when AddLLMockSignalR is called)
     /// Each context simulates an API request and generates data continuously
     /// </summary>
-    public List<Models.HubContextConfig> HubContexts { get; set; } = new()
-    {
-        new Models.HubContextConfig { Name = "default", Method = "GET", Path = "/data" }
-    };
+    public List<Models.HubContextConfig> HubContexts { get; set; } = new();
 
     /// <summary>
     /// Interval in milliseconds between background data generation pushes (default: 5000 = 5 seconds)

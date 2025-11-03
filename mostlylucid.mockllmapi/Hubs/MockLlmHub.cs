@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi.Services;
 
 namespace mostlylucid.mockllmapi.Hubs;
 
@@ -10,10 +11,12 @@ namespace mostlylucid.mockllmapi.Hubs;
 public class MockLlmHub : Hub
 {
     private readonly ILogger<MockLlmHub> _logger;
+    private readonly DynamicHubContextManager _contextManager;
 
-    public MockLlmHub(ILogger<MockLlmHub> logger)
+    public MockLlmHub(ILogger<MockLlmHub> logger, DynamicHubContextManager contextManager)
     {
         _logger = logger;
+        _contextManager = contextManager;
     }
 
     /// <summary>
@@ -21,11 +24,21 @@ public class MockLlmHub : Hub
     /// </summary>
     public async Task SubscribeToContext(string context)
     {
+        _logger.LogInformation("SubscribeToContext called: ConnectionId={ConnectionId}, Context={Context}", Context.ConnectionId, context);
+
         await Groups.AddToGroupAsync(Context.ConnectionId, context);
-        _logger.LogInformation("Client {ConnectionId} subscribed to context: {Context}", Context.ConnectionId, context);
+        _logger.LogInformation("Added to SignalR group: {Context}", context);
+
+        _contextManager.IncrementConnectionCount(context);
+        _logger.LogInformation("Incremented connection count for context: {Context}", context);
+
+        var contextInfo = _contextManager.GetContext(context);
+        _logger.LogInformation("Context info after increment: Name={Name}, ConnectionCount={Count}, IsActive={Active}",
+            contextInfo?.Name, contextInfo?.ConnectionCount, contextInfo?.IsActive);
 
         // Send immediate confirmation
         await Clients.Caller.SendAsync("Subscribed", new { context, message = $"Subscribed to {context}" });
+        _logger.LogInformation("Sent Subscribed confirmation to client for context: {Context}", context);
     }
 
     /// <summary>
@@ -34,6 +47,7 @@ public class MockLlmHub : Hub
     public async Task UnsubscribeFromContext(string context)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, context);
+        _contextManager.DecrementConnectionCount(context);
         _logger.LogInformation("Client {ConnectionId} unsubscribed from context: {Context}", Context.ConnectionId, context);
 
         await Clients.Caller.SendAsync("Unsubscribed", new { context, message = $"Unsubscribed from {context}" });

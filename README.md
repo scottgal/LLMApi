@@ -7,14 +7,29 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ## Features
 
-- **🚀 Super Simple**: `Addmostlylucid.mockllmapi()` + `Mapmostlylucid.mockllmapi("/api/mock")` = instant mock API
-- **⚙️ Configurable**: appsettings.json or inline configuration
-- **🎨 Shape Control**: Specify exact JSON structure via header, query param, or request body
-- **📡 Real-time Streaming**: Server-Sent Events (SSE) support with progressive JSON generation
-- **🎲 Highly Variable Data**: Each request generates completely different realistic data
-- **🔧 All HTTP Methods**: Supports GET, POST, PUT, DELETE, PATCH
-- **🌐 Wildcard Routing**: Any path under your chosen endpoint works
-- **📦 NuGet Package**: Easy to add to existing projects
+This package provides **three independent features** - use any combination you need:
+
+### 1. REST API Mocking
+- **Super Simple**: `AddLLMockApi()` + `MapLLMockApi("/api/mock")` = instant mock API
+- **Shape Control**: Specify exact JSON structure via header, query param, or request body
+- **All HTTP Methods**: Supports GET, POST, PUT, DELETE, PATCH
+- **Wildcard Routing**: Any path under your chosen endpoint works
+
+### 2. Server-Sent Events (SSE) Streaming
+- **Progressive Streaming**: SSE support with progressive JSON generation
+- **Real-time Updates**: Stream data token-by-token to clients
+- **Works standalone**: No REST API setup required
+
+### 3. SignalR Real-Time Streaming
+- **WebSocket Streaming**: Continuous real-time mock data via SignalR
+- **Multiple Contexts**: Run multiple independent data streams simultaneously
+- **Lifecycle Management**: Start/stop contexts dynamically with management API
+- **Works standalone**: No REST API setup required
+
+### Common Features
+- **Configurable**: appsettings.json or inline configuration
+- **Highly Variable Data**: Each request/update generates completely different realistic data
+- **NuGet Package**: Easy to add to existing projects
 
 ## Quick Start
 
@@ -130,6 +145,15 @@ LLM generates data matching your exact shape specification.
 
 ### Streaming (SSE - Server-Sent Events)
 
+**SSE streaming is part of the REST API - just enable it when mapping endpoints:**
+
+```csharp
+// SSE streaming is automatically available at /api/mock/stream/**
+app.MapLLMockApi("/api/mock", includeStreaming: true);
+```
+
+**Usage:**
+
 ```bash
 curl -N http://localhost:5000/api/mock/stream/products?category=electronics \
   -H "Accept: text/event-stream"
@@ -182,32 +206,38 @@ LLMock API includes optional SignalR support for continuous, real-time mock data
 
 ### Quick Start with SignalR
 
-**1. Enable SignalR in your application:**
+**SignalR works independently - you don't need the REST API endpoints to use SignalR streaming.**
+
+**1. Minimal SignalR-only setup:**
 
 ```csharp
 using mostlylucid.mockllmapi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add core LLMock API services
-builder.Services.AddLLMockApi(builder.Configuration);
-
-// Add SignalR services (optional, separate)
+// Add SignalR services (no REST API needed!)
 builder.Services.AddLLMockSignalR(builder.Configuration);
-
-builder.Services.AddRazorPages(); // If using demo page
 
 var app = builder.Build();
 
 app.UseRouting();
 
-// Map REST API endpoints
-app.MapLLMockApi("/api/mock", includeStreaming: true);
-
 // Map SignalR hub and management endpoints
 app.MapLLMockSignalR("/hub/mock", "/api/mock");
 
 app.Run();
+```
+
+**Optional: Add REST API too**
+
+If you also want the REST API endpoints, add these lines:
+
+```csharp
+// Add core LLMock API services (optional)
+builder.Services.AddLLMockApi(builder.Configuration);
+
+// Map REST API endpoints (optional)
+app.MapLLMockApi("/api/mock", includeStreaming: true);
 ```
 
 **2. Configure in appsettings.json:**
@@ -223,15 +253,11 @@ app.Run();
     "HubContexts": [
       {
         "Name": "weather",
-        "Method": "GET",
-        "Path": "/weather/current",
-        "Shape": "{\"temperature\":0,\"condition\":\"string\",\"humidity\":0,\"windSpeed\":0}"
+        "Description": "Weather data with temperature, condition, humidity, and wind speed"
       },
       {
         "Name": "stocks",
-        "Method": "GET",
-        "Path": "/stocks/prices",
-        "Shape": "{\"symbol\":\"string\",\"price\":0.0,\"change\":0.0,\"volume\":0}"
+        "Description": "Stock market data with symbol, current price, change percentage, and trading volume"
       }
     ]
   }
@@ -264,30 +290,27 @@ Each hub context simulates a complete API request and generates data continuousl
 
 ```json
 {
-  "Name": "orders",              // Context name for SignalR group
-  "Description": "Order data",   // Optional: plain English description
-  "Method": "GET",                // HTTP method to simulate
-  "Path": "/orders/recent",       // Path to simulate
-  "Body": null,                   // Optional request body
-  "Shape": "{...}",              // JSON shape or JSON Schema
-  "IsJsonSchema": false           // Auto-detected if not specified
+  "Name": "orders",                 // Context name (SignalR group identifier)
+  "Description": "Order data..."    // Plain English description (LLM generates JSON from this)
+  // Optional:
+  // "IsActive": true,              // Start in active/stopped state (default: true)
+  // "Shape": "{...}",              // Explicit JSON shape or JSON Schema
+  // "IsJsonSchema": false           // Auto-detected if not specified
 }
 ```
 
-**Using Plain English Descriptions:**
+**Recommended: Use Plain English Descriptions**
 
-Instead of manually writing JSON shapes, let the LLM generate them:
+Let the LLM automatically generate appropriate JSON structures:
 
 ```json
 {
   "Name": "sensors",
-  "Description": "IoT sensor data with device ID, temperature, humidity, battery level, and last reading timestamp",
-  "Method": "GET",
-  "Path": "/sensors/readings"
+  "Description": "IoT sensor data with device ID, temperature, humidity, battery level, and last reading timestamp"
 }
 ```
 
-The LLM will automatically generate an appropriate JSON schema from the description!
+The LLM automatically generates an appropriate JSON schema from your description - no manual Shape required!
 
 ### Dynamic Context Creation API
 
@@ -376,6 +399,36 @@ Response:
 }
 ```
 
+#### Start Context (Resume Data Generation)
+
+```bash
+POST /api/mock/contexts/crypto/start
+```
+
+Response:
+```json
+{
+  "message": "Context 'crypto' started successfully"
+}
+```
+
+Starts generating data for a stopped context without affecting connected clients.
+
+#### Stop Context (Pause Data Generation)
+
+```bash
+POST /api/mock/contexts/crypto/stop
+```
+
+Response:
+```json
+{
+  "message": "Context 'crypto' stopped successfully"
+}
+```
+
+Stops generating new data but keeps the context registered. Clients remain connected but receive no updates until started again.
+
 ### Complete Client Example
 
 ```html
@@ -451,10 +504,12 @@ The `MockLlmHub` supports the following methods:
 **SubscribeToContext(string context)**
 - Subscribes the client to receive data updates for a specific context
 - Client will receive `DataUpdate` events with generated data
+- **New in v1.1.0:** Automatically increments the context's connection count
 
 **UnsubscribeFromContext(string context)**
 - Unsubscribes the client from a context
 - Client will no longer receive updates for that context
+- **New in v1.1.0:** Automatically decrements the context's connection count
 
 **Events received by client:**
 
@@ -582,27 +637,99 @@ await connection.invoke("SubscribeToContext", "alerts");
 }
 ```
 
+### Context Lifecycle Management
+
+**New in v1.1.0:** Full lifecycle control over SignalR contexts with real-time status tracking!
+
+Each context has the following properties:
+- **IsActive**: Whether the context is generating data (default: true)
+- **ConnectionCount**: Number of currently connected clients (auto-tracked)
+
+Contexts can be in two states:
+- **Active**: Background service generates new data every `SignalRPushIntervalMs` (default: 5 seconds)
+- **Stopped**: Context remains registered, clients stay connected, but no new data is generated
+
+**Key Features:**
+- Start/stop contexts without disconnecting clients
+- Real-time connection count tracking
+- Status badges showing active/stopped state
+- Duplicate context prevention
+- Contexts from appsettings.json automatically appear in the UI
+
+**Response Caching for SignalR:**
+**New in v1.1.0:** Intelligent caching reduces LLM load and improves consistency!
+
+- **Batch Prefilling**: Generates 5-10 responses at once (configurable via `MaxCachePerKey`)
+- **Per-Context Queues**: Each context maintains its own cache of pre-generated responses
+- **Background Refilling**: Automatically refills cache when it drops below 50% capacity
+- **Smart Scheduling**: Minimizes LLM calls while maintaining data freshness
+
+This significantly reduces LLM load for high-frequency contexts, especially with multiple clients.
+
+**Example Workflow:**
+```bash
+# Create a context
+POST /api/mock/contexts
+{ "name": "metrics", "description": "Server metrics" }
+
+# Stop data generation (clients remain connected)
+POST /api/mock/contexts/metrics/stop
+
+# Resume data generation
+POST /api/mock/contexts/metrics/start
+
+# Remove context entirely
+DELETE /api/mock/contexts/metrics
+```
+
 ### Demo Applications
 
-The package includes two complete demo applications with interactive web interfaces:
+The package includes two complete demo applications with interactive web interfaces featuring full context management:
 
-#### SignalR Demo (`/`)
-Real-time bidirectional communication with continuous data streaming:
-1. Enter a context name and plain English description
-2. System creates the context and generates appropriate JSON schema
-3. Automatically subscribes to the new context
-4. Displays live data updates in real-time (default: every 5 seconds)
+#### SignalR Demo (`/`) — Real-Time Data Streaming with Management UI
 
-**Perfect for:** Dashboards, live monitoring, IoT simulations, real-time feeds
+**New in v1.1.0:** Enhanced 3-column layout with full context lifecycle management!
 
-#### SSE Streaming Demo (`/Streaming`)
-Server-Sent Events with progressive JSON generation:
-1. Configure HTTP method, path, and optional JSON shape
-2. Click "Start Streaming" to open EventSource connection
-3. Watch JSON being generated token-by-token in real-time
-4. Receive complete JSON when streaming finishes
+**Features:**
+- **Create Context Panel**: Enter plain English descriptions, system generates appropriate JSON schema
+- **Active Contexts Panel**:
+  - Live list of all contexts with status badges (Active/Stopped)
+  - Automatically displays contexts from appsettings.json on startup
+  - Real-time connection count for each context
+  - Per-context controls: Connect, Disconnect, Start, Stop, Delete
+  - Auto-refresh on changes
+- **Live Data Panel**: Real-time updates from subscribed contexts (every 5 seconds)
+  - **JSON Syntax Highlighting**: Beautiful dark-themed display with color-coded elements
+  - Keys (red), strings (green), numbers (orange), booleans (cyan), null (purple)
+  - Clean, readable format with proper timestamp display
+  - No external dependencies - lightweight built-in highlighter
 
-**Perfect for:** Observing LLM generation, debugging shapes, understanding streaming behavior
+**Quick-Start Examples:** One-click buttons for 5 pre-configured scenarios:
+- **IoT Sensors**: Temperature sensors with device ID, readings, battery percentage
+- **Stock Market**: Real-time prices with ticker, price, change percentage, volume
+- **E-commerce Orders**: Orders with ID, customer, items array, status, total
+- **Server Metrics**: Monitoring data with hostname, CPU, memory, disk, connections
+- **Gaming Leaderboard**: Player stats with name, score, rank, level, country
+
+**Perfect for:** Dashboards, live monitoring, IoT simulations, real-time feeds, prototyping
+
+#### SSE Streaming Demo (`/Streaming`) — Progressive JSON Generation
+
+**New in v1.1.0:** Quick-start example buttons for instant streaming!
+
+**Features:**
+- Configure HTTP method, path, and optional JSON shape
+- Watch JSON being generated token-by-token in real-time
+- Live statistics: chunk count, duration, data size
+- Connection status indicators
+
+**Quick-Start Examples:** One-click buttons for 4 streaming scenarios:
+- **User List**: Array of user objects with ID, name, email
+- **Product Catalog**: Product inventory with SKU, name, price, stock status
+- **Order Details**: Nested orders with customer info and items array
+- **Weather Data**: Current conditions with temperature, humidity, wind speed
+
+**Perfect for:** Observing LLM generation, debugging shapes, understanding streaming behavior, testing SSE
 
 **Run the demos:**
 ```bash
@@ -611,10 +738,15 @@ dotnet run
 ```
 
 Navigate to:
-- `http://localhost:5000` - SignalR real-time data streaming
-- `http://localhost:5000/Streaming` - SSE progressive generation
+- `http://localhost:5116` - SignalR real-time data streaming with management UI
+- `http://localhost:5116/Streaming` - SSE progressive generation
 
-Both demos include comprehensive documentation, examples, and code snippets!
+Both demos include:
+- Comprehensive inline documentation
+- Interactive quick-start examples
+- Code snippets for integration
+- Real-time status indicators
+- Full context lifecycle controls
 
 ## Advanced Features
 
@@ -853,12 +985,12 @@ flowchart TD
 
 ## Why Use mostlylucid.mockllmapi?
 
-- **🚀 Rapid Prototyping**: Frontend development without waiting for backend
-- **🎭 Demos**: Show realistic data flows without hardcoded fixtures
-- **🧪 Testing**: Generate varied test data for edge cases
-- **📐 API Design**: Experiment with response shapes before implementing
-- **🎓 Learning**: Example of LLM integration in .NET minimal APIs
-- **🔌 Zero Maintenance**: No database, no state, no mock data files to maintain
+- **Rapid Prototyping**: Frontend development without waiting for backend
+- **Demos**: Show realistic data flows without hardcoded fixtures
+- **Testing**: Generate varied test data for edge cases
+- **API Design**: Experiment with response shapes before implementing
+- **Learning**: Example of LLM integration in .NET minimal APIs
+- **Zero Maintenance**: No database, no state, no mock data files to maintain
 
 ## Building the NuGet Package
 

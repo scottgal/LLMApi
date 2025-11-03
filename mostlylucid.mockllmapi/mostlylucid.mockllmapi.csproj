@@ -8,16 +8,16 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>mostlylucid.mockllmapi</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>mostlyLucid</Authors>
     <Company>mostlyLucid</Company>
-    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
-    <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9</PackageTags>
+    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Includes SignalR real-time streaming with lifecycle management. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
+    <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9;signalr;realtime</PackageTags>
     <RepositoryUrl>https://github.com/scottgal/LLMApi</RepositoryUrl>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>Latest: v1.0.5 — Add package icon; updated csproj to pack icon.png. Also: v1.0.4 — fix NuGet link in README; v1.0.2 — fix NuGet badge links. Full details in 'release notes.txt'.</PackageReleaseNotes>
+    <PackageReleaseNotes>Latest: v1.1.0 — Major SignalR enhancements: context lifecycle management (start/stop/delete), connection tracking, interactive management UI with quick-start examples, form-encoded data support. Full details in 'release notes.txt'.</PackageReleaseNotes>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
   </PropertyGroup>
 

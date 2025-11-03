@@ -76,4 +76,61 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
     {
         return _dynamicContexts.ContainsKey(contextName);
     }
+
+    /// <summary>
+    /// Starts (activates) a context
+    /// </summary>
+    public bool StartContext(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.IsActive = true;
+            logger.LogInformation("Started context: {ContextName}", contextName);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Stops (deactivates) a context
+    /// </summary>
+    public bool StopContext(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.IsActive = false;
+            logger.LogInformation("Stopped context: {ContextName}", contextName);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Increments the connection count for a context
+    /// </summary>
+    public void IncrementConnectionCount(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.ConnectionCount++;
+            logger.LogInformation("Context {ContextName} connection count incremented to: {Count}", contextName, config.ConnectionCount);
+        }
+        else
+        {
+            logger.LogWarning("Attempted to increment connection count for non-existent context: {ContextName}. Available contexts: {Contexts}",
+                contextName, string.Join(", ", _dynamicContexts.Keys));
+        }
+    }
+
+    /// <summary>
+    /// Decrements the connection count for a context
+    /// </summary>
+    public void DecrementConnectionCount(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.ConnectionCount = Math.Max(0, config.ConnectionCount - 1);
+            logger.LogDebug("Context {ContextName} connection count: {Count}", contextName, config.ConnectionCount);
+        }
+    }
 }

@@ -48,15 +48,17 @@ public static class LlMockApiExtensions
 
     /// <summary>
     /// Adds LLMock SignalR services to the service collection
+    /// NOTE: This assumes AddLLMockApi has already been called to configure LLMockApiOptions
     /// </summary>
     /// <param name="services">The service collection</param>
-    /// <param name="configuration">Configuration containing MockLlmApi section</param>
+    /// <param name="configuration">Configuration containing MockLlmApi section (not used, kept for compatibility)</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddLLMockSignalR(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration? configuration = null)
     {
-        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        // Don't configure options here - they should already be configured by AddLLMockApi
+        // If AddLLMockApi hasn't been called, the options will use default values
         RegisterSignalRServices(services);
         return services;
     }
@@ -177,6 +179,12 @@ public static class LlMockApiExtensions
         routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", HandleDeleteContext)
             .WithName("LLMockApi-DeleteContext");
 
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/start", HandleStartContext)
+            .WithName("LLMockApi-StartContext");
+
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/stop", HandleStopContext)
+            .WithName("LLMockApi-StopContext");
+
         return app;
     }
 
@@ -265,9 +273,36 @@ public static class LlMockApiExtensions
     {
         try
         {
-            using var reader = new StreamReader(ctx.Request.Body);
-            var json = await reader.ReadToEndAsync();
-            var config = JsonSerializer.Deserialize<Models.HubContextConfig>(json);
+            Models.HubContextConfig? config;
+
+            // Check Content-Type to determine how to parse the body
+            var contentType = ctx.Request.ContentType?.ToLowerInvariant() ?? "";
+
+            if (contentType.Contains("application/x-www-form-urlencoded"))
+            {
+                // Parse form-encoded data
+                var form = await ctx.Request.ReadFormAsync();
+                config = new Models.HubContextConfig
+                {
+                    Name = form.ContainsKey("name") ? form["name"].ToString() : string.Empty,
+                    Description = form.ContainsKey("description") ? form["description"].ToString() : string.Empty,
+                    Method = form.ContainsKey("method") && !string.IsNullOrWhiteSpace(form["method"]) ? form["method"].ToString() : "GET",
+                    Path = form.ContainsKey("path") && !string.IsNullOrWhiteSpace(form["path"]) ? form["path"].ToString() : "/data",
+                    Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"]) ? form["body"].ToString() : null,
+                    Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"]) ? form["shape"].ToString() : null
+                };
+            }
+            else
+            {
+                // Parse JSON data
+                using var reader = new StreamReader(ctx.Request.Body);
+                var json = await reader.ReadToEndAsync();
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, options);
+            }
 
             if (config == null || string.IsNullOrWhiteSpace(config.Name))
             {
@@ -314,6 +349,9 @@ Example format:
 
             if (success)
             {
+                logger.LogInformation("Context registered successfully: {Name}, IsActive={IsActive}, ConnectionCount={Count}",
+                    config.Name, config.IsActive, config.ConnectionCount);
+
                 return Results.Ok(new
                 {
                     message = $"Context '{config.Name}' registered successfully",
@@ -322,6 +360,7 @@ Example format:
             }
             else
             {
+                logger.LogWarning("Context registration failed - already exists: {Name}", config.Name);
                 return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
             }
         }
@@ -364,6 +403,38 @@ Example format:
         if (success)
         {
             return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
+        }
+        else
+        {
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+        }
+    }
+
+    private static IResult HandleStartContext(
+        string contextName,
+        DynamicHubContextManager contextManager)
+    {
+        var success = contextManager.StartContext(contextName);
+
+        if (success)
+        {
+            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
+        }
+        else
+        {
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+        }
+    }
+
+    private static IResult HandleStopContext(
+        string contextName,
+        DynamicHubContextManager contextManager)
+    {
+        var success = contextManager.StopContext(contextName);
+
+        if (success)
+        {
+            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
         }
         else
         {

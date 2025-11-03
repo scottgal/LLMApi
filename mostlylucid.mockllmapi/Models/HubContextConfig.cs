@@ -11,28 +11,32 @@ public class HubContextConfig
     public string Name { get; set; } = "default";
 
     /// <summary>
-    /// Plain English description of the data to generate (optional)
-    /// Used by LLM to automatically create appropriate shape if Shape is not provided
+    /// Plain English description of the data to generate
+    /// Used by LLM to automatically create appropriate JSON structure
     /// </summary>
     public string? Description { get; set; }
 
     /// <summary>
-    /// HTTP method to simulate (GET, POST, etc.)
+    /// Internal: HTTP method used for LLM prompt context (defaults to GET)
+    /// Note: SignalR uses WebSockets, not HTTP - this is only for prompt generation
     /// </summary>
     public string Method { get; set; } = "GET";
 
     /// <summary>
-    /// Path to simulate (e.g., "/weather/current", "/cars/status")
+    /// Internal: Path used for LLM prompt context (defaults to /data)
+    /// Note: SignalR uses WebSockets, not HTTP - this is only for prompt generation
     /// </summary>
     public string Path { get; set; } = "/data";
 
     /// <summary>
-    /// Simulated request body (optional)
+    /// Internal: Request body used for LLM prompt context (optional)
+    /// Note: SignalR uses WebSockets, not HTTP - this is only for prompt generation
     /// </summary>
     public string? Body { get; set; }
 
     /// <summary>
-    /// JSON shape or JSON Schema for response structure
+    /// Optional: JSON shape or JSON Schema for response structure
+    /// If not provided, LLM generates structure from Description
     /// </summary>
     public string? Shape { get; set; }
 
@@ -40,4 +44,14 @@ public class HubContextConfig
     /// Whether to treat Shape as JSON Schema (auto-detected if not specified)
     /// </summary>
     public bool? IsJsonSchema { get; set; }
+
+    /// <summary>
+    /// Whether this context is actively generating data (default: true)
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Number of currently connected clients
+    /// </summary>
+    public int ConnectionCount { get; set; } = 0;
 }
