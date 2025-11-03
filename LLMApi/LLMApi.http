@@ -1,5 +1,44 @@
 @LLMApi_HostAddress = http://localhost:5116
 
+###############################################################################
+# UBER DEMO — One GET showing: return shape, $cache, and X-Response-Schema
+# - Return shape via ?shape= (URL-encoded JSON) defines the JSON structure.
+# - $cache inside the shape primes N variants and serves them quickly (non-streaming).
+# - ?includeSchema=true asks the server to echo the actual schema in X-Response-Schema.
+# Try it, then inspect response headers to see X-Response-Schema.
+###############################################################################
+# Decoded shape (for readability):
+# {
+#   "$cache": 3,
+#   "users": [
+#     { "id": 0, "name": "string", "email": "string", "isActive": true }
+#   ],
+#   "meta": { "total": 0, "next": "string" }
+# }
+### UBER GET: all-in-one demo
+GET {{LLMApi_HostAddress}}/api/mock/users?limit=2&offset=0&includeSchema=true&shape=%7B%22%24cache%22%3A3%2C%22users%22%3A%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%2C%22email%22%3A%22string%22%2C%22isActive%22%3Atrue%7D%5D%2C%22meta%22%3A%7B%22total%22%3A0%2C%22next%22%3A%22string%22%7D%7D
+Accept: application/json
+
+###
+
+###############################################################################
+# RETURN SHAPE — Quick samples (GET)
+###############################################################################
+
+### GET with return shape via header (X-Response-Shape) and schema echo
+GET {{LLMApi_HostAddress}}/api/mock/products/featured?includeSchema=true
+X-Response-Shape: {"products":[{"sku":"string","price":0.0,"tags":["string"]}],"count":0}
+Accept: application/json
+
+###
+
+### GET with return shape via query (URL-encoded)
+# Shape: {"orderSummary":{"orderId":"string","total":0.0,"items":[{"sku":"string","qty":0}]}}
+GET {{LLMApi_HostAddress}}/api/mock/orders/summary?shape=%7B%22orderSummary%22%3A%7B%22orderId%22%3A%22string%22%2C%22total%22%3A0.0%2C%22items%22%3A%5B%7B%22sku%22%3A%22string%22%2C%22qty%22%3A0%7D%5D%7D%7D
+Accept: application/json
+
+###
+
 
 ### GET example - list users with paging
 GET {{LLMApi_HostAddress}}/api/mock/users?limit=10&offset=0
@@ -74,7 +113,7 @@ Accept: application/json
   "shape": {
     "invoiceId": "string",
     "customer": {
-      "id": "string",
+      "id": "random, 12 characters long",
       "name": "string",
       "email": "string"
     },
