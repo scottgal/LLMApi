@@ -148,8 +148,8 @@ public class LLMockApiServiceTests
 
         // Assert - prompts should be different due to random seed and timestamp
         Assert.NotEqual(prompt1, prompt2);
-        Assert.Contains("Random seed:", prompt1);
-        Assert.Contains("timestamp:", prompt1);
+        Assert.Contains("RandomSeed:", prompt1);
+        Assert.Contains("Time:", prompt1);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class LLMockApiServiceTests
         var prompt = builder.BuildPrompt("GET", "/test", null, shapeInfo, false);
 
         // Assert
-        Assert.Contains("SHAPE REQUIREMENT", prompt);
+        Assert.Contains("SHAPE:", prompt);
         Assert.Contains(shapeInfo.Shape, prompt);
     }
 
@@ -184,7 +184,7 @@ public class LLMockApiServiceTests
         var prompt = builder.BuildPrompt("GET", "/test", null, shapeInfo, false);
 
         // Assert
-        Assert.Contains("JSON SCHEMA REQUIREMENT", prompt);
+        Assert.Contains("SCHEMA:", prompt);
         Assert.Contains(shapeInfo.Shape, prompt);
     }
 
