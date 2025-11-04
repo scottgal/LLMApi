@@ -62,7 +62,7 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
     private string BuildDefaultPrompt(string method, string fullPathWithQuery, string? body, string randomSeed, long timestamp, bool streaming)
     {
         return streaming
-            ? $@"Generate realistic mock API data. Output ONLY raw JSON — no markdown, no code fences, no explanatory text.
+            ? $@"Generate realistic mock API data. Output ONLY a single VALID JSON value (object or array) — no markdown, no code fences, no comments, no explanatory text.
 
 IMPORTANT: Be highly creative and varied. Use random values, different names, varied numbers, diverse data.
 Each request should produce COMPLETELY DIFFERENT data. Random seed: {randomSeed}, timestamp: {timestamp}
@@ -71,7 +71,7 @@ Method: {method}
 Path: {fullPathWithQuery}
 Body: {body ?? "none"}
 "
-            : $@"Generate a realistic mock API response. Output ONLY raw JSON — no markdown, no code fences, no explanatory text.
+            : $@"Generate a realistic mock API response. Output ONLY a single VALID JSON value (object or array) — no markdown, no code fences, no comments, no explanatory text.
 
 IMPORTANT: Be highly creative and varied. Use random values, different names, varied numbers, diverse data.
 Each request should produce COMPLETELY DIFFERENT data. Random seed: {randomSeed}, timestamp: {timestamp}
@@ -84,11 +84,11 @@ Body: {body ?? "none"}
 
     private string BuildShapeConstraint(string shape)
     {
-        return "\nSHAPE REQUIREMENT: Your output MUST strictly conform to this JSON shape (exact properties, casing, structure).\nFill with realistic, varied sample data matching the implied types.\nShape: " + shape + "\n";
+        return "\nSHAPE REQUIREMENT: Your output MUST strictly conform to this JSON shape (exact properties, casing, structure).\nFill with realistic, varied sample data matching the implied types.\nKeep the structure and property types CONSISTENT across updates for this context.\nShape: " + shape + "\n";
     }
 
     private string BuildJsonSchemaConstraint(string jsonSchema)
     {
-        return "\nJSON SCHEMA REQUIREMENT: Your output MUST be valid JSON conforming to this JSON Schema specification.\nGenerate realistic, varied sample data that validates against this schema.\nSchema: " + jsonSchema + "\n";
+        return "\nJSON SCHEMA REQUIREMENT: Your output MUST be valid JSON conforming to this JSON Schema specification.\nGenerate realistic, varied sample data that validates against this schema.\nKeep the structure and property types CONSISTENT across updates for this context.\nSchema: " + jsonSchema + "\n";
     }
 }

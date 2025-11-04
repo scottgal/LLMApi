@@ -40,8 +40,8 @@ Accept: application/json
 ###
 
 
-### GET example - list users with paging
-GET {{LLMApi_HostAddress}}/api/mock/users?limit=10&offset=0
+### GET example - list users with paging (include schema)
+GET {{LLMApi_HostAddress}}/api/mock/users?limit=10&offset=0?includeSchema=true
 Accept: application/json
 
 ###
@@ -203,7 +203,7 @@ Accept: application/json
 
 {
   "shape": {
-    "$cache": 5,
+    "$cache": 10,
     "invoiceId": "string",
     "customer": { "id": "string", "name": "string" },
     "items": [ { "sku": "string", "qty": 0, "price": 0.0 } ],

@@ -19,6 +19,10 @@ public class MockDataBackgroundService(
     ILogger<MockDataBackgroundService> logger)
     : BackgroundService
 {
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _learnedShapes = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<string>> _contextCaches = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _optimalBatchSizes = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _initialPrefillComplete = new();
     private readonly LLMockApiOptions _options = options.Value;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -26,21 +30,40 @@ public class MockDataBackgroundService(
         logger.LogInformation("MockData Background Service started");
         logger.LogInformation("Generating data for {Count} configured contexts", _options.HubContexts.Count);
 
+        // Register all configured contexts with DynamicHubContextManager so they appear in the UI
+        foreach (var ctx in _options.HubContexts)
+        {
+            logger.LogInformation("  - Configured context: {Name} ({Method} {Path})", ctx.Name, ctx.Method, ctx.Path);
+            dynamicContextManager.RegisterContext(ctx);
+        }
+
+        // Pre-fill cache for all active contexts on startup for instant first messages
+        logger.LogInformation("Pre-filling caches for instant first messages...");
+        await PreFillAllContextCachesAsync(stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                // Generate data for each configured context
-                foreach (var contextConfig in _options.HubContexts.Where(c => c.IsActive))
+                // Generate data for each registered context (includes both appsettings and dynamically created contexts)
+                var allContexts = dynamicContextManager.GetAllContexts();
+                if (allContexts.Count > 0)
                 {
-                    await GenerateAndPushDataAsync(contextConfig, stoppingToken);
+                    logger.LogDebug("Processing {Count} total contexts", allContexts.Count);
                 }
 
-                // Generate data for each dynamic context
-                var dynamicContexts = dynamicContextManager.GetAllContexts();
-                foreach (var contextConfig in dynamicContexts.Where(c => c.IsActive))
+                foreach (var contextConfig in allContexts)
                 {
-                    await GenerateAndPushDataAsync(contextConfig, stoppingToken);
+                    if (contextConfig.IsActive)
+                    {
+                        logger.LogDebug("Generating data for context: {Name} (connections: {Count})",
+                            contextConfig.Name, contextConfig.ConnectionCount);
+                        await GenerateAndPushDataAsync(contextConfig, stoppingToken);
+                    }
+                    else
+                    {
+                        logger.LogDebug("Skipping inactive context: {Name}", contextConfig.Name);
+                    }
                 }
 
                 // Wait for the configured interval
@@ -82,7 +105,15 @@ public class MockDataBackgroundService(
                 IsJsonSchema = isJsonSchema
             };
 
-            // Build prompt using the configured request parameters
+            // Prefer a learned shape for this context if no explicit shape is provided
+            string? effectiveShape = !string.IsNullOrWhiteSpace(contextConfig.Shape)
+                ? contextConfig.Shape
+                : (_learnedShapes.TryGetValue(contextConfig.Name, out var learned) ? learned : null);
+
+            shapeInfo.Shape = effectiveShape;
+            shapeInfo.IsJsonSchema = shapeInfo.IsJsonSchema && !string.IsNullOrWhiteSpace(effectiveShape);
+
+            // Build prompt using the (possibly learned) shape
             var prompt = promptBuilder.BuildPrompt(
                 contextConfig.Method,
                 contextConfig.Path,
@@ -90,35 +121,45 @@ public class MockDataBackgroundService(
                 shapeInfo,
                 streaming: false);
 
-            // Generate data using LLM
-            var data = await llmClient.GetCompletionAsync(prompt, cancellationToken);
-
-            // Extract clean JSON from response (LLM might add markdown or explanatory text)
-            var cleanJson = ExtractJson(data);
-
-            // If shape is provided (and not a JSON Schema), ensure we don't just echo the shape back
-            if (!string.IsNullOrWhiteSpace(contextConfig.Shape) && !isJsonSchema)
+            // Pull from per-context cache; if empty, prefill with a batch in one upstream call
+            var queue = _contextCaches.GetOrAdd(contextConfig.Name, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
+            if (queue.IsEmpty)
             {
-                if (TryNormalizeJson(cleanJson, out var normResponse) && TryNormalizeJson(contextConfig.Shape!, out var normShape)
-                    && normResponse == normShape)
+                await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
+            }
+
+            if (!queue.TryDequeue(out var cleanJson) || string.IsNullOrWhiteSpace(cleanJson))
+            {
+                // Fallback to single fetch if still empty
+                var single = await llmClient.GetCompletionAsync(prompt, cancellationToken);
+                cleanJson = ExtractJson(single);
+            }
+            else
+            {
+                // If cache is running low, refill in background using context-specific batch size
+                int optimalBatch = GetOptimalBatchSize(contextConfig.Name);
+                if (queue.Count < Math.Max(1, optimalBatch / 2))
                 {
-                    logger.LogWarning("LLM returned data identical to configured shape for context: {Context}. Retrying generation to avoid echoing shape.", contextConfig.Name);
-
-                    // Strengthen the instruction to avoid echoing the sample shape
-                    var retryPrompt = prompt + "\nDO NOT return the provided sample shape verbatim. Replace placeholder values (e.g., 0, \\\"string\\\") with realistic, varied values. Output only JSON.";
-                    var retryData = await llmClient.GetCompletionAsync(retryPrompt, cancellationToken);
-                    cleanJson = ExtractJson(retryData);
-
-                    if (TryNormalizeJson(cleanJson, out normResponse) && normResponse == normShape)
-                    {
-                        logger.LogWarning("Second attempt still matched the shape for context: {Context}. Falling back to empty object.", contextConfig.Name);
-                        cleanJson = "{}";
-                    }
+                    _ = Task.Run(() => PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken));
                 }
             }
 
             // Parse JSON to verify it's valid
             var jsonDoc = System.Text.Json.JsonDocument.Parse(cleanJson);
+
+            // Learn and persist a stable shape from the first successful sample when not explicitly provided
+            if (string.IsNullOrWhiteSpace(contextConfig.Shape) && !_learnedShapes.ContainsKey(contextConfig.Name))
+            {
+                try
+                {
+                    var derived = DeriveCanonicalShape(jsonDoc.RootElement);
+                    if (!string.IsNullOrWhiteSpace(derived))
+                    {
+                        _learnedShapes.TryAdd(contextConfig.Name, derived);
+                    }
+                }
+                catch { /* ignore shape derivation errors */ }
+            }
 
             // Send to all clients in this context group
             await hubContext.Clients.Group(contextConfig.Name).SendAsync("DataUpdate", new
@@ -140,151 +181,325 @@ public class MockDataBackgroundService(
     }
 
     /// <summary>
-    /// Extracts clean JSON from LLM response that might include markdown or explanatory text
+    /// Pre-fills cache for all active contexts on startup
     /// </summary>
+    private async Task PreFillAllContextCachesAsync(CancellationToken cancellationToken)
+    {
+        var allContexts = dynamicContextManager.GetAllContexts();
+        var tasks = new List<Task>();
+
+        foreach (var contextConfig in allContexts.Where(c => c.IsActive))
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = serviceScopeFactory.CreateScope();
+                    var promptBuilder = scope.ServiceProvider.GetRequiredService<PromptBuilder>();
+                    var llmClient = scope.ServiceProvider.GetRequiredService<LlmClient>();
+
+                    bool isJsonSchema = contextConfig.IsJsonSchema ??
+                                       (!string.IsNullOrWhiteSpace(contextConfig.Shape) &&
+                                       (contextConfig.Shape.Contains("\"$schema\"") || contextConfig.Shape.Contains("\"properties\"")));
+
+                    var shapeInfo = new ShapeInfo
+                    {
+                        Shape = contextConfig.Shape,
+                        IsJsonSchema = isJsonSchema
+                    };
+
+                    var prompt = promptBuilder.BuildPrompt(
+                        contextConfig.Method,
+                        contextConfig.Path,
+                        contextConfig.Body,
+                        shapeInfo,
+                        streaming: false);
+
+                    await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
+                    _initialPrefillComplete.TryAdd(contextConfig.Name, true);
+                    logger.LogInformation("Pre-filled cache for context: {Context}", contextConfig.Name);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to pre-fill cache for context: {Context}", contextConfig.Name);
+                }
+            }, cancellationToken));
+        }
+
+        await Task.WhenAll(tasks);
+        logger.LogInformation("Cache pre-fill complete");
+    }
+
+    /// <summary>
+    /// Extracts clean JSON from LLM response that might include markdown or explanatory text
+    /// Measures generation time on first call to calculate optimal batch size
+    /// </summary>
+    private async Task PrefillContextCacheAsync(string contextName, LlmClient llmClient, string prompt, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // If this is the first time, measure generation time with a single response
+            if (!_optimalBatchSizes.ContainsKey(contextName))
+            {
+                logger.LogDebug("Measuring generation time for context: {Context}", contextName);
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                var singleResult = await llmClient.GetCompletionAsync(prompt, cancellationToken);
+                var cleanJson = ExtractJson(singleResult);
+
+                stopwatch.Stop();
+                var generationTimeMs = stopwatch.ElapsedMilliseconds;
+
+                // Calculate optimal batch size: how many can we generate before next push interval?
+                int pushIntervalMs = _options.SignalRPushIntervalMs;
+                int optimalBatch = generationTimeMs > 0
+                    ? Math.Max(1, Math.Min(20, pushIntervalMs / (int)generationTimeMs))
+                    : 5; // Default to 5 if timing is zero
+
+                _optimalBatchSizes.TryAdd(contextName, optimalBatch);
+
+                logger.LogInformation(
+                    "Context {Context}: generation time={GenerationMs}ms, push interval={PushMs}ms, optimal batch size={BatchSize}",
+                    contextName, generationTimeMs, pushIntervalMs, optimalBatch);
+
+                // Add the first generated response to cache
+                var queue = _contextCaches.GetOrAdd(contextName, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
+                if (!string.IsNullOrWhiteSpace(cleanJson))
+                {
+                    queue.Enqueue(cleanJson);
+                }
+
+                // Now generate the rest of the batch
+                if (optimalBatch > 1)
+                {
+                    var results = await llmClient.GetNCompletionsAsync(prompt, optimalBatch - 1, cancellationToken);
+                    foreach (var r in results)
+                    {
+                        var json = ExtractJson(r);
+                        if (!string.IsNullOrWhiteSpace(json))
+                        {
+                            queue.Enqueue(json);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Use the previously calculated optimal batch size
+                int batch = GetOptimalBatchSize(contextName);
+                var results = await llmClient.GetNCompletionsAsync(prompt, batch, cancellationToken);
+                var queue = _contextCaches.GetOrAdd(contextName, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
+                foreach (var r in results)
+                {
+                    var json = ExtractJson(r);
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        queue.Enqueue(json);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to prefill cache for context {Context}", contextName);
+        }
+    }
+
+    private int GetOptimalBatchSize(string contextName)
+    {
+        if (_optimalBatchSizes.TryGetValue(contextName, out var cached))
+        {
+            return cached;
+        }
+
+        // Fallback to static calculation if not yet measured
+        var max = Math.Max(1, _options.MaxCachePerKey);
+        return Math.Min(10, Math.Max(5, max));
+    }
+
+    private static string DeriveCanonicalShape(System.Text.Json.JsonElement element)
+    {
+        // Build a simple shape example by preserving property names and emitting example types/structure
+        var sb = new System.Text.StringBuilder();
+        WriteShape(element, sb);
+        return sb.ToString();
+
+        static void WriteShape(System.Text.Json.JsonElement el, System.Text.StringBuilder sb)
+        {
+            switch (el.ValueKind)
+            {
+                case System.Text.Json.JsonValueKind.Object:
+                    sb.Append('{');
+                    bool first = true;
+                    foreach (var prop in el.EnumerateObject())
+                    {
+                        if (!first) sb.Append(',');
+                        first = false;
+                        sb.Append('"').Append(prop.Name).Append('"').Append(':');
+                        WriteShape(prop.Value, sb);
+                    }
+                    sb.Append('}');
+                    break;
+                case System.Text.Json.JsonValueKind.Array:
+                    sb.Append('[');
+                    if (el.GetArrayLength() > 0)
+                    {
+                        WriteShape(el[0], sb);
+                    }
+                    sb.Append(']');
+                    break;
+                case System.Text.Json.JsonValueKind.String:
+                    sb.Append("\"string\"");
+                    break;
+                case System.Text.Json.JsonValueKind.Number:
+                    sb.Append('0');
+                    break;
+                case System.Text.Json.JsonValueKind.True:
+                case System.Text.Json.JsonValueKind.False:
+                    sb.Append("true");
+                    break;
+                case System.Text.Json.JsonValueKind.Null:
+                default:
+                    sb.Append("null");
+                    break;
+            }
+        }
+    }
+
     private static string ExtractJson(string response)
     {
-        // Always return something that can be parsed as JSON to avoid downstream exceptions
         if (string.IsNullOrWhiteSpace(response))
-            return "{}";
+            return "{}"; // ensure valid JSON is returned
 
         var trimmed = response.Trim();
 
-        // Fast-path: looks like JSON already
+        // If it already looks like a single JSON value, validate it
         if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
             (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
         {
-            try
-            {
-                System.Text.Json.JsonDocument.Parse(trimmed);
+            if (IsValidJson(trimmed))
                 return trimmed;
-            }
-            catch
-            {
-                // fall through to extraction
-            }
+            // fall through to extraction if invalid
         }
 
-        // 1) Prefer fenced code blocks with optional json hint
+        // Extract from fenced code blocks first
         var jsonPattern = @"```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```";
         var match = System.Text.RegularExpressions.Regex.Match(response, jsonPattern);
         if (match.Success)
         {
             var candidate = match.Groups[1].Value.Trim();
-            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* continue */ }
+            if (IsValidJson(candidate)) return candidate;
         }
 
-        // 2) Scan for the first balanced JSON object/array respecting strings/escapes
-        string? balanced = TryExtractBalancedJson(response);
-        if (balanced != null)
-        {
+        // Robust balanced scan: find the first complete JSON value (object or array)
+        var balanced = ExtractFirstBalancedJsonValue(response);
+        if (!string.IsNullOrEmpty(balanced) && IsValidJson(balanced))
             return balanced;
-        }
 
-        // 3) Last resort: try greedy object/array regex and validate
+        // As a last resort, try loose regex matches
         var jsonObjectPattern = @"\{[\s\S]*\}";
         var objectMatch = System.Text.RegularExpressions.Regex.Match(response, jsonObjectPattern);
-        if (objectMatch.Success)
+        if (objectMatch.Success && IsValidJson(objectMatch.Value.Trim()))
         {
-            var candidate = objectMatch.Value.Trim();
-            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* ignore */ }
+            return objectMatch.Value.Trim();
         }
 
         var jsonArrayPattern = @"\[[\s\S]*\]";
         var arrayMatch = System.Text.RegularExpressions.Regex.Match(response, jsonArrayPattern);
-        if (arrayMatch.Success)
+        if (arrayMatch.Success && IsValidJson(arrayMatch.Value.Trim()))
         {
-            var candidate = arrayMatch.Value.Trim();
-            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* ignore */ }
+            return arrayMatch.Value.Trim();
         }
 
-        // 4) Fallback to an empty object to keep pipeline healthy
+        // If nothing valid found, return empty object to avoid parse failures upstream
         return "{}";
     }
 
-    private static string? TryExtractBalancedJson(string input)
-    {
-        int idx = 0;
-        while (idx < input.Length)
-        {
-            int start = input.IndexOfAny(new[] { '{', '[' }, idx);
-            if (start == -1) break;
-
-            bool inString = false;
-            char stringQuote = '\0';
-            bool escape = false;
-            int brace = 0;
-            int bracket = 0;
-
-            for (int i = start; i < input.Length; i++)
-            {
-                char c = input[i];
-                if (inString)
-                {
-                    if (escape)
-                    {
-                        escape = false;
-                    }
-                    else if (c == '\\')
-                    {
-                        escape = true;
-                    }
-                    else if (c == stringQuote)
-                    {
-                        inString = false;
-                    }
-                    continue;
-                }
-
-                if (c == '"' || c == '\'')
-                {
-                    inString = true;
-                    stringQuote = c;
-                    continue;
-                }
-
-                if (c == '{') brace++;
-                else if (c == '}') brace--;
-                else if (c == '[') bracket++;
-                else if (c == ']') bracket--;
-
-                // If we ever go negative, this candidate is invalid
-                if (brace < 0 || bracket < 0) break;
-
-                // Completed a top-level balanced block
-                if (start > -1 && brace == 0 && bracket == 0)
-                {
-                    var candidate = input.Substring(start, i - start + 1).Trim();
-                    try
-                    {
-                        System.Text.Json.JsonDocument.Parse(candidate);
-                        return candidate;
-                    }
-                    catch
-                    {
-                        break; // stop scanning this start; try next
-                    }
-                }
-            }
-
-            idx = start + 1;
-        }
-
-        return null;
-    }
-
-    private static bool TryNormalizeJson(string json, out string normalized)
+    private static bool IsValidJson(string text)
     {
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            normalized = System.Text.Json.JsonSerializer.Serialize(doc.RootElement);
+            System.Text.Json.JsonDocument.Parse(text);
             return true;
         }
         catch
         {
-            normalized = string.Empty;
             return false;
         }
+    }
+
+    private static string? ExtractFirstBalancedJsonValue(string text)
+    {
+        int length = text.Length;
+        bool inString = false;
+        bool escape = false;
+        int depth = 0;
+        char? open = null; // '{' or '['
+        int start = -1;
+
+        for (int i = 0; i < length; i++)
+        {
+            char c = text[i];
+
+            if (inString)
+            {
+                if (escape)
+                {
+                    escape = false;
+                }
+                else if (c == '\\')
+                {
+                    escape = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = true;
+                continue;
+            }
+
+            if (c == '{' || c == '[')
+            {
+                if (depth == 0)
+                {
+                    open = c;
+                    start = i;
+                }
+                depth++;
+                continue;
+            }
+
+            if (c == '}' || c == ']')
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                    if (depth == 0 && start >= 0)
+                    {
+                        // Ensure matching type
+                        if ((open == '{' && c == '}') || (open == '[' && c == ']'))
+                        {
+                            var candidate = text.Substring(start, i - start + 1).Trim();
+                            return candidate;
+                        }
+                        else
+                        {
+                            // mismatch; reset and continue searching
+                            start = -1;
+                            open = null;
+                        }
+                    }
+                }
+                continue;
+            }
+        }
+
+        return null;
     }
 }

@@ -232,6 +232,34 @@
             margin-top: 5px;
         }
 
+        /* JSON syntax highlighting */
+        .json-key {
+            color: #e06c75;
+        }
+
+        .json-string {
+            color: #98c379;
+        }
+
+        .json-number {
+            color: #d19a66;
+        }
+
+        .json-boolean {
+            color: #56b6c2;
+        }
+
+        .json-null {
+            color: #c678dd;
+        }
+
+        .chunk-item.done pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 12px;
+            border-radius: 4px;
+        }
+
         details {
             margin-top: 15px;
         }
@@ -295,8 +323,45 @@
             <li><strong>Final event contains complete JSON</strong> - When done=true, you get the full assembled response</li>
         </ol>
 
+        <details open>
+            <summary>Quick Start Examples (Click to Stream)</summary>
+            <div class="example-box">
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">User List</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Generate array of user objects</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="users" data-shape='{"users":[{"id":0,"name":"string","email":"string","active":true}]}' style="background: #28a745; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">Product Catalog</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Generate product inventory data</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="products" data-shape='{"products":[{"sku":"string","name":"string","price":0.0,"inStock":true}]}' style="background: #28a745; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">Order Details</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Generate nested order with items</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="orders" data-shape='{"orderId":"string","customer":{"id":"string","name":"string"},"items":[{"sku":"string","qty":0}],"total":0.0}' style="background: #28a745; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+
+                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">Weather Data</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Generate weather conditions</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="weather" data-shape='{"temperature":0,"condition":"string","humidity":0,"windSpeed":0}' style="background: #28a745; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+            </div>
+        </details>
+
         <details>
-            <summary>View Example Shapes</summary>
+            <summary>View More Example Shapes</summary>
             <div class="example-box">
                 <h4 style="margin-top: 0; font-size: 14px;">Simple User Object</h4>
                 <pre>{"id":0,"name":"string","email":"string","active":true}</pre>
@@ -476,6 +541,26 @@ data: {"chunk":"123","done":false}</pre>
             setTimeout(() => statusEl.classList.remove('show'), 5000);
         }
 
+        // Simple JSON syntax highlighting
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                var cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
         function displayChunk(chunk, isDone = false) {
             const item = document.createElement('div');
             item.className = `chunk-item ${isDone ? 'done' : ''}`;
@@ -486,7 +571,25 @@ data: {"chunk":"123","done":false}</pre>
             timestampDiv.textContent = timestamp;
 
             const contentDiv = document.createElement('pre');
-            contentDiv.textContent = chunk;
+
+            // Apply syntax highlighting for complete JSON
+            if (isDone && (chunk.includes('{') || chunk.includes('['))) {
+                try {
+                    // Extract JSON from "✓ COMPLETE\n{...}" format
+                    const jsonMatch = chunk.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+                    if (jsonMatch) {
+                        const jsonStr = jsonMatch[0];
+                        const formatted = JSON.stringify(JSON.parse(jsonStr), null, 2);
+                        contentDiv.innerHTML = '✓ COMPLETE\n' + syntaxHighlight(formatted);
+                    } else {
+                        contentDiv.textContent = chunk;
+                    }
+                } catch (e) {
+                    contentDiv.textContent = chunk;
+                }
+            } else {
+                contentDiv.textContent = chunk;
+            }
 
             item.appendChild(timestampDiv);
             item.appendChild(contentDiv);
@@ -603,6 +706,26 @@ data: {"chunk":"123","done":false}</pre>
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
+
+        // Quick SSE button handlers
+        document.querySelectorAll('.quick-sse-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const path = this.getAttribute('data-path');
+                const shape = this.getAttribute('data-shape');
+
+                // Stop any existing stream
+                if (eventSource) {
+                    stopStream();
+                }
+
+                // Set form values
+                document.getElementById('path').value = path;
+                document.getElementById('shape').value = shape;
+
+                // Trigger start
+                setTimeout(() => startBtn.click(), 100);
+            });
+        });
     </script>
 </body>
 </html>

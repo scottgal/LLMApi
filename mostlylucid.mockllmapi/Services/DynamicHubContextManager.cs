@@ -78,7 +78,7 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
     }
 
     /// <summary>
-    /// Starts a context (makes it active)
+    /// Starts (activates) a context
     /// </summary>
     public bool StartContext(string contextName)
     {
@@ -88,13 +88,11 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
             logger.LogInformation("Started context: {ContextName}", contextName);
             return true;
         }
-
-        logger.LogWarning("Cannot start context {ContextName} - not found", contextName);
         return false;
     }
 
     /// <summary>
-    /// Stops a context (makes it inactive)
+    /// Stops (deactivates) a context
     /// </summary>
     public bool StopContext(string contextName)
     {
@@ -104,8 +102,6 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
             logger.LogInformation("Stopped context: {ContextName}", contextName);
             return true;
         }
-
-        logger.LogWarning("Cannot stop context {ContextName} - not found", contextName);
         return false;
     }
 
@@ -117,7 +113,12 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
         if (_dynamicContexts.TryGetValue(contextName, out var config))
         {
             config.ConnectionCount++;
-            logger.LogDebug("Connection count for {ContextName}: {Count}", contextName, config.ConnectionCount);
+            logger.LogInformation("Context {ContextName} connection count incremented to: {Count}", contextName, config.ConnectionCount);
+        }
+        else
+        {
+            logger.LogWarning("Attempted to increment connection count for non-existent context: {ContextName}. Available contexts: {Contexts}",
+                contextName, string.Join(", ", _dynamicContexts.Keys));
         }
     }
 
@@ -128,8 +129,8 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
     {
         if (_dynamicContexts.TryGetValue(contextName, out var config))
         {
-            config.ConnectionCount--;
-            logger.LogDebug("Connection count for {ContextName}: {Count}", contextName, config.ConnectionCount);
+            config.ConnectionCount = Math.Max(0, config.ConnectionCount - 1);
+            logger.LogDebug("Context {ContextName} connection count: {Count}", contextName, config.ConnectionCount);
         }
     }
 }

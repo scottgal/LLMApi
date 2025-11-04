@@ -48,15 +48,17 @@ public static class LlMockApiExtensions
 
     /// <summary>
     /// Adds LLMock SignalR services to the service collection
+    /// NOTE: This assumes AddLLMockApi has already been called to configure LLMockApiOptions
     /// </summary>
     /// <param name="services">The service collection</param>
-    /// <param name="configuration">Configuration containing MockLlmApi section</param>
+    /// <param name="configuration">Configuration containing MockLlmApi section (not used, kept for compatibility)</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddLLMockSignalR(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration? configuration = null)
     {
-        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        // Don't configure options here - they should already be configured by AddLLMockApi
+        // If AddLLMockApi hasn't been called, the options will use default values
         RegisterSignalRServices(services);
         return services;
     }
@@ -267,27 +269,42 @@ public static class LlMockApiExtensions
         HttpContext ctx,
         DynamicHubContextManager contextManager,
         LlmClient llmClient,
-        ILogger<DynamicHubContextManager> logger,
-        IOptions<LLMockApiOptions> options)
+        ILogger<DynamicHubContextManager> logger)
     {
         try
         {
-            using var reader = new StreamReader(ctx.Request.Body);
-            var json = await reader.ReadToEndAsync();
+            Models.HubContextConfig? config;
 
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            var config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, jsonOptions);
+            // Check Content-Type to determine how to parse the body
+            var contentType = ctx.Request.ContentType?.ToLowerInvariant() ?? "";
 
-            if (config == null || string.IsNullOrWhiteSpace(config.Name))
+            if (contentType.Contains("application/x-www-form-urlencoded"))
             {
-                return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
+                // Parse form-encoded data
+                var form = await ctx.Request.ReadFormAsync();
+                config = new Models.HubContextConfig
+                {
+                    Name = form.ContainsKey("name") ? form["name"].ToString() : string.Empty,
+                    Description = form.ContainsKey("description") ? form["description"].ToString() : string.Empty,
+                    Method = form.ContainsKey("method") && !string.IsNullOrWhiteSpace(form["method"]) ? form["method"].ToString() : "GET",
+                    Path = form.ContainsKey("path") && !string.IsNullOrWhiteSpace(form["path"]) ? form["path"].ToString() : "/data",
+                    Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"]) ? form["body"].ToString() : null,
+                    Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"]) ? form["shape"].ToString() : null
+                };
+            }
+            else
+            {
+                // Parse JSON data
+                using var reader = new StreamReader(ctx.Request.Body);
+                var json = await reader.ReadToEndAsync();
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, options);
             }
 
-            // Reset Name to empty if it's still the default value and wasn't actually provided in JSON
-            if (config.Name == "default" && !json.Contains("\"name\"", StringComparison.OrdinalIgnoreCase))
+            if (config == null || string.IsNullOrWhiteSpace(config.Name))
             {
                 return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
             }
@@ -328,16 +345,13 @@ Example format:
                 }
             }
 
-            // Prevent creating a dynamic context that collides with a configured one
-            if (options.Value.HubContexts.Any(c => string.Equals(c.Name, config.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                return Results.Conflict(new { error = $"Context '{config.Name}' already exists as a configured context" });
-            }
-
             var success = contextManager.RegisterContext(config);
 
             if (success)
             {
+                logger.LogInformation("Context registered successfully: {Name}, IsActive={IsActive}, ConnectionCount={Count}",
+                    config.Name, config.IsActive, config.ConnectionCount);
+
                 return Results.Ok(new
                 {
                     message = $"Context '{config.Name}' registered successfully",
@@ -346,6 +360,7 @@ Example format:
             }
             else
             {
+                logger.LogWarning("Context registration failed - already exists: {Name}", config.Name);
                 return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
             }
         }
@@ -357,54 +372,34 @@ Example format:
     }
 
     private static IResult HandleListContexts(
-        DynamicHubContextManager contextManager,
-        IOptions<LLMockApiOptions> options)
+        DynamicHubContextManager contextManager)
     {
-        var dynamicContexts = contextManager.GetAllContexts();
-        var configured = options.Value.HubContexts;
-
-        // Merge configured and dynamic by name (dynamic overrides)
-        var map = new Dictionary<string, Models.HubContextConfig>(StringComparer.OrdinalIgnoreCase);
-        foreach (var c in configured) map[c.Name] = c;
-        foreach (var c in dynamicContexts) map[c.Name] = c;
-        var contexts = map.Values.ToList();
-
+        var contexts = contextManager.GetAllContexts();
         return Results.Ok(new { contexts, count = contexts.Count });
     }
 
     private static IResult HandleGetContext(
         string contextName,
-        DynamicHubContextManager contextManager,
-        IOptions<LLMockApiOptions> options)
+        DynamicHubContextManager contextManager)
     {
         var context = contextManager.GetContext(contextName);
+
         if (context != null)
         {
             return Results.Ok(context);
         }
-
-        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (configured != null)
+        else
         {
-            return Results.Ok(configured);
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
         }
-
-        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     private static IResult HandleDeleteContext(
         string contextName,
-        DynamicHubContextManager contextManager,
-        IOptions<LLMockApiOptions> options)
+        DynamicHubContextManager contextManager)
     {
-        // Prevent deleting configured contexts
-        var configured = options.Value.HubContexts.Any(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (configured)
-        {
-            return Results.Conflict(new { error = $"Context '{contextName}' is configured and cannot be deleted" });
-        }
-
         var success = contextManager.UnregisterContext(contextName);
+
         if (success)
         {
             return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
@@ -417,45 +412,33 @@ Example format:
 
     private static IResult HandleStartContext(
         string contextName,
-        DynamicHubContextManager contextManager,
-        IOptions<LLMockApiOptions> options)
+        DynamicHubContextManager contextManager)
     {
-        // Try dynamic first
-        if (contextManager.StartContext(contextName))
+        var success = contextManager.StartContext(contextName);
+
+        if (success)
         {
             return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
         }
-
-        // Then configured
-        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (configured != null)
+        else
         {
-            configured.IsActive = true;
-            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
         }
-
-        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     private static IResult HandleStopContext(
         string contextName,
-        DynamicHubContextManager contextManager,
-        IOptions<LLMockApiOptions> options)
+        DynamicHubContextManager contextManager)
     {
-        // Try dynamic first
-        if (contextManager.StopContext(contextName))
+        var success = contextManager.StopContext(contextName);
+
+        if (success)
         {
             return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
         }
-
-        // Then configured
-        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (configured != null)
+        else
         {
-            configured.IsActive = false;
-            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
+            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
         }
-
-        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 }
