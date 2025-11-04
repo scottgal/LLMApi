@@ -7,14 +7,15 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ## Features
 
-- **🚀 Super Simple**: `Addmostlylucid.mockllmapi()` + `Mapmostlylucid.mockllmapi("/api/mock")` = instant mock API
-- **⚙️ Configurable**: appsettings.json or inline configuration
-- **🎨 Shape Control**: Specify exact JSON structure via header, query param, or request body
-- **📡 Real-time Streaming**: Server-Sent Events (SSE) support with progressive JSON generation
-- **🎲 Highly Variable Data**: Each request generates completely different realistic data
-- **🔧 All HTTP Methods**: Supports GET, POST, PUT, DELETE, PATCH
-- **🌐 Wildcard Routing**: Any path under your chosen endpoint works
-- **📦 NuGet Package**: Easy to add to existing projects
+- ** Super Simple**: `Addmostlylucid.mockllmapi()` + `Mapmostlylucid.mockllmapi("/api/mock")` = instant mock API
+- ** SignalR**: `AddLLMockSignalR(builder.Configuration);` lets you build mock signalr contexts and have realistic data streamed to you (with demo page)
+- ** Configurable**: appsettings.json or inline configuration
+- ** Shape Control**: Specify exact JSON structure via header, query param, or request body
+- ** Real-time Streaming**: Server-Sent Events (SSE) support with progressive JSON generation
+- ** Highly Variable Data**: Each request generates completely different realistic data
+- ** All HTTP Methods**: Supports GET, POST, PUT, DELETE, PATCH
+- ** Wildcard Routing**: Any path under your chosen endpoint works
+- ** NuGet Package**: Easy to add to existing projects
 
 ## Quick Start
 

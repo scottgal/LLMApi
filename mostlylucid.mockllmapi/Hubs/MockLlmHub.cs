@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using mostlylucid.mockllmapi.Services;
 
 namespace mostlylucid.mockllmapi.Hubs;
 
@@ -10,10 +12,14 @@ namespace mostlylucid.mockllmapi.Hubs;
 public class MockLlmHub : Hub
 {
     private readonly ILogger<MockLlmHub> _logger;
+    private readonly IOptions<LLMockApiOptions> _options;
+    private readonly DynamicHubContextManager _contextManager;
 
-    public MockLlmHub(ILogger<MockLlmHub> logger)
+    public MockLlmHub(ILogger<MockLlmHub> logger, IOptions<LLMockApiOptions> options, DynamicHubContextManager contextManager)
     {
         _logger = logger;
+        _options = options;
+        _contextManager = contextManager;
     }
 
     /// <summary>
@@ -23,6 +29,12 @@ public class MockLlmHub : Hub
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, context);
         _logger.LogInformation("Client {ConnectionId} subscribed to context: {Context}", Context.ConnectionId, context);
+
+        // Track connection counts for dynamic contexts
+        if (_contextManager.ContextExists(context))
+        {
+            _contextManager.IncrementConnectionCount(context);
+        }
 
         // Send immediate confirmation
         await Clients.Caller.SendAsync("Subscribed", new { context, message = $"Subscribed to {context}" });
@@ -36,16 +48,28 @@ public class MockLlmHub : Hub
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, context);
         _logger.LogInformation("Client {ConnectionId} unsubscribed from context: {Context}", Context.ConnectionId, context);
 
+        if (_contextManager.ContextExists(context))
+        {
+            _contextManager.DecrementConnectionCount(context);
+        }
+
         await Clients.Caller.SendAsync("Unsubscribed", new { context, message = $"Unsubscribed from {context}" });
     }
 
     /// <summary>
-    /// Get list of available contexts
+    /// Get list of available contexts (configured + dynamic)
     /// </summary>
     public async Task GetAvailableContexts()
     {
-        // This will be populated from configuration
-        await Clients.Caller.SendAsync("AvailableContexts", new { contexts = new[] { "default" } });
+        var configured = _options.Value.HubContexts
+            .Where(c => c.IsActive)
+            .Select(c => c.Name);
+        var dynamic = _contextManager.GetAllContexts()
+            .Where(c => c.IsActive)
+            .Select(c => c.Name);
+        var contexts = configured.Concat(dynamic).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+        await Clients.Caller.SendAsync("AvailableContexts", new { contexts });
     }
 
     public override async Task OnConnectedAsync()
