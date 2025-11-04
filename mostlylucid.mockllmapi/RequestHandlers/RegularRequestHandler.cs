@@ -68,7 +68,7 @@ public class RegularRequestHandler
                 var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false);
                 var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
                 // Extract clean JSON from LLM response (might include markdown or explanatory text)
-                return ExtractJson(rawResponse);
+                return JsonExtractor.ExtractJson(rawResponse);
             });
 
         // Optionally include schema in header
@@ -105,58 +105,5 @@ public class RegularRequestHandler
             return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
         }
         return _options.IncludeShapeInResponse;
-    }
-
-    /// <summary>
-    /// Extracts clean JSON from LLM response that might include markdown or explanatory text
-    /// </summary>
-    private static string ExtractJson(string response)
-    {
-        if (string.IsNullOrWhiteSpace(response))
-            return response;
-
-        var trimmed = response.Trim();
-
-        // Check if it's already valid JSON
-        if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
-            (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
-        {
-            // Try to parse it as-is first
-            try
-            {
-                System.Text.Json.JsonDocument.Parse(trimmed);
-                return trimmed;
-            }
-            catch
-            {
-                // If parsing fails, continue with extraction logic
-            }
-        }
-
-        // Remove markdown code blocks
-        var jsonPattern = @"```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```";
-        var match = System.Text.RegularExpressions.Regex.Match(response, jsonPattern);
-        if (match.Success)
-        {
-            return match.Groups[1].Value.Trim();
-        }
-
-        // Try to find JSON object or array in the text
-        var jsonObjectPattern = @"\{[\s\S]*\}";
-        var objectMatch = System.Text.RegularExpressions.Regex.Match(response, jsonObjectPattern);
-        if (objectMatch.Success)
-        {
-            return objectMatch.Value.Trim();
-        }
-
-        var jsonArrayPattern = @"\[[\s\S]*\]";
-        var arrayMatch = System.Text.RegularExpressions.Regex.Match(response, jsonArrayPattern);
-        if (arrayMatch.Success)
-        {
-            return arrayMatch.Value.Trim();
-        }
-
-        // Return as-is if no patterns matched
-        return trimmed;
     }
 }

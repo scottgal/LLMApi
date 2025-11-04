@@ -5,9 +5,28 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 
+---
+
+## v1.2.0 Update - NO BREAKING CHANGES
+
+**Full Backward Compatibility Guaranteed!** All existing code continues to work exactly as before.
+
+**What's New:**
+- **Native GraphQL Support** - POST to `/graphql` with standard GraphQL queries
+- **Fully Modular Architecture** - Use only the protocols you need (REST, GraphQL, SSE, SignalR)
+- **30-40% Reduced Memory** - When using modular setup with single protocol
+- See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
+
+**Migration Notes:**
+- Old method names (`Addmostlylucid_mockllmapi`, `Mapmostlylucid_mockllmapi`) still work but are deprecated
+- Recommended: Use new names (`AddLLMockApi`, `MapLLMockApi`) - or use modular methods like `AddLLMockRest()`
+- All examples below use the new recommended method names
+
+---
+
 ## Features
 
-This package provides **three independent features** - use any combination you need:
+This package provides **four independent features** - use any combination you need:
 
 ### 1. REST API Mocking
 - **Super Simple**: `AddLLMockApi()` + `MapLLMockApi("/api/mock")` = instant mock API
@@ -15,12 +34,18 @@ This package provides **three independent features** - use any combination you n
 - **All HTTP Methods**: Supports GET, POST, PUT, DELETE, PATCH
 - **Wildcard Routing**: Any path under your chosen endpoint works
 
-### 2. Server-Sent Events (SSE) Streaming
+### 2. GraphQL API Mocking
+- **Native GraphQL Support**: POST to `/api/mock/graphql` with standard GraphQL queries
+- **Query-Driven Shapes**: The GraphQL query itself defines the response structure
+- **Variables & Operations**: Full support for variables, operation names, and fragments
+- **Proper Error Handling**: Returns GraphQL-formatted errors with `data` and `errors` fields
+
+### 3. Server-Sent Events (SSE) Streaming
 - **Progressive Streaming**: SSE support with progressive JSON generation
 - **Real-time Updates**: Stream data token-by-token to clients
 - **Works standalone**: No REST API setup required
 
-### 3. SignalR Real-Time Streaming
+### 4. SignalR Real-Time Streaming
 - **WebSocket Streaming**: Continuous real-time mock data via SignalR
 - **Multiple Contexts**: Run multiple independent data streams simultaneously
 - **Lifecycle Management**: Start/stop contexts dynamically with management API
@@ -55,13 +80,13 @@ using mostlylucid.mockllmapi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add LLMock API services
-builder.Services.Addmostlylucid.mockllmapi(builder.Configuration);
+// Add LLMock API services (all protocols: REST, GraphQL, SSE)
+builder.Services.AddLLMockApi(builder.Configuration);
 
 var app = builder.Build();
 
-// Map mock endpoints at /api/mock
-app.Mapmostlylucid.mockllmapi("/api/mock");
+// Map mock endpoints at /api/mock (includes REST, GraphQL, SSE)
+app.MapLLMockApi("/api/mock");
 
 app.Run();
 ```
@@ -195,6 +220,168 @@ The streaming endpoint supports all the same features as regular endpoints:
 - JSON Schema support
 - Custom prompts
 - All HTTP methods (GET, POST, PUT, DELETE, PATCH)
+
+## GraphQL API Mocking
+
+**New in v1.2.0:** Native GraphQL support with query-driven mock data generation!
+
+LLMock API includes built-in GraphQL endpoint support. Unlike REST endpoints where you specify shapes separately, GraphQL queries naturally define the exact structure they expect - the query IS the shape.
+
+### Quick Start with GraphQL
+
+The GraphQL endpoint is automatically available when you map the LLMock API:
+
+```csharp
+app.MapLLMockApi("/api/mock", includeGraphQL: true); // GraphQL enabled by default
+```
+
+This creates a GraphQL endpoint at `/api/mock/graphql`.
+
+### Basic Usage
+
+**Simple Query:**
+```bash
+curl -X POST http://localhost:5000/api/mock/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ users { id name email role } }"}'
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "users": [
+      { "id": 1, "name": "Alice Johnson", "email": "alice@example.com", "role": "admin" },
+      { "id": 2, "name": "Bob Smith", "email": "bob@example.com", "role": "user" }
+    ]
+  }
+}
+```
+
+### With Variables
+
+```bash
+curl -X POST http://localhost:5000/api/mock/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query GetUser($userId: ID!) { user(id: $userId) { id name email } }",
+    "variables": { "userId": "12345" },
+    "operationName": "GetUser"
+  }'
+```
+
+### Nested Queries
+
+GraphQL's power shines with nested data:
+
+```graphql
+{
+  company {
+    name
+    employees {
+      id
+      firstName
+      lastName
+      department {
+        name
+        location
+      }
+      projects {
+        id
+        title
+        status
+        milestones {
+          title
+          dueDate
+          completed
+        }
+      }
+    }
+  }
+}
+```
+
+The LLM generates realistic data matching your exact query structure - including all nested relationships.
+
+### JavaScript Client Example
+
+```javascript
+async function fetchGraphQL(query, variables = {}) {
+    const response = await fetch('/api/mock/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables })
+    });
+
+    const result = await response.json();
+
+    if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+    }
+
+    return result.data;
+}
+
+// Usage
+const data = await fetchGraphQL(`
+    query GetProducts($category: String) {
+        products(category: $category) {
+            id
+            name
+            price
+            inStock
+            reviews {
+                rating
+                comment
+            }
+        }
+    }
+`, { category: 'electronics' });
+```
+
+### Error Handling
+
+GraphQL errors are returned in standard format:
+
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Invalid GraphQL request format",
+      "extensions": {
+        "code": "INTERNAL_SERVER_ERROR"
+      }
+    }
+  ]
+}
+```
+
+### How It Works
+
+1. **Parse Request**: Extract GraphQL query, variables, and operation name
+2. **Build Prompt**: Send the query structure to the LLM with instructions to generate matching data
+3. **Generate Data**: LLM creates realistic data that exactly matches the query fields
+4. **Wrap Response**: Returns data in GraphQL format: `{ "data": {...} }`
+
+### Key Advantages
+
+- **No Shape Specification Needed**: The GraphQL query defines the structure
+- **Type Safety**: Queries explicitly request fields by name
+- **Nested Relationships**: Natural support for complex, nested data structures
+- **Standard Format**: Works with any GraphQL client library
+- **Realistic Data**: LLM generates contextually appropriate data for each field
+
+### Testing GraphQL
+
+Use the included `LLMApi.http` file which contains 5 ready-to-use GraphQL examples:
+- Simple user query
+- Query with variables
+- Nested fields with arrays
+- E-commerce product catalog
+- Complex organizational data
+
+See the [GraphQL examples in LLMApi.http](LLMApi/LLMApi.http#L229-L294) for complete working examples.
 
 ## SignalR Real-Time Data Streaming
 

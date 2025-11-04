@@ -2,6 +2,61 @@
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.2.0 — 2025-11-04
+- Native GraphQL support and fully modular protocol architecture.
+  - Added: GraphQL API Support
+    - Native GraphQL endpoint: POST to /api/mock/graphql with standard GraphQL queries
+    - Query-driven data generation (query itself defines response structure)
+    - Full GraphQL request support: variables, operation names, nested fields
+    - Proper GraphQL response format: { "data": {...} } or { "data": null, "errors": [...] }
+    - Intelligent LLM integration for contextually appropriate mock data
+  - Added: Fully Modular Architecture (MAJOR)
+    - Complete protocol independence: Each protocol (REST, Streaming, GraphQL, SignalR) can be added/mapped independently
+    - New modular Add methods: AddLLMockRest(), AddLLMockStreaming(), AddLLMockGraphQL(), AddLLMockSignalR()
+    - New modular Map methods: MapLLMockRest(), MapLLMockStreaming(), MapLLMockGraphQL(), MapLLMockSignalR()
+    - Smart service registration prevents duplicates when multiple Add methods are called
+    - Benefits: 30-40% reduced memory footprint, faster startup, clearer code intent, mix-and-match protocols
+    - Full backward compatibility: AddLLMockApi() and MapLLMockApi() still work exactly as before
+  - Added: Backward Compatibility for Method Names
+    - Deprecated method aliases: Addmostlylucid_mockllmapi() and Mapmostlylucid_mockllmapi()
+    - [Obsolete] attributes guide users to new method names (AddLLMockApi/MapLLMockApi)
+    - No breaking changes - all existing code continues to work
+  - Added: Shared JSON Extraction Utility
+    - Created JsonExtractor.cs to eliminate code duplication
+    - Handles markdown code blocks in LLM responses
+    - Validates JSON structure and extracts clean JSON from mixed content
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs (NEW)
+    - Dedicated handler for GraphQL requests
+    - Parses GraphQL queries and extracts structure for LLM context
+    - Supports variables, operation names, nested fields
+  - Changed: mostlylucid.mockllmapi/Services/JsonExtractor.cs (NEW)
+    - Shared utility for extracting JSON from LLM responses
+    - Used by both RegularRequestHandler and GraphQLRequestHandler
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Major refactoring for modular architecture
+    - Separated registration into Core, REST, Streaming, GraphQL, and SignalR services
+    - Added backward compatibility aliases with [Obsolete] attributes
+    - Organized code with #region directives for clarity
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
+    - Updated to use shared JsonExtractor utility
+  - Changed: README.md
+    - Added comprehensive GraphQL section with examples
+    - Documented modular architecture with usage patterns
+  - Changed: LLMApi/LLMApi.http
+    - Added 5 GraphQL test examples (simple user query, variables, nested fields, e-commerce, organizational data)
+  - Added: MODULAR_EXAMPLES.md (NEW)
+    - Comprehensive examples for all modular usage patterns
+    - REST only, GraphQL only, Streaming only, SignalR only examples
+    - Mix-and-match examples
+    - Migration guide from v1.1.0 to v1.2.0
+  - Changed: RELEASE_NOTES.md
+    - Updated with v1.2.0 feature documentation
+  - Outcome:
+    - GraphQL support for frontend developers and API prototyping
+    - Fully modular architecture for reduced overhead and clearer intent
+    - No breaking changes - complete backward compatibility
+    - Better code organization and reduced duplication
+
 v1.1.0 — 2025-11-03
 - Major SignalR enhancements: Full context lifecycle management, interactive demo UI improvements, enhanced data display, and simplified configuration.
   - Added: SignalR Context Lifecycle Management

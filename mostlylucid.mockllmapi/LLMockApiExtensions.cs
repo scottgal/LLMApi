@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -16,8 +17,11 @@ namespace mostlylucid.mockllmapi;
 /// </summary>
 public static class LlMockApiExtensions
 {
-    /// <summary>hich sends out objects as they arrive. 
-    /// Adds LLMock API services to the service collection
+    #region Unified Registration (Backward Compatible)
+
+    /// <summary>
+    /// Adds ALL LLMock API services to the service collection (REST, Streaming, GraphQL)
+    /// For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">Configuration containing MockLlmApi section</param>
@@ -27,12 +31,16 @@ public static class LlMockApiExtensions
         IConfiguration configuration)
     {
         services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
-        RegisterServices(services);
+        RegisterCoreServices(services);
+        RegisterRestServices(services);
+        RegisterStreamingServices(services);
+        RegisterGraphQLServices(services);
         return services;
     }
 
     /// <summary>
-    /// Adds LLMock API services to the service collection with inline configuration
+    /// Adds ALL LLMock API services to the service collection with inline configuration (REST, Streaming, GraphQL)
+    /// For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configure">Action to configure options</param>
@@ -42,13 +50,98 @@ public static class LlMockApiExtensions
         Action<LLMockApiOptions> configure)
     {
         services.Configure(configure);
-        RegisterServices(services);
+        RegisterCoreServices(services);
+        RegisterRestServices(services);
+        RegisterStreamingServices(services);
+        RegisterGraphQLServices(services);
+        return services;
+    }
+
+    #endregion
+
+    #region Modular Protocol Registration
+
+    /// <summary>
+    /// Adds LLMock REST API services (non-streaming)
+    /// </summary>
+    public static IServiceCollection AddLLMockRest(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        RegisterCoreServices(services);
+        RegisterRestServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock REST API services with inline configuration
+    /// </summary>
+    public static IServiceCollection AddLLMockRest(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        services.Configure(configure);
+        RegisterCoreServices(services);
+        RegisterRestServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock SSE Streaming services
+    /// </summary>
+    public static IServiceCollection AddLLMockStreaming(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        RegisterCoreServices(services);
+        RegisterStreamingServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock SSE Streaming services with inline configuration
+    /// </summary>
+    public static IServiceCollection AddLLMockStreaming(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        services.Configure(configure);
+        RegisterCoreServices(services);
+        RegisterStreamingServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock GraphQL services
+    /// </summary>
+    public static IServiceCollection AddLLMockGraphQL(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        RegisterCoreServices(services);
+        RegisterGraphQLServices(services);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LLMock GraphQL services with inline configuration
+    /// </summary>
+    public static IServiceCollection AddLLMockGraphQL(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        services.Configure(configure);
+        RegisterCoreServices(services);
+        RegisterGraphQLServices(services);
         return services;
     }
 
     /// <summary>
     /// Adds LLMock SignalR services to the service collection
-    /// NOTE: This assumes AddLLMockApi has already been called to configure LLMockApiOptions
+    /// NOTE: This assumes core options have been configured via another Add method
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">Configuration containing MockLlmApi section (not used, kept for compatibility)</param>
@@ -57,8 +150,7 @@ public static class LlMockApiExtensions
         this IServiceCollection services,
         IConfiguration? configuration = null)
     {
-        // Don't configure options here - they should already be configured by AddLLMockApi
-        // If AddLLMockApi hasn't been called, the options will use default values
+        RegisterCoreServices(services);
         RegisterSignalRServices(services);
         return services;
     }
@@ -74,74 +166,175 @@ public static class LlMockApiExtensions
         Action<LLMockApiOptions> configure)
     {
         services.Configure(configure);
+        RegisterCoreServices(services);
         RegisterSignalRServices(services);
         return services;
     }
 
-    private static void RegisterServices(IServiceCollection services)
+    #endregion
+
+    #region Service Registration Helpers
+
+    private static void RegisterCoreServices(IServiceCollection services)
     {
-        services.AddHttpClient("LLMockApi");
+        // Only register if not already registered (allows modular usage)
+        if (services.All(x => x.ServiceType != typeof(LlmClient)))
+        {
+            services.AddHttpClient("LLMockApi");
+            services.AddScoped<ShapeExtractor>();
+            services.AddScoped<PromptBuilder>();
+            services.AddScoped<LlmClient>();
+            services.AddSingleton<CacheManager>();
+            services.AddScoped<DelayHelper>();
+            services.AddScoped<LLMockApiService>();
+        }
+    }
 
-        // Register all services
-        services.AddScoped<ShapeExtractor>();
-        services.AddScoped<PromptBuilder>();
-        services.AddScoped<LlmClient>();
-        services.AddSingleton<CacheManager>();
-        services.AddScoped<DelayHelper>();
+    private static void RegisterRestServices(IServiceCollection services)
+    {
+        if (services.All(x => x.ServiceType != typeof(RegularRequestHandler)))
+        {
+            services.AddScoped<RegularRequestHandler>();
+        }
+    }
 
-        // Register request handlers
-        services.AddScoped<RegularRequestHandler>();
-        services.AddScoped<StreamingRequestHandler>();
+    private static void RegisterStreamingServices(IServiceCollection services)
+    {
+        if (services.All(x => x.ServiceType != typeof(StreamingRequestHandler)))
+        {
+            services.AddScoped<StreamingRequestHandler>();
+        }
+    }
 
-        // Register main facade
-        services.AddScoped<LLMockApiService>();
+    private static void RegisterGraphQLServices(IServiceCollection services)
+    {
+        if (services.All(x => x.ServiceType != typeof(GraphQLRequestHandler)))
+        {
+            services.AddScoped<GraphQLRequestHandler>();
+        }
     }
 
     private static void RegisterSignalRServices(IServiceCollection services)
     {
-        // Register SignalR components
-        services.AddSignalR();
-        services.AddSingleton<DynamicHubContextManager>();
-        services.AddHostedService<MockDataBackgroundService>();
+        if (services.All(x => x.ServiceType != typeof(DynamicHubContextManager)))
+        {
+            services.AddSignalR();
+            services.AddSingleton<DynamicHubContextManager>();
+            services.AddHostedService<MockDataBackgroundService>();
+        }
     }
 
+    #endregion
+
+    #region Unified Mapping (Backward Compatible)
+
     /// <summary>
-    /// Maps LLMock API endpoints to the application
+    /// Maps ALL LLMock API endpoints to the application (REST + optionally Streaming + optionally GraphQL)
+    /// For modular setup, use MapLLMockRest/MapLLMockStreaming/MapLLMockGraphQL instead
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern (e.g., "/api/mock" or "/demo")</param>
     /// <param name="includeStreaming">Whether to include streaming endpoint (default: true)</param>
+    /// <param name="includeGraphQL">Whether to include GraphQL endpoint (default: true)</param>
     /// <returns>The application builder for chaining</returns>
     public static IApplicationBuilder MapLLMockApi(
         this IApplicationBuilder app,
         string pattern = "/api/mock",
-        bool includeStreaming = true)
+        bool includeStreaming = true,
+        bool includeGraphQL = true)
+    {
+        MapLLMockRest(app, pattern);
+
+        if (includeStreaming)
+            MapLLMockStreaming(app, pattern);
+
+        if (includeGraphQL)
+            MapLLMockGraphQL(app, pattern);
+
+        return app;
+    }
+
+    #endregion
+
+    #region Modular Protocol Mapping
+
+    /// <summary>
+    /// Maps LLMock REST API endpoints (non-streaming)
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockRest(
+        this IApplicationBuilder app,
+        string pattern = "/api/mock")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
         {
             throw new InvalidOperationException(
-                "MapLLMockApi requires endpoint routing. Call UseRouting() before MapLLMockApi().");
+                "MapLLMockRest requires endpoint routing. Call UseRouting() before MapLLMockRest().");
         }
 
         var autoPattern = $"{pattern.TrimEnd('/')}/{{**path}}";
 
-        // Non-streaming endpoint
         routeBuilder.MapMethods(autoPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
             HandleRegularRequest)
-            .WithName("LLMockApi-Regular");
-
-        // Streaming endpoint
-        if (includeStreaming)
-        {
-            var streamPattern = $"{pattern.TrimEnd('/')}/stream/{{**path}}";
-
-            routeBuilder.MapMethods(streamPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
-                HandleStreamingRequest)
-                .WithName("LLMockApi-Streaming");
-        }
+            .WithName($"LLMockApi-Rest-{pattern}");
 
         return app;
     }
+
+    /// <summary>
+    /// Maps LLMock SSE Streaming endpoints
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockStreaming(
+        this IApplicationBuilder app,
+        string pattern = "/api/mock")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockStreaming requires endpoint routing. Call UseRouting() before MapLLMockStreaming().");
+        }
+
+        var streamPattern = $"{pattern.TrimEnd('/')}/stream/{{**path}}";
+
+        routeBuilder.MapMethods(streamPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
+            HandleStreamingRequest)
+            .WithName($"LLMockApi-Streaming-{pattern}");
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps LLMock GraphQL endpoint
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockGraphQL(
+        this IApplicationBuilder app,
+        string pattern = "/api/mock")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockGraphQL requires endpoint routing. Call UseRouting() before MapLLMockGraphQL().");
+        }
+
+        var graphqlPattern = $"{pattern.TrimEnd('/')}/graphql";
+
+        routeBuilder.MapPost(graphqlPattern, HandleGraphQLRequest)
+            .WithName($"LLMockApi-GraphQL-{pattern}");
+
+        return app;
+    }
+
+    #endregion
+
+    #region SignalR Mapping
 
     /// <summary>
     /// Maps LLMock SignalR hub and management endpoints to the application
@@ -263,6 +456,45 @@ public static class LlMockApiExtensions
             return pathStr.Substring(0, pathStr.Length - suffix.Length);
         }
         return pathStr;
+    }
+
+    private static async Task HandleGraphQLRequest(
+        HttpContext ctx,
+        GraphQLRequestHandler handler,
+        LLMockApiService service,
+        ILogger<GraphQLRequestHandler> logger)
+    {
+        try
+        {
+            var body = await service.ReadBodyAsync(ctx.Request);
+
+            var content = await handler.HandleGraphQLRequestAsync(
+                body,
+                ctx.Request,
+                ctx,
+                ctx.RequestAborted);
+
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing GraphQL request");
+            ctx.Response.StatusCode = 500;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                data = (object?)null,
+                errors = new[]
+                {
+                    new
+                    {
+                        message = ex.Message,
+                        extensions = new { code = "INTERNAL_SERVER_ERROR" }
+                    }
+                }
+            }));
+        }
     }
 
     private static async Task<IResult> HandleCreateDynamicContext(
@@ -478,4 +710,50 @@ Example format:
             return Results.NotFound(new { error = $"Context '{contextName}' not found" });
         }
     }
+
+    #endregion
+
+    #region Backward Compatibility (Deprecated Method Names)
+
+    /// <summary>
+    /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
+    /// Adds LLMock API services to the service collection using appsettings configuration
+    /// </summary>
+    [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.", false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static IServiceCollection Addmostlylucid_mockllmapi(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        return services.AddLLMockApi(configuration);
+    }
+
+    /// <summary>
+    /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
+    /// Adds LLMock API services to the service collection with inline configuration
+    /// </summary>
+    [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.", false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static IServiceCollection Addmostlylucid_mockllmapi(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        return services.AddLLMockApi(configure);
+    }
+
+    /// <summary>
+    /// DEPRECATED: Use MapLLMockApi instead. This method will be removed in a future version.
+    /// Maps LLMock API endpoints
+    /// </summary>
+    [Obsolete("Use MapLLMockApi instead. This method will be removed in v2.0.0.", false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static IApplicationBuilder Mapmostlylucid_mockllmapi(
+        this IApplicationBuilder app,
+        string pattern = "/api/mock",
+        bool includeStreaming = true)
+    {
+        return app.MapLLMockApi(pattern, includeStreaming);
+    }
+
+    #endregion
 }

@@ -223,3 +223,72 @@ GET {{LLMApi_HostAddress}}/api/mock/translate/english/french/hello
 X-Response-Shape: {"translation":"string", "original": "string", "length" : "number"}
 Content-Type: application/json
 Accept: application/json
+
+###
+
+###############################################################################
+# GRAPHQL ENDPOINT (/api/mock/graphql)
+# Returns GraphQL-formatted responses: { "data": {...} } or { "data": null, "errors": [...] }
+# Supports standard GraphQL request format with query, variables, and operationName
+###############################################################################
+
+### GraphQL: Simple query - get users
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "{ users { id name email role createdAt } }"
+}
+
+###
+
+### GraphQL: Query with variables
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "query GetUser($userId: ID!) { user(id: $userId) { id name email phone address { street city state zip } orders { id total status items { productId quantity price } } } }",
+  "variables": {
+    "userId": "12345"
+  },
+  "operationName": "GetUser"
+}
+
+###
+
+### GraphQL: Query with nested fields and arrays
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "{ company { name website employees { id firstName lastName position department { name location } skills tags } locations { city country officeType } } }"
+}
+
+###
+
+### GraphQL: Query for e-commerce product catalog
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "query GetProducts($category: String, $limit: Int) { products(category: $category, limit: $limit) { id sku name description price currency inStock images tags reviews { rating comment author date } } }",
+  "variables": {
+    "category": "electronics",
+    "limit": 5
+  }
+}
+
+###
+
+### GraphQL: Complex nested query with multiple types
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "{ organization { id name industry employees { id name title department { name manager { name email } } projects { id title status startDate endDate budget { amount currency } milestones { title dueDate completed } } } } }"
+}
