@@ -8,8 +8,26 @@
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
+    <!-- Release publish settings for smallest self-contained single-file build -->
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <PublishTrimmed>true</PublishTrimmed>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <DebugType>none</DebugType>
+        <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+        <UseAppHost>true</UseAppHost>
+        <!-- Optional: reduce size further at the cost of startup perf -->
+        <ReadyToRun>false</ReadyToRun>
+        <!-- Trim aggressively but preserve reflection-based features -->
+        <TrimMode>partial</TrimMode>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+        <PackageReference Include="Spectre.Console" Version="0.53.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -20,6 +38,14 @@
 
     <ItemGroup>
       <ProjectReference Include="..\mostlylucid.mockllmapi\mostlylucid.mockllmapi.csproj" />
+    </ItemGroup>
+
+    <!-- Do not publish appsettings.json in Release to allow true single-file distribution -->
+    <ItemGroup Condition=" '$(Configuration)' == 'Release' ">
+      <Content Update="appsettings.json">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

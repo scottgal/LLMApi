@@ -367,7 +367,7 @@ Example format:
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating dynamic context");
-            return Results.Problem(ex.Message);
+            return Results.Json(new { error = ex.Message }, statusCode: 500);
         }
     }
 

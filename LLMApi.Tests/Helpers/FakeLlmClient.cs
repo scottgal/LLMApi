@@ -31,7 +31,7 @@ public class FakeLlmClient : LlmClient
         return Task.FromResult(json);
     }
 
-    public Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
+    public override Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
     {
         var results = new List<string>();
         for (int i = 0; i < count; i++)

@@ -57,7 +57,7 @@ public class LLMockApiOptions
     /// Max number of cached response variants to keep per unique key (method+path+shape).
     /// Can be capped lower by the $cache value in shape; defaults to 5.
     /// </summary>
-    public int MaxCachePerKey { get; set; } = 5;
+    public int MaxCachePerKey { get; set; } = 10;
 
     /// <summary>
     /// Minimum delay in milliseconds between streaming chunks (default: 0 = no delay)

@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 
@@ -11,6 +13,12 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
 {
     private readonly LLMockApiOptions _options = options.Value;
 
+    // Explicitly enable reflection-based serialization to avoid AOT/trim restrictions
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+    };
+
     /// <summary>
     /// Sends a non-streaming chat completion request
     /// </summary>
@@ -19,10 +27,10 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
         using var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: false);
         using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
-        httpReq.Content = JsonContent.Create(payload);
+        httpReq.Content = JsonContent.Create(payload, options: s_jsonOptions);
         using var httpRes = await client.SendAsync(httpReq, cancellationToken);
         httpRes.EnsureSuccessStatusCode();
-        var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
+        var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(s_jsonOptions, cancellationToken);
         return result.FirstContent ?? "{}";
     }
 
@@ -37,7 +45,7 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
         var payload = BuildChatRequest(prompt, stream: true);
         var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = JsonContent.Create(payload, options: s_jsonOptions)
         };
         var httpRes = await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         httpRes.EnsureSuccessStatusCode();
@@ -47,17 +55,17 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
     /// <summary>
     /// Requests multiple completions in a single call and returns all message contents.
     /// </summary>
-    public async Task<List<string>> GetNCompletionsAsync(string prompt, int n, CancellationToken cancellationToken = default)
+    public virtual async Task<List<string>> GetNCompletionsAsync(string prompt, int n, CancellationToken cancellationToken = default)
     {
         using var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: false, n: n);
         using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = JsonContent.Create(payload, options: s_jsonOptions)
         };
         using var httpRes = await client.SendAsync(httpReq, cancellationToken);
         httpRes.EnsureSuccessStatusCode();
-        var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
+        var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(s_jsonOptions, cancellationToken);
         var list = new List<string>();
         foreach (var c in result.Choices)
         {

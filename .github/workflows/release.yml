@@ -1,0 +1,54 @@
+﻿name: Release LLMApi
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore LLMApi.sln
+
+      - name: Run tests
+        run: dotnet test LLMApi.sln --configuration Release --logger "trx;LogFileName=test_results.trx"
+
+      - name: Publish single-file exe (win-x64)
+        run: >
+          dotnet publish .\LLMApi\LLMApi.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          /p:PublishSingleFile=true
+
+      - name: Prepare artifacts
+        shell: pwsh
+        run: |
+          $publishDir = "${{ github.workspace }}\LLMApi\bin\Release\net8.0\win-x64\publish"
+          if (!(Test-Path $publishDir)) { throw "Publish directory not found: $publishDir" }
+          Copy-Item -Path "${{ github.workspace }}\LLMApi\LLMApi\appsettings.json" -Destination "$publishDir\appsettings.template.json" -Force
+          Get-ChildItem $publishDir | Format-Table -AutoSize
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          files: |
+            LLMApi/bin/Release/net8.0/win-x64/publish/LLMApi.exe
+            LLMApi/bin/Release/net8.0/win-x64/publish/appsettings.template.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
