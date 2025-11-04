@@ -10,6 +10,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      checks: write  # Required for dorny/test-reporter to create check runs
+      pull-requests: write  # Required to comment on PRs
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
