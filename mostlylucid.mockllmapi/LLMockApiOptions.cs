@@ -130,8 +130,11 @@ public class LLMockApiOptions
     #region GraphQL Options
 
     /// <summary>
-    /// Maximum tokens for GraphQL responses to prevent truncation (default: 500, null = no limit)
-    /// Set lower (200-300) for smaller models like tinyllama, higher (500-1000) for larger models
+    /// Maximum tokens for GraphQL responses (default: 500, null = no limit)
+    /// IMPORTANT: Lower values (200-300) are RECOMMENDED to ensure complete, valid JSON.
+    /// The prompt instructs the LLM to prioritize correctness over length - smaller limits
+    /// force simpler, more reliable responses. Set lower for smaller models like tinyllama,
+    /// or if you see truncated JSON errors. Higher values (500-1000) work for larger models.
     /// </summary>
     public int? GraphQLMaxTokens { get; set; } = 500;
 

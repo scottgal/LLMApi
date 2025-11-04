@@ -512,6 +512,52 @@ Use the included `LLMApi.http` file which contains 5 ready-to-use GraphQL exampl
 
 See the [GraphQL examples in LLMApi.http](LLMApi/LLMApi.http#L229-L294) for complete working examples.
 
+### GraphQL Configuration
+
+#### Token Limits and Model Selection
+
+GraphQL responses can become large with deeply nested queries. To prevent JSON truncation errors, configure the `GraphQLMaxTokens` option:
+
+```json
+{
+  "MockLlmApi": {
+    "GraphQLMaxTokens": 300  // Recommended: 200-300 for reliability
+  }
+}
+```
+
+**Token Limit Guidelines:**
+
+| Model | Recommended Max Tokens | Notes |
+|-------|----------------------|-------|
+| **llama3** | 300-500 | Best balance of speed and complexity |
+| **mistral:7b** | 300-500 | Handles nested structures well |
+| **phi3** | 200-300 | Keep queries simple |
+| **tinyllama** | 150-200 | Use shallow queries only |
+
+**Why Lower Is Better:**
+- The prompt prioritizes **correctness over length**
+- Lower limits force the LLM to generate simpler, complete JSON
+- Higher limits risk truncated responses (invalid JSON)
+- If you see "Invalid JSON from LLM" errors, **reduce GraphQLMaxTokens**
+
+**For Complex Nested Queries:**
+1. Use larger models (llama3, mistral:7b)
+2. Increase GraphQLMaxTokens to 500-1000
+3. Keep array sizes small (2 items max by default)
+4. Monitor logs for truncation warnings
+
+**Example configuration for complex queries:**
+```json
+{
+  "MockLlmApi": {
+    "ModelName": "llama3",           // Larger model
+    "GraphQLMaxTokens": 800,          // Higher limit for nested data
+    "Temperature": 1.2
+  }
+}
+```
+
 ## SignalR Real-Time Data Streaming
 
 LLMock API includes optional SignalR support for continuous, real-time mock data generation. This is perfect for:

@@ -142,8 +142,16 @@ public class GraphQLRequestHandler
     {
         var prompt = $@"JSON for: {request.Query}
 
-RULES: 2 items max. Complete values only. NO ... NO dots NO // NO comments.
-{{""users"":[{{""id"":1,""name"":""A""}},{{""id"":2,""name"":""B""}}]}}";
+CRITICAL: MUST be valid, complete JSON. If it's too complex, return LESS data.
+RULES:
+- Max 2 items in arrays
+- Keep nesting SHALLOW (max 2 levels)
+- Use SHORT strings (1-3 words)
+- STOP when you run out of space
+- Better to return 1 complete item than 10 incomplete ones
+
+GOOD: {{""users"":[{{""id"":1,""name"":""Bob""}}]}}
+BAD: {{""users"":[{{""id"":1,""name"":""Bob"",""profile"":{{""address"":{{""street"":""123...";
 
         if (request.Variables != null && request.Variables.Count > 0)
         {
@@ -156,10 +164,11 @@ Vars: {JsonSerializer.Serialize(request.Variables)}";
 
     private static string BuildRetryPrompt(GraphQLRequest request)
     {
-        var prompt = $@"JSON: {request.Query}
+        var prompt = $@"SIMPLE JSON ONLY: {request.Query}
 
-{{ }} ONLY. 2 items. NO ... NO // NO text.
-{{""field"":[{{""id"":1}}]}}";
+MUST be valid, complete JSON. Keep it TINY.
+1 item. Flat structure. Short values.
+Example: {{""data"":[{{""id"":1}}]}}";
 
         return prompt;
     }
