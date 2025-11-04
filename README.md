@@ -355,6 +355,7 @@ Response:
   "contexts": [
     {
       "name": "weather",
+      "description": "Realistic weather data with temperature, conditions, humidity, and wind speed for a single location",
       "method": "GET",
       "path": "/weather/current",
       "shape": "{...}"
@@ -368,6 +369,8 @@ Response:
   "count": 2
 }
 ```
+
+Note: The list endpoint merges contexts configured in appsettings.json with any dynamically created contexts at runtime. Descriptions from appsettings are included even if those contexts have not yet been dynamically registered.
 
 #### Get Specific Context
 

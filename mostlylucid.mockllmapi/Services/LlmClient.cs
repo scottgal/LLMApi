@@ -26,19 +26,7 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
         return result.FirstContent ?? "{}";
     }
 
-    /// <summary>
-    /// Sends N non-streaming chat completion requests for batch processing
-    /// </summary>
-    public virtual async Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
-    {
-        var tasks = new List<Task<string>>();
-        for (int i = 0; i < count; i++)
-        {
-            tasks.Add(GetCompletionAsync(prompt, cancellationToken));
-        }
-        var results = await Task.WhenAll(tasks);
-        return results.ToList();
-    }
+
 
     /// <summary>
     /// Sends a streaming chat completion request

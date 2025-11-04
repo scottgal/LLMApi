@@ -372,26 +372,63 @@ Example format:
     }
 
     private static IResult HandleListContexts(
-        DynamicHubContextManager contextManager)
+        DynamicHubContextManager contextManager,
+        IConfiguration configuration)
     {
-        var contexts = contextManager.GetAllContexts();
+        // Get dynamic contexts registered at runtime
+        var dynamicContexts = contextManager.GetAllContexts();
+
+        // Also read configured contexts directly from appsettings to ensure they are always present
+        var configured = configuration
+            .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
+            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>() ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
+
+        // Merge configured + dynamic, with dynamic taking precedence on name collisions
+        var merged = new Dictionary<string, mostlylucid.mockllmapi.Models.HubContextConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in configured)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Name))
+            {
+                merged[c.Name] = c;
+            }
+        }
+        foreach (var c in dynamicContexts)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Name))
+            {
+                merged[c.Name] = c; // override configured with dynamic instance
+            }
+        }
+
+        var contexts = merged.Values.ToList();
         return Results.Ok(new { contexts, count = contexts.Count });
     }
 
     private static IResult HandleGetContext(
         string contextName,
-        DynamicHubContextManager contextManager)
+        DynamicHubContextManager contextManager,
+        IConfiguration configuration)
     {
+        // First try dynamic runtime contexts
         var context = contextManager.GetContext(contextName);
-
         if (context != null)
         {
             return Results.Ok(context);
         }
-        else
+
+        // Fallback to configured contexts from appsettings.json to ensure visibility even if not dynamically registered
+        var configured = configuration
+            .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
+            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>()
+            ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
+
+        var match = configured.Find(c => !string.IsNullOrWhiteSpace(c.Name) && string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
         {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+            return Results.Ok(match);
         }
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     private static IResult HandleDeleteContext(

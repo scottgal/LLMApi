@@ -119,7 +119,8 @@ public class MockDataBackgroundService(
                 contextConfig.Path,
                 contextConfig.Body,
                 shapeInfo,
-                streaming: false);
+                streaming: false,
+                description: contextConfig.Description);
 
             // Pull from per-context cache; if empty, prefill with a batch in one upstream call
             var queue = _contextCaches.GetOrAdd(contextConfig.Name, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
@@ -213,7 +214,8 @@ public class MockDataBackgroundService(
                         contextConfig.Path,
                         contextConfig.Body,
                         shapeInfo,
-                        streaming: false);
+                        streaming: false,
+                        description: contextConfig.Description);
 
                     await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
                     _initialPrefillComplete.TryAdd(contextConfig.Name, true);

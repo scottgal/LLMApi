@@ -458,6 +458,46 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         await client.DeleteAsync("/api/mock/contexts/connection-test");
     }
 
+    [Fact]
+    public async Task ListContexts_IncludesDescriptions_FromAppsettings()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/api/mock/contexts");
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ContextListResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        // Assert
+        Assert.NotNull(result);
+        var weather = result!.Contexts.FirstOrDefault(c => string.Equals(c.Name, "weather", StringComparison.OrdinalIgnoreCase));
+        var cars = result!.Contexts.FirstOrDefault(c => string.Equals(c.Name, "cars", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(weather);
+        Assert.NotNull(cars);
+        Assert.Equal("Realistic weather data with temperature, conditions, humidity, and wind speed for a single location", weather!.Description);
+        Assert.Equal("Vehicle status with plate number, location coordinates, speed, fuel level, and battery charge", cars!.Description);
+    }
+
+    [Fact]
+    public async Task GetContext_ForAppsettingsConfiguredContext_ReturnsDescription()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/api/mock/contexts/weather");
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var context = JsonSerializer.Deserialize<HubContextConfig>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        // Assert
+        Assert.NotNull(context);
+        Assert.Equal("weather", context!.Name);
+        Assert.Equal("Realistic weather data with temperature, conditions, humidity, and wind speed for a single location", context.Description);
+    }
+
     private class ContextListResponse
     {
         public List<HubContextConfig> Contexts { get; set; } = new();
