@@ -1,5 +1,41 @@
 # Release Notes
 
+## v1.2.1 (2025-01-04)
+
+**🐛 Critical Bug Fix**
+
+### Fixed
+- **Retry Policy HTTP Request Reuse Issue**: Fixed a critical bug where `HttpRequestMessage` objects were being reused across retry attempts, causing "request has already been sent" errors
+  - **Root Cause**: In .NET, `HttpRequestMessage` can only be sent once. When Polly's retry policy attempted to retry a failed request, it was trying to reuse the same request object
+  - **Solution**: Now creates a fresh `HttpRequestMessage` inside the retry lambda for each attempt, ensuring clean retries
+  - **Impact**: All three LLM client methods are now properly retry-safe:
+    - `GetCompletionAsync()` - Regular completions
+    - `GetStreamingCompletionAsync()` - Streaming responses
+    - `GetNCompletionsAsync()` - Multiple completions
+  - **Test Results**: All 92 unit tests now pass (previously had intermittent retry failures)
+
+### Technical Details
+Changed from this (broken):
+```csharp
+// ❌ BAD: Request created once, reused for retries
+var httpReq = new HttpRequestMessage(...);
+await _resiliencePipeline.ExecuteAsync(async ct =>
+    await client.SendAsync(httpReq, ct), cancellationToken);
+```
+
+To this (fixed):
+```csharp
+// ✅ GOOD: Fresh request for each retry attempt
+await _resiliencePipeline.ExecuteAsync(async ct => {
+    using var httpReq = new HttpRequestMessage(...);
+    return await client.SendAsync(httpReq, ct);
+}, cancellationToken);
+```
+
+This ensures that retries work correctly when requests fail or timeout, making the resilience policies fully functional as intended.
+
+---
+
 ## v1.2.0 (2025-01-04)
 
 **NO BREAKING CHANGES** - All existing code works exactly as before. Full backward compatibility guaranteed!

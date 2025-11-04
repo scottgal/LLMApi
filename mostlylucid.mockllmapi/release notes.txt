@@ -2,6 +2,20 @@
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.2.1 — 2025-11-04
+- Critical retry policy bug fix resolving "request already sent" errors.
+  - Fixed: Retry Policy HTTP Request Reuse Issue
+    - HttpRequestMessage objects were being reused across retry attempts
+    - In .NET, HttpRequestMessage can only be sent once - retries failed with "request already sent" errors
+    - Now creates a fresh HttpRequestMessage inside retry lambda for each attempt
+    - All three LLM client methods fixed: GetCompletionAsync(), GetStreamingCompletionAsync(), GetNCompletionsAsync()
+    - Test results: All 92 unit tests now pass (previously had intermittent retry failures)
+  - Changed: mostlylucid.mockllmapi/Services/LlmClient.cs
+    - Moved HttpRequestMessage creation inside resilience pipeline lambda
+    - Added helper methods: ExecuteRequestAsync() and ExecuteStreamingRequestAsync()
+    - Ensures proper retry behavior when requests fail or timeout
+  - Outcome: Resilience policies now fully functional - retries work correctly without HTTP client errors
+
 v1.2.0 — 2025-11-04
 - Native GraphQL support, fully modular protocol architecture, and Polly resilience policies.
   - Added: Polly Resilience Policies (MAJOR)

@@ -126,14 +126,17 @@ public class LlmClient
     {
         using var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: false, maxTokens: maxTokens);
-        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
-        httpReq.Content = JsonContent.Create(payload);
 
         // Execute with resilience pipeline if policies are enabled
         var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
             ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, ct), cancellationToken)
-            : await client.SendAsync(httpReq, cancellationToken);
+            {
+                // Create a NEW HttpRequestMessage for each attempt (including retries)
+                using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
+                httpReq.Content = JsonContent.Create(payload);
+                return await client.SendAsync(httpReq, ct);
+            }, cancellationToken)
+            : await ExecuteRequestAsync(client, payload, cancellationToken);
 
         using (httpRes)
         {
@@ -141,6 +144,13 @@ public class LlmClient
             var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
             return result.FirstContent ?? "{}";
         }
+    }
+
+    private async Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient client, object payload, CancellationToken cancellationToken)
+    {
+        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
+        httpReq.Content = JsonContent.Create(payload);
+        return await client.SendAsync(httpReq, cancellationToken);
     }
 
 
@@ -152,19 +162,31 @@ public class LlmClient
     {
         var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: true);
-        var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(payload)
-        };
 
         // Execute with resilience pipeline if policies are enabled
         var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
             ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ct), cancellationToken)
-            : await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            {
+                // Create a NEW HttpRequestMessage for each attempt (including retries)
+                var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+                {
+                    Content = JsonContent.Create(payload)
+                };
+                return await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ct);
+            }, cancellationToken)
+            : await ExecuteStreamingRequestAsync(client, payload, cancellationToken);
 
         httpRes.EnsureSuccessStatusCode();
         return httpRes;
+    }
+
+    private async Task<HttpResponseMessage> ExecuteStreamingRequestAsync(HttpClient client, object payload, CancellationToken cancellationToken)
+    {
+        var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        return await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
 
     /// <summary>
@@ -174,16 +196,19 @@ public class LlmClient
     {
         using var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: false, n: n);
-        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(payload)
-        };
 
         // Execute with resilience pipeline if policies are enabled
         var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
             ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, ct), cancellationToken)
-            : await client.SendAsync(httpReq, cancellationToken);
+            {
+                // Create a NEW HttpRequestMessage for each attempt (including retries)
+                using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+                {
+                    Content = JsonContent.Create(payload)
+                };
+                return await client.SendAsync(httpReq, ct);
+            }, cancellationToken)
+            : await ExecuteRequestAsync(client, payload, cancellationToken);
 
         using (httpRes)
         {

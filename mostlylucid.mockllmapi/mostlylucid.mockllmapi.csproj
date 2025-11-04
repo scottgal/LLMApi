@@ -8,7 +8,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>mostlylucid.mockllmapi</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Authors>mostlyLucid</Authors>
     <Company>mostlyLucid</Company>
     <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Supports REST, GraphQL, SSE streaming, and SignalR real-time data. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
@@ -17,7 +17,7 @@
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>Latest: v1.2.0 — Native GraphQL support! Query-driven mock data generation with variables, nested fields, and proper error handling. Shared JSON extraction utility. See RELEASE_NOTES.md for full details.</PackageReleaseNotes>
+    <PackageReleaseNotes>Latest: v1.2.1 — Critical retry policy fix! Resolves "request already sent" errors during retries. See RELEASE_NOTES.md for details.</PackageReleaseNotes>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
   </PropertyGroup>
 
