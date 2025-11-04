@@ -431,7 +431,7 @@ public class GraphQLRequestHandlerTests
     private class FakeGraphQLLlmClient : LlmClient
     {
         public FakeGraphQLLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
-            : base(options, httpClientFactory, logger)
+            : base(options, new Helpers.FakeChatClient(), logger)
         {
         }
 
@@ -515,7 +515,7 @@ public class GraphQLRequestHandlerTests
 
         public RetryTestLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory,
             ILogger<LlmClient> logger, bool failFirstAttempt)
-            : base(options, httpClientFactory, logger)
+            : base(options, new Helpers.FakeChatClient(), logger)
         {
             _failFirstAttempt = failFirstAttempt;
         }
@@ -554,7 +554,7 @@ public class GraphQLRequestHandlerTests
         public int AttemptCount { get; private set; }
 
         public BadJsonLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
-            : base(options, httpClientFactory, logger)
+            : base(options, new Helpers.FakeChatClient(), logger)
         {
         }
 

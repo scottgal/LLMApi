@@ -197,6 +197,113 @@ That's it! Now all requests to `/api/mock/**` return intelligent mock data.
 }
 ```
 
+### LLM Provider Configuration
+
+**New in v2.0.0:** Support for multiple LLM providers via **Microsoft.Extensions.AI**!
+
+The package now supports any LLM provider through Microsoft's unified AI abstraction layer. Simply choose your provider and configure it in `appsettings.json`.
+
+#### Supported Providers
+
+| Provider | Description | Requires API Key | Best For |
+|----------|-------------|------------------|----------|
+| **Ollama** | Local LLM (default) | ❌ No | Development, privacy, offline work |
+| **OpenAI** | Cloud AI service | ✅ Yes | Production, advanced models (GPT-4) |
+| **LMStudio** | Local OpenAI-compatible | ❌ No | Custom models, local deployment |
+| **Azure OpenAI** | Microsoft Azure | ✅ Yes | Enterprise, compliance requirements |
+
+#### Provider-Specific Configuration
+
+**Ollama (Local - Recommended for Development)**
+
+```json
+{
+  "MockLlmApi": {
+    "Provider": "Ollama",
+    "BaseUrl": "http://localhost:11434",
+    "ModelName": "llama3",  // or "mistral:7b", "phi3", etc.
+    "Temperature": 1.2
+  }
+}
+```
+
+**Setup:** Install [Ollama](https://ollama.com) and run `ollama pull llama3`
+
+**OpenAI (Cloud)**
+
+```json
+{
+  "MockLlmApi": {
+    "Provider": "OpenAI",
+    "ModelName": "gpt-4o",  // or "gpt-4o-mini", "gpt-3.5-turbo"
+    "ApiKey": "sk-...",      // or set OPENAI_API_KEY env var
+    "Temperature": 1.2
+  }
+}
+```
+
+**Note:** `BaseUrl` is optional (defaults to OpenAI's endpoint)
+
+**LMStudio (Local OpenAI-Compatible)**
+
+```json
+{
+  "MockLlmApi": {
+    "Provider": "LMStudio",
+    "BaseUrl": "http://localhost:1234/v1",
+    "ModelName": "model-name-from-lmstudio",
+    "Temperature": 1.2
+  }
+}
+```
+
+**Setup:** [Download LMStudio](https://lmstudio.ai), load a model, and start the local server
+
+**Azure OpenAI (Enterprise)**
+
+```json
+{
+  "MockLlmApi": {
+    "Provider": "AzureOpenAI",
+    "BaseUrl": "https://your-resource.openai.azure.com",
+    "ModelName": "your-deployment-name",  // deployment name, NOT model name
+    "ApiKey": "...",                       // or set AZURE_OPENAI_API_KEY env var
+    "Temperature": 1.2
+  }
+}
+```
+
+**Note:** `ModelName` is your Azure deployment name, not the underlying model
+
+#### Environment Variables for API Keys
+
+For security, use environment variables instead of hardcoding API keys:
+
+```bash
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Azure OpenAI
+export AZURE_OPENAI_API_KEY="..."
+```
+
+The package automatically reads these environment variables if `ApiKey` is not specified in configuration.
+
+#### Model Recommendations by Provider
+
+**Ollama (Local):**
+- Development: `llama3` (fast, good quality)
+- Complex queries: `mistral:7b` or `qwen3:14b`
+- Testing: `phi3` or `tinyllama` (very fast, less accurate)
+
+**OpenAI (Cloud):**
+- Production: `gpt-4o` (best quality)
+- Cost-effective: `gpt-4o-mini` or `gpt-3.5-turbo`
+
+**Azure OpenAI:**
+- Use deployment names configured in Azure Portal
+- Model availability varies by region
+
 ### Resilience Policies
 
 **New in v1.2.0:** Built-in Polly resilience policies protect your application from LLM service failures!

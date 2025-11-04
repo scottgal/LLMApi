@@ -66,79 +66,36 @@ public class StreamingRequestHandler
         // Optionally include schema in header before any writes
         TryAddSchemaHeader(context, request, shapeInfo.Shape);
 
-        // Get streaming response from LLM
-        using var httpRes = await _llmClient.GetStreamingCompletionAsync(prompt, cancellationToken);
-        await using var stream = await httpRes.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-
+        // Get streaming response from LLM using Microsoft.Extensions.AI
         var accumulated = new StringBuilder();
 
-        while (!cancellationToken.IsCancellationRequested)
+        await foreach (var chunk in _llmClient.GetStreamingCompletionAsync(prompt, cancellationToken))
         {
-            var line = await reader.ReadLineAsync();
-            if (line == null) break;
-            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (cancellationToken.IsCancellationRequested) break;
+            if (string.IsNullOrEmpty(chunk)) continue;
 
-            if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-            {
-                var payload = line.Substring(5).Trim();
-                if (payload == "[DONE]")
-                {
-                    var finalJson = accumulated.ToString();
-                    // Include schema in final event payload if enabled
-                    object finalPayload;
-                    if (ShouldIncludeSchema(request) && !string.IsNullOrWhiteSpace(shapeInfo.Shape))
-                    {
-                        finalPayload = new { content = finalJson, done = true, schema = shapeInfo.Shape };
-                    }
-                    else
-                    {
-                        finalPayload = new { content = finalJson, done = true };
-                    }
-                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalPayload)}\n\n");
-                    await context.Response.Body.FlushAsync();
-                    break;
-                }
+            accumulated.Append(chunk);
 
-                try
-                {
-                    using var doc = JsonDocument.Parse(payload);
-                    var root = doc.RootElement;
+            // Apply streaming delay if configured
+            await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
 
-                    if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
-                    {
-                        var choice = choices[0];
-                        string? chunk = null;
-
-                        if (choice.TryGetProperty("delta", out var delta) &&
-                            delta.TryGetProperty("content", out var deltaContent))
-                        {
-                            chunk = deltaContent.GetString();
-                        }
-                        else if (choice.TryGetProperty("message", out var msg) &&
-                                 msg.TryGetProperty("content", out var msgContent))
-                        {
-                            chunk = msgContent.GetString();
-                        }
-
-                        if (!string.IsNullOrEmpty(chunk))
-                        {
-                            accumulated.Append(chunk);
-
-                            // Apply streaming delay if configured
-                            await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
-
-                            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { chunk, done = false })}\n\n");
-                            await context.Response.Body.FlushAsync();
-                        }
-                    }
-                }
-                catch
-                {
-                    // Skip malformed chunks
-                }
-            }
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { chunk, done = false })}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
         }
+
+        // Send final event with complete content
+        var finalJson = accumulated.ToString();
+        object finalPayload;
+        if (ShouldIncludeSchema(request) && !string.IsNullOrWhiteSpace(shapeInfo.Shape))
+        {
+            finalPayload = new { content = finalJson, done = true, schema = shapeInfo.Shape };
+        }
+        else
+        {
+            finalPayload = new { content = finalJson, done = true };
+        }
+        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalPayload)}\n\n");
+        await context.Response.Body.FlushAsync(cancellationToken);
     }
 
     private void TryAddSchemaHeader(HttpContext context, HttpRequest request, string? shape)

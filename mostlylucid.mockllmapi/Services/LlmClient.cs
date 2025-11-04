@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
@@ -9,22 +11,22 @@ using Polly.Retry;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Client for communicating with LLM API
+/// Client for communicating with LLM API using Microsoft.Extensions.AI abstractions
 /// </summary>
 public class LlmClient
 {
     private readonly LLMockApiOptions _options;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IChatClient _chatClient;
     private readonly ILogger<LlmClient> _logger;
-    private readonly ResiliencePipeline<HttpResponseMessage> _resiliencePipeline;
+    private readonly ResiliencePipeline<string> _resiliencePipeline;
 
     public LlmClient(
         IOptions<LLMockApiOptions> options,
-        IHttpClientFactory httpClientFactory,
+        IChatClient chatClient,
         ILogger<LlmClient> logger)
     {
         _options = options.Value;
-        _httpClientFactory = httpClientFactory;
+        _chatClient = chatClient;
         _logger = logger;
         _resiliencePipeline = BuildResiliencePipeline();
     }
@@ -32,27 +34,26 @@ public class LlmClient
     /// <summary>
     /// Builds a resilience pipeline with retry and circuit breaker policies
     /// </summary>
-    private ResiliencePipeline<HttpResponseMessage> BuildResiliencePipeline()
+    private ResiliencePipeline<string> BuildResiliencePipeline()
     {
-        var pipelineBuilder = new ResiliencePipelineBuilder<HttpResponseMessage>();
+        var pipelineBuilder = new ResiliencePipelineBuilder<string>();
 
         // Add retry policy with exponential backoff
         if (_options.EnableRetryPolicy && _options.MaxRetryAttempts > 0)
         {
-            pipelineBuilder.AddRetry(new RetryStrategyOptions<HttpResponseMessage>
+            pipelineBuilder.AddRetry(new RetryStrategyOptions<string>
             {
                 MaxRetryAttempts = _options.MaxRetryAttempts,
                 Delay = TimeSpan.FromSeconds(_options.RetryBaseDelaySeconds),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
-                ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                ShouldHandle = new PredicateBuilder<string>()
                     .Handle<HttpRequestException>()
                     .Handle<TaskCanceledException>()
-                    .HandleResult(response => !response.IsSuccessStatusCode),
+                    .Handle<Exception>(),
                 OnRetry = args =>
                 {
                     var exception = args.Outcome.Exception;
-                    var statusCode = args.Outcome.Result?.StatusCode;
 
                     if (exception != null)
                     {
@@ -64,15 +65,6 @@ public class LlmClient
                             args.RetryDelay.TotalMilliseconds,
                             exception.Message);
                     }
-                    else if (statusCode.HasValue)
-                    {
-                        _logger.LogWarning(
-                            "LLM request returned {StatusCode} (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}ms",
-                            statusCode,
-                            args.AttemptNumber + 1,
-                            _options.MaxRetryAttempts + 1,
-                            args.RetryDelay.TotalMilliseconds);
-                    }
 
                     return default;
                 }
@@ -82,16 +74,16 @@ public class LlmClient
         // Add circuit breaker policy
         if (_options.EnableCircuitBreaker)
         {
-            pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
+            pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions<string>
             {
                 FailureRatio = 1.0, // Open after consecutive failures (not ratio-based)
                 MinimumThroughput = _options.CircuitBreakerFailureThreshold,
                 SamplingDuration = TimeSpan.FromSeconds(60),
                 BreakDuration = TimeSpan.FromSeconds(_options.CircuitBreakerDurationSeconds),
-                ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                ShouldHandle = new PredicateBuilder<string>()
                     .Handle<HttpRequestException>()
                     .Handle<TaskCanceledException>()
-                    .HandleResult(response => !response.IsSuccessStatusCode),
+                    .Handle<Exception>(),
                 OnOpened = args =>
                 {
                     _logger.LogError(
@@ -124,105 +116,81 @@ public class LlmClient
     /// </summary>
     public virtual async Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
     {
-        using var client = CreateHttpClient();
-        var payload = BuildChatRequest(prompt, stream: false, maxTokens: maxTokens);
-        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
-        httpReq.Content = JsonContent.Create(payload);
-
-        // Execute with resilience pipeline if policies are enabled
-        var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
-            ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, ct), cancellationToken)
-            : await client.SendAsync(httpReq, cancellationToken);
-
-        using (httpRes)
+        var chatOptions = new ChatOptions
         {
-            httpRes.EnsureSuccessStatusCode();
-            var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
-            return result.FirstContent ?? "{}";
-        }
-    }
-
-
-
-    /// <summary>
-    /// Sends a streaming chat completion request
-    /// </summary>
-    public async Task<HttpResponseMessage> GetStreamingCompletionAsync(string prompt, CancellationToken cancellationToken = default)
-    {
-        var client = CreateHttpClient();
-        var payload = BuildChatRequest(prompt, stream: true);
-        var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(payload)
+            ModelId = _options.ModelName,
+            Temperature = (float?)_options.Temperature,
+            MaxOutputTokens = maxTokens
         };
 
         // Execute with resilience pipeline if policies are enabled
-        var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
+        var result = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
             ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ct), cancellationToken)
-            : await client.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            {
+                var response = await _chatClient.GetResponseAsync(prompt, chatOptions, ct);
+                return response.Text ?? "{}";
+            }, cancellationToken)
+            : await ExecuteChatRequestAsync(prompt, chatOptions, cancellationToken);
 
-        httpRes.EnsureSuccessStatusCode();
-        return httpRes;
+        return result;
+    }
+
+    private async Task<string> ExecuteChatRequestAsync(string prompt, ChatOptions chatOptions, CancellationToken cancellationToken)
+    {
+        var response = await _chatClient.GetResponseAsync(prompt, chatOptions, cancellationToken);
+        return response.Text ?? "{}";
+    }
+
+    /// <summary>
+    /// Sends a streaming chat completion request
+    /// Returns an async enumerable of response chunks
+    /// </summary>
+    public async IAsyncEnumerable<string> GetStreamingCompletionAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var chatOptions = new ChatOptions
+        {
+            ModelId = _options.ModelName,
+            Temperature = (float?)_options.Temperature
+        };
+
+        await foreach (var update in _chatClient.GetStreamingResponseAsync(prompt, chatOptions, cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(update.Text))
+            {
+                yield return update.Text;
+            }
+        }
     }
 
     /// <summary>
     /// Requests multiple completions in a single call and returns all message contents.
+    /// Note: Not all providers support generating multiple completions in a single call.
+    /// This method will make N separate requests if needed.
     /// </summary>
     public async Task<List<string>> GetNCompletionsAsync(string prompt, int n, CancellationToken cancellationToken = default)
     {
-        using var client = CreateHttpClient();
-        var payload = BuildChatRequest(prompt, stream: false, n: n);
-        using var httpReq = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+        var chatOptions = new ChatOptions
         {
-            Content = JsonContent.Create(payload)
+            ModelId = _options.ModelName,
+            Temperature = (float?)_options.Temperature
         };
 
-        // Execute with resilience pipeline if policies are enabled
-        var httpRes = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
-            ? await _resiliencePipeline.ExecuteAsync(async ct =>
-                await client.SendAsync(httpReq, ct), cancellationToken)
-            : await client.SendAsync(httpReq, cancellationToken);
+        var results = new List<string>();
 
-        using (httpRes)
+        // Generate N completions (may require N separate requests depending on provider)
+        for (int i = 0; i < n; i++)
         {
-            httpRes.EnsureSuccessStatusCode();
-            var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
-            var list = new List<string>();
-            foreach (var c in result.Choices)
-            {
-                if (!string.IsNullOrEmpty(c.Message.Content))
-                    list.Add(c.Message.Content);
-            }
-            return list;
+            var result = (_options.EnableRetryPolicy || _options.EnableCircuitBreaker)
+                ? await _resiliencePipeline.ExecuteAsync(async ct =>
+                {
+                    var response = await _chatClient.GetResponseAsync(prompt, chatOptions, ct);
+                    return response.Text ?? "{}";
+                }, cancellationToken)
+                : await ExecuteChatRequestAsync(prompt, chatOptions, cancellationToken);
+
+            results.Add(result);
         }
-    }
 
-    /// <summary>
-    /// Builds a chat request object for the LLM API
-    /// </summary>
-    public object BuildChatRequest(string prompt, bool stream, int? n = null, int? maxTokens = null)
-    {
-        return new
-        {
-            model = _options.ModelName,
-            stream,
-            temperature = _options.Temperature,
-            n,
-            max_tokens = maxTokens,
-            messages = new[] { new { role = "user", content = prompt } }
-        };
-    }
-
-    /// <summary>
-    /// Creates an HttpClient configured for the LLM API
-    /// </summary>
-    private HttpClient CreateHttpClient()
-    {
-        var client = _httpClientFactory.CreateClient("LLMockApi");
-        client.BaseAddress = new Uri(_options.BaseUrl);
-        client.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
-        return client;
+        return results;
     }
 }

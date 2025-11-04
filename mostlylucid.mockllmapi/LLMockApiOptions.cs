@@ -1,6 +1,32 @@
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
+/// LLM provider types
+/// </summary>
+public enum LLMProvider
+{
+    /// <summary>
+    /// Ollama - Local LLM provider (default)
+    /// </summary>
+    Ollama,
+
+    /// <summary>
+    /// OpenAI - Cloud-based AI service
+    /// </summary>
+    OpenAI,
+
+    /// <summary>
+    /// LMStudio - Local OpenAI-compatible server
+    /// </summary>
+    LMStudio,
+
+    /// <summary>
+    /// Azure OpenAI - Microsoft's hosted OpenAI service
+    /// </summary>
+    AzureOpenAI
+}
+
+/// <summary>
 /// Configuration options for LLMock API
 /// </summary>
 public class LLMockApiOptions
@@ -11,14 +37,35 @@ public class LLMockApiOptions
     public const string SectionName = "MockLlmApi";
 
     /// <summary>
-    /// Base URL for the LLM API (default: http://localhost:11434/v1/)
+    /// LLM provider to use (default: Ollama)
+    /// Options: Ollama, OpenAI, LMStudio, AzureOpenAI
     /// </summary>
-    public string BaseUrl { get; set; } = "http://localhost:11434/v1/";
+    public LLMProvider Provider { get; set; } = LLMProvider.Ollama;
 
     /// <summary>
-    /// Model name to use (default: llama3)
+    /// Base URL for the LLM API
+    /// - Ollama: http://localhost:11434 (default)
+    /// - LMStudio: http://localhost:1234/v1 (typical)
+    /// - OpenAI: https://api.openai.com/v1 (default, usually not needed)
+    /// - AzureOpenAI: Your Azure endpoint URL
+    /// </summary>
+    public string BaseUrl { get; set; } = "http://localhost:11434";
+
+    /// <summary>
+    /// Model name/deployment to use
+    /// - Ollama: llama3, mistral:7b, phi3, etc. (default: llama3)
+    /// - OpenAI: gpt-4o, gpt-4o-mini, gpt-3.5-turbo, etc.
+    /// - LMStudio: Model name as shown in LMStudio
+    /// - AzureOpenAI: Deployment name from Azure portal
     /// </summary>
     public string ModelName { get; set; } = "llama3";
+
+    /// <summary>
+    /// API Key for cloud providers (OpenAI, AzureOpenAI)
+    /// Not needed for Ollama or LMStudio
+    /// Can also be set via environment variable: OPENAI_API_KEY or AZURE_OPENAI_API_KEY
+    /// </summary>
+    public string? ApiKey { get; set; }
 
     /// <summary>
     /// Temperature for LLM generation (default: 1.2 for high randomness)

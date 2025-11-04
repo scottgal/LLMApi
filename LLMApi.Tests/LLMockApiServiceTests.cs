@@ -261,7 +261,7 @@ public class LLMockApiServiceTests
 
         var shapeExtractor = new ShapeExtractor();
         var promptBuilder = new PromptBuilder(opts);
-        var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance);
+        var llmClient = new LlmClient(opts, new Helpers.FakeChatClient(), NullLogger<LlmClient>.Instance);
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(opts);
 

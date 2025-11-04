@@ -1,14 +1,20 @@
+using System.ClientModel;
 using System.ComponentModel;
 using System.Text.Json;
+using Azure.AI.OpenAI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
+using OllamaSharp;
+using OpenAI;
+using OpenAI.Chat;
 
 namespace mostlylucid.mockllmapi;
 
@@ -181,6 +187,14 @@ public static class LlMockApiExtensions
         if (services.All(x => x.ServiceType != typeof(LlmClient)))
         {
             services.AddHttpClient("LLMockApi");
+
+            // Register IChatClient based on provider configuration
+            services.AddScoped<IChatClient>(sp =>
+            {
+                var options = sp.GetRequiredService<IOptions<LLMockApiOptions>>().Value;
+                return CreateChatClient(options);
+            });
+
             services.AddScoped<ShapeExtractor>();
             services.AddScoped<PromptBuilder>();
             services.AddScoped<LlmClient>();
@@ -188,6 +202,83 @@ public static class LlMockApiExtensions
             services.AddScoped<DelayHelper>();
             services.AddScoped<LLMockApiService>();
         }
+    }
+
+    /// <summary>
+    /// Creates an IChatClient based on the configured provider
+    /// </summary>
+    private static IChatClient CreateChatClient(LLMockApiOptions options)
+    {
+        return options.Provider switch
+        {
+            LLMProvider.Ollama => CreateOllamaChatClient(options),
+            LLMProvider.OpenAI => CreateOpenAIChatClient(options),
+            LLMProvider.LMStudio => CreateLMStudioChatClient(options),
+            LLMProvider.AzureOpenAI => CreateAzureOpenAIChatClient(options),
+            _ => throw new InvalidOperationException($"Unsupported provider: {options.Provider}")
+        };
+    }
+
+    private static IChatClient CreateOllamaChatClient(LLMockApiOptions options)
+    {
+        // OllamaApiClient implements IChatClient directly
+        var ollamaClient = new OllamaApiClient(new Uri(options.BaseUrl), options.ModelName);
+        return ollamaClient;
+    }
+
+    private static IChatClient CreateOpenAIChatClient(LLMockApiOptions options)
+    {
+        // Get API key from options or environment variable
+        var apiKeyString = options.ApiKey ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+
+        if (string.IsNullOrWhiteSpace(apiKeyString))
+        {
+            throw new InvalidOperationException(
+                "OpenAI API key is required. Set it in configuration (ApiKey) or environment variable (OPENAI_API_KEY)");
+        }
+
+        // Use the newer OpenAI.Chat.ChatClient pattern
+        var apiKey = new ApiKeyCredential(apiKeyString);
+        var chatClient = new ChatClient(options.ModelName, apiKey);
+        return chatClient.AsIChatClient();
+    }
+
+    private static IChatClient CreateLMStudioChatClient(LLMockApiOptions options)
+    {
+        // LMStudio uses OpenAI-compatible API, so we create a ChatClient with custom endpoint
+        var clientOptions = new OpenAIClientOptions
+        {
+            Endpoint = new Uri(options.BaseUrl)
+        };
+        var apiKey = new ApiKeyCredential("dummy-key"); // LMStudio doesn't require real API key
+        var chatClient = new ChatClient(options.ModelName, apiKey, clientOptions);
+        return chatClient.AsIChatClient();
+    }
+
+    private static IChatClient CreateAzureOpenAIChatClient(LLMockApiOptions options)
+    {
+        // Get API key from options or environment variable
+        var apiKey = options.ApiKey ?? Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException(
+                "Azure OpenAI API key is required. Set it in configuration (ApiKey) or environment variable (AZURE_OPENAI_API_KEY)");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.BaseUrl) || !Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _))
+        {
+            throw new InvalidOperationException(
+                "Valid BaseUrl is required for Azure OpenAI. Set it to your Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com)");
+        }
+
+        var azureClient = new AzureOpenAIClient(
+            new Uri(options.BaseUrl),
+            new System.ClientModel.ApiKeyCredential(apiKey));
+
+        // Get the chat client for the specific deployment and convert to IChatClient
+        var chatClient = azureClient.GetChatClient(options.ModelName);
+        return chatClient.AsIChatClient();
     }
 
     private static void RegisterRestServices(IServiceCollection services)
