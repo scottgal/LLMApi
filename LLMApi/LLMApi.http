@@ -52,6 +52,14 @@ Accept: application/json
 
 ###
 
+### GET example - autocomplete/search suggestions
+# Simulates a typical autocomplete API endpoint that returns matching suggestions
+# Shape: {"suggestions": [{"value": "string", "label": "string", "category": "string"}]}
+GET {{LLMApi_HostAddress}}/api/mock/search/autocomplete?q=java&shape=%7B%22suggestions%22%3A%5B%7B%22value%22%3A%22string%22%2C%22label%22%3A%22string%22%2C%22category%22%3A%22string%22%7D%5D%7D
+Accept: application/json
+
+###
+
 ### POST example - create an order
 POST {{LLMApi_HostAddress}}/api/mock/orders
 Content-Type: application/json

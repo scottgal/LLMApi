@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using LLMApi.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
@@ -21,9 +23,14 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                // Ensure SignalR services are registered for testing
-                services.AddLLMockSignalR(options =>
+                // Replace the real LlmClient with a fake one that doesn't require Ollama
+                services.RemoveAll<LlmClient>();
+                services.AddScoped<LlmClient, FakeLlmClient>();
+
+                // Override options to clear configured contexts for clean test state
+                services.PostConfigure<LLMockApiOptions>(options =>
                 {
+                    options.HubContexts.Clear(); // Remove any contexts from appsettings
                     options.BaseUrl = "http://localhost:11434/v1/";
                     options.ModelName = "llama3";
                 });

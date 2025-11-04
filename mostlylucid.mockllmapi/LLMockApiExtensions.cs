@@ -177,6 +177,12 @@ public static class LlMockApiExtensions
         routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", HandleDeleteContext)
             .WithName("LLMockApi-DeleteContext");
 
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/start", HandleStartContext)
+            .WithName("LLMockApi-StartContext");
+
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/stop", HandleStopContext)
+            .WithName("LLMockApi-StopContext");
+
         return app;
     }
 
@@ -261,15 +267,27 @@ public static class LlMockApiExtensions
         HttpContext ctx,
         DynamicHubContextManager contextManager,
         LlmClient llmClient,
-        ILogger<DynamicHubContextManager> logger)
+        ILogger<DynamicHubContextManager> logger,
+        IOptions<LLMockApiOptions> options)
     {
         try
         {
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync();
-            var config = JsonSerializer.Deserialize<Models.HubContextConfig>(json);
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, jsonOptions);
 
             if (config == null || string.IsNullOrWhiteSpace(config.Name))
+            {
+                return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
+            }
+
+            // Reset Name to empty if it's still the default value and wasn't actually provided in JSON
+            if (config.Name == "default" && !json.Contains("\"name\"", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
             }
@@ -310,6 +328,12 @@ Example format:
                 }
             }
 
+            // Prevent creating a dynamic context that collides with a configured one
+            if (options.Value.HubContexts.Any(c => string.Equals(c.Name, config.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return Results.Conflict(new { error = $"Context '{config.Name}' already exists as a configured context" });
+            }
+
             var success = contextManager.RegisterContext(config);
 
             if (success)
@@ -333,34 +357,54 @@ Example format:
     }
 
     private static IResult HandleListContexts(
-        DynamicHubContextManager contextManager)
+        DynamicHubContextManager contextManager,
+        IOptions<LLMockApiOptions> options)
     {
-        var contexts = contextManager.GetAllContexts();
+        var dynamicContexts = contextManager.GetAllContexts();
+        var configured = options.Value.HubContexts;
+
+        // Merge configured and dynamic by name (dynamic overrides)
+        var map = new Dictionary<string, Models.HubContextConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in configured) map[c.Name] = c;
+        foreach (var c in dynamicContexts) map[c.Name] = c;
+        var contexts = map.Values.ToList();
+
         return Results.Ok(new { contexts, count = contexts.Count });
     }
 
     private static IResult HandleGetContext(
         string contextName,
-        DynamicHubContextManager contextManager)
+        DynamicHubContextManager contextManager,
+        IOptions<LLMockApiOptions> options)
     {
         var context = contextManager.GetContext(contextName);
-
         if (context != null)
         {
             return Results.Ok(context);
         }
-        else
+
+        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (configured != null)
         {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+            return Results.Ok(configured);
         }
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     private static IResult HandleDeleteContext(
         string contextName,
-        DynamicHubContextManager contextManager)
+        DynamicHubContextManager contextManager,
+        IOptions<LLMockApiOptions> options)
     {
-        var success = contextManager.UnregisterContext(contextName);
+        // Prevent deleting configured contexts
+        var configured = options.Value.HubContexts.Any(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (configured)
+        {
+            return Results.Conflict(new { error = $"Context '{contextName}' is configured and cannot be deleted" });
+        }
 
+        var success = contextManager.UnregisterContext(contextName);
         if (success)
         {
             return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
@@ -369,5 +413,49 @@ Example format:
         {
             return Results.NotFound(new { error = $"Context '{contextName}' not found" });
         }
+    }
+
+    private static IResult HandleStartContext(
+        string contextName,
+        DynamicHubContextManager contextManager,
+        IOptions<LLMockApiOptions> options)
+    {
+        // Try dynamic first
+        if (contextManager.StartContext(contextName))
+        {
+            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
+        }
+
+        // Then configured
+        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (configured != null)
+        {
+            configured.IsActive = true;
+            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
+        }
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
+    }
+
+    private static IResult HandleStopContext(
+        string contextName,
+        DynamicHubContextManager contextManager,
+        IOptions<LLMockApiOptions> options)
+    {
+        // Try dynamic first
+        if (contextManager.StopContext(contextName))
+        {
+            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
+        }
+
+        // Then configured
+        var configured = options.Value.HubContexts.FirstOrDefault(c => string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (configured != null)
+        {
+            configured.IsActive = false;
+            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
+        }
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 }

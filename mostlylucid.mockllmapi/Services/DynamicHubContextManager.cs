@@ -76,4 +76,60 @@ public class DynamicHubContextManager(ILogger<DynamicHubContextManager> logger)
     {
         return _dynamicContexts.ContainsKey(contextName);
     }
+
+    /// <summary>
+    /// Starts a context (makes it active)
+    /// </summary>
+    public bool StartContext(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.IsActive = true;
+            logger.LogInformation("Started context: {ContextName}", contextName);
+            return true;
+        }
+
+        logger.LogWarning("Cannot start context {ContextName} - not found", contextName);
+        return false;
+    }
+
+    /// <summary>
+    /// Stops a context (makes it inactive)
+    /// </summary>
+    public bool StopContext(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.IsActive = false;
+            logger.LogInformation("Stopped context: {ContextName}", contextName);
+            return true;
+        }
+
+        logger.LogWarning("Cannot stop context {ContextName} - not found", contextName);
+        return false;
+    }
+
+    /// <summary>
+    /// Increments the connection count for a context
+    /// </summary>
+    public void IncrementConnectionCount(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.ConnectionCount++;
+            logger.LogDebug("Connection count for {ContextName}: {Count}", contextName, config.ConnectionCount);
+        }
+    }
+
+    /// <summary>
+    /// Decrements the connection count for a context
+    /// </summary>
+    public void DecrementConnectionCount(string contextName)
+    {
+        if (_dynamicContexts.TryGetValue(contextName, out var config))
+        {
+            config.ConnectionCount--;
+            logger.LogDebug("Connection count for {ContextName}: {Count}", contextName, config.ConnectionCount);
+        }
+    }
 }

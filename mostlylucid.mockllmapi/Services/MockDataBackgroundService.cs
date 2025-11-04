@@ -31,14 +31,14 @@ public class MockDataBackgroundService(
             try
             {
                 // Generate data for each configured context
-                foreach (var contextConfig in _options.HubContexts)
+                foreach (var contextConfig in _options.HubContexts.Where(c => c.IsActive))
                 {
                     await GenerateAndPushDataAsync(contextConfig, stoppingToken);
                 }
 
                 // Generate data for each dynamic context
                 var dynamicContexts = dynamicContextManager.GetAllContexts();
-                foreach (var contextConfig in dynamicContexts)
+                foreach (var contextConfig in dynamicContexts.Where(c => c.IsActive))
                 {
                     await GenerateAndPushDataAsync(contextConfig, stoppingToken);
                 }
@@ -96,6 +96,27 @@ public class MockDataBackgroundService(
             // Extract clean JSON from response (LLM might add markdown or explanatory text)
             var cleanJson = ExtractJson(data);
 
+            // If shape is provided (and not a JSON Schema), ensure we don't just echo the shape back
+            if (!string.IsNullOrWhiteSpace(contextConfig.Shape) && !isJsonSchema)
+            {
+                if (TryNormalizeJson(cleanJson, out var normResponse) && TryNormalizeJson(contextConfig.Shape!, out var normShape)
+                    && normResponse == normShape)
+                {
+                    logger.LogWarning("LLM returned data identical to configured shape for context: {Context}. Retrying generation to avoid echoing shape.", contextConfig.Name);
+
+                    // Strengthen the instruction to avoid echoing the sample shape
+                    var retryPrompt = prompt + "\nDO NOT return the provided sample shape verbatim. Replace placeholder values (e.g., 0, \\\"string\\\") with realistic, varied values. Output only JSON.";
+                    var retryData = await llmClient.GetCompletionAsync(retryPrompt, cancellationToken);
+                    cleanJson = ExtractJson(retryData);
+
+                    if (TryNormalizeJson(cleanJson, out normResponse) && normResponse == normShape)
+                    {
+                        logger.LogWarning("Second attempt still matched the shape for context: {Context}. Falling back to empty object.", contextConfig.Name);
+                        cleanJson = "{}";
+                    }
+                }
+            }
+
             // Parse JSON to verify it's valid
             var jsonDoc = System.Text.Json.JsonDocument.Parse(cleanJson);
 
@@ -123,16 +144,16 @@ public class MockDataBackgroundService(
     /// </summary>
     private static string ExtractJson(string response)
     {
+        // Always return something that can be parsed as JSON to avoid downstream exceptions
         if (string.IsNullOrWhiteSpace(response))
-            return response;
+            return "{}";
 
         var trimmed = response.Trim();
 
-        // Check if it's already valid JSON
+        // Fast-path: looks like JSON already
         if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
             (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
         {
-            // Try to parse it as-is first
             try
             {
                 System.Text.Json.JsonDocument.Parse(trimmed);
@@ -140,34 +161,130 @@ public class MockDataBackgroundService(
             }
             catch
             {
-                // If parsing fails, continue with extraction logic
+                // fall through to extraction
             }
         }
 
-        // Remove markdown code blocks
+        // 1) Prefer fenced code blocks with optional json hint
         var jsonPattern = @"```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```";
         var match = System.Text.RegularExpressions.Regex.Match(response, jsonPattern);
         if (match.Success)
         {
-            return match.Groups[1].Value.Trim();
+            var candidate = match.Groups[1].Value.Trim();
+            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* continue */ }
         }
 
-        // Try to find JSON object or array in the text
+        // 2) Scan for the first balanced JSON object/array respecting strings/escapes
+        string? balanced = TryExtractBalancedJson(response);
+        if (balanced != null)
+        {
+            return balanced;
+        }
+
+        // 3) Last resort: try greedy object/array regex and validate
         var jsonObjectPattern = @"\{[\s\S]*\}";
         var objectMatch = System.Text.RegularExpressions.Regex.Match(response, jsonObjectPattern);
         if (objectMatch.Success)
         {
-            return objectMatch.Value.Trim();
+            var candidate = objectMatch.Value.Trim();
+            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* ignore */ }
         }
 
         var jsonArrayPattern = @"\[[\s\S]*\]";
         var arrayMatch = System.Text.RegularExpressions.Regex.Match(response, jsonArrayPattern);
         if (arrayMatch.Success)
         {
-            return arrayMatch.Value.Trim();
+            var candidate = arrayMatch.Value.Trim();
+            try { System.Text.Json.JsonDocument.Parse(candidate); return candidate; } catch { /* ignore */ }
         }
 
-        // Return as-is if no patterns matched
-        return trimmed;
+        // 4) Fallback to an empty object to keep pipeline healthy
+        return "{}";
+    }
+
+    private static string? TryExtractBalancedJson(string input)
+    {
+        int idx = 0;
+        while (idx < input.Length)
+        {
+            int start = input.IndexOfAny(new[] { '{', '[' }, idx);
+            if (start == -1) break;
+
+            bool inString = false;
+            char stringQuote = '\0';
+            bool escape = false;
+            int brace = 0;
+            int bracket = 0;
+
+            for (int i = start; i < input.Length; i++)
+            {
+                char c = input[i];
+                if (inString)
+                {
+                    if (escape)
+                    {
+                        escape = false;
+                    }
+                    else if (c == '\\')
+                    {
+                        escape = true;
+                    }
+                    else if (c == stringQuote)
+                    {
+                        inString = false;
+                    }
+                    continue;
+                }
+
+                if (c == '"' || c == '\'')
+                {
+                    inString = true;
+                    stringQuote = c;
+                    continue;
+                }
+
+                if (c == '{') brace++;
+                else if (c == '}') brace--;
+                else if (c == '[') bracket++;
+                else if (c == ']') bracket--;
+
+                // If we ever go negative, this candidate is invalid
+                if (brace < 0 || bracket < 0) break;
+
+                // Completed a top-level balanced block
+                if (start > -1 && brace == 0 && bracket == 0)
+                {
+                    var candidate = input.Substring(start, i - start + 1).Trim();
+                    try
+                    {
+                        System.Text.Json.JsonDocument.Parse(candidate);
+                        return candidate;
+                    }
+                    catch
+                    {
+                        break; // stop scanning this start; try next
+                    }
+                }
+            }
+
+            idx = start + 1;
+        }
+
+        return null;
+    }
+
+    private static bool TryNormalizeJson(string json, out string normalized)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            normalized = System.Text.Json.JsonSerializer.Serialize(doc.RootElement);
+            return true;
+        }
+        catch
+        {
+            normalized = string.Empty;
+            return false;
+        }
     }
 }

@@ -40,4 +40,14 @@ public class HubContextConfig
     /// Whether to treat Shape as JSON Schema (auto-detected if not specified)
     /// </summary>
     public bool? IsJsonSchema { get; set; }
+
+    /// <summary>
+    /// Whether this context is active and generating data (default: true)
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Number of clients currently connected to this context
+    /// </summary>
+    public int ConnectionCount { get; set; } = 0;
 }

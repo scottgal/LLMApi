@@ -14,7 +14,7 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
     /// <summary>
     /// Sends a non-streaming chat completion request
     /// </summary>
-    public async Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default)
+    public virtual async Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default)
     {
         using var client = CreateHttpClient();
         var payload = BuildChatRequest(prompt, stream: false);
@@ -26,6 +26,20 @@ public class LlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory ht
         httpRes.EnsureSuccessStatusCode();
         var result = await httpRes.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
         return result.FirstContent ?? "{}";
+    }
+
+    /// <summary>
+    /// Sends N non-streaming chat completion requests for batch processing
+    /// </summary>
+    public virtual async Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
+    {
+        var tasks = new List<Task<string>>();
+        for (int i = 0; i < count; i++)
+        {
+            tasks.Add(GetCompletionAsync(prompt, cancellationToken));
+        }
+        var results = await Task.WhenAll(tasks);
+        return results.ToList();
     }
 
     /// <summary>
