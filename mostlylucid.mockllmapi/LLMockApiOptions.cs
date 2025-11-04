@@ -91,4 +91,49 @@ public class LLMockApiOptions
     /// Interval in milliseconds between background data generation pushes (default: 5000 = 5 seconds)
     /// </summary>
     public int SignalRPushIntervalMs { get; set; } = 5000;
+
+    #region Resilience Policy Options
+
+    /// <summary>
+    /// Enable exponential backoff retry policy for LLM requests (default: true)
+    /// </summary>
+    public bool EnableRetryPolicy { get; set; } = true;
+
+    /// <summary>
+    /// Maximum number of retry attempts for failed LLM requests (default: 3)
+    /// </summary>
+    public int MaxRetryAttempts { get; set; } = 3;
+
+    /// <summary>
+    /// Base delay in seconds for exponential backoff (default: 1)
+    /// Actual delay = BaseDelay * 2^attempt (e.g., 1s, 2s, 4s)
+    /// </summary>
+    public double RetryBaseDelaySeconds { get; set; } = 1.0;
+
+    /// <summary>
+    /// Enable circuit breaker pattern for LLM requests (default: true)
+    /// </summary>
+    public bool EnableCircuitBreaker { get; set; } = true;
+
+    /// <summary>
+    /// Number of consecutive failures before circuit breaker opens (default: 5)
+    /// </summary>
+    public int CircuitBreakerFailureThreshold { get; set; } = 5;
+
+    /// <summary>
+    /// Duration in seconds the circuit breaker stays open before attempting to close (default: 30)
+    /// </summary>
+    public int CircuitBreakerDurationSeconds { get; set; } = 30;
+
+    #endregion
+
+    #region GraphQL Options
+
+    /// <summary>
+    /// Maximum tokens for GraphQL responses to prevent truncation (default: 500, null = no limit)
+    /// Set lower (200-300) for smaller models like tinyllama, higher (500-1000) for larger models
+    /// </summary>
+    public int? GraphQLMaxTokens { get; set; } = 500;
+
+    #endregion
 }

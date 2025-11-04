@@ -18,6 +18,9 @@ public static class JsonExtractor
 
         var trimmed = response.Trim();
 
+        // Clean up common LLM artifacts that break JSON parsing
+        trimmed = CleanupLlmArtifacts(trimmed);
+
         // Check if it's already valid JSON
         if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
             (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
@@ -58,5 +61,36 @@ public static class JsonExtractor
 
         // Return as-is if no patterns matched
         return trimmed;
+    }
+
+    /// <summary>
+    /// Removes common LLM artifacts that break JSON parsing:
+    /// - Ellipsis (...) used to indicate truncation
+    /// - C-style comments (// ...)
+    /// - Trailing commas before closing brackets
+    /// </summary>
+    private static string CleanupLlmArtifacts(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return json;
+
+        // Remove ellipsis patterns that indicate truncation
+        // Match: "...", ..., "field": "...", etc.
+        json = Regex.Replace(json, @"""\.\.\.""", @"""""");  // "..." -> ""
+        json = Regex.Replace(json, @":\s*\.\.\.(?=[,\}\]])", ": null");  // : ... -> : null
+        json = Regex.Replace(json, @",\s*\.\.\.(?=[\}\]])", "");  // , ... before closing -> remove
+        json = Regex.Replace(json, @"^\s*\.\.\..*$", "", RegexOptions.Multiline);  // Entire lines with just ...
+
+        // Remove C-style comments (// ...)
+        json = Regex.Replace(json, @"//[^\n]*", "");  // Remove // comments
+
+        // Remove trailing commas before closing brackets (common LLM mistake)
+        json = Regex.Replace(json, @",(\s*[\}\]])", "$1");  // , } -> } and , ] -> ]
+
+        // Remove empty array/object elements created by cleanup
+        json = Regex.Replace(json, @"\[\s*,\s*", "[");  // [, -> [
+        json = Regex.Replace(json, @",\s*,\s*", ",");   // ,, -> ,
+
+        return json;
     }
 }

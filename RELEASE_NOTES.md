@@ -6,6 +6,21 @@
 
 ### New Features
 
+#### Polly Resilience Policies (MAJOR)
+- **Exponential Backoff Retry**: Automatically retries failed LLM requests with exponential delays (1s, 2s, 4s...)
+  - Configurable retry attempts (default: 3)
+  - Jitter included to prevent thundering herd
+  - Handles connection errors, timeouts, and HTTP errors
+  - Comprehensive logging for each retry attempt
+- **Circuit Breaker Pattern**: Protects against cascading failures
+  - Opens after consecutive failures (default: 5)
+  - Stays open for configured duration (default: 30 seconds)
+  - Three states: Closed (normal), Open (rejecting), Half-Open (testing)
+  - Logs all state transitions
+- **Enabled by Default**: Both policies are active out of the box for production resilience
+- **Fully Configurable**: All thresholds, delays, and behaviors can be customized via appsettings.json
+- **Applies to All Protocols**: REST, GraphQL, SSE streaming, and SignalR all benefit from resilience policies
+
 #### GraphQL API Support
 - **Native GraphQL Endpoint**: POST to `/api/mock/graphql` with standard GraphQL queries
 - **Query-Driven Data Generation**: The GraphQL query itself defines the response structure - no separate shape specification needed

@@ -52,14 +52,59 @@ public class GraphQLRequestHandler
             // Build prompt specifically for GraphQL
             var prompt = BuildGraphQLPrompt(graphQLRequest);
 
-            // Get response from LLM
-            var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
-            var cleanJson = JsonExtractor.ExtractJson(rawResponse);
+            // Try to get valid JSON from LLM (with retry)
+            const int maxAttempts = 2;
 
-            // Wrap in GraphQL response format
-            var graphQLResponse = WrapInGraphQLResponse(cleanJson);
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    // Get response from LLM with max_tokens to prevent truncation
+                    var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken, _options.GraphQLMaxTokens);
 
-            return graphQLResponse;
+                    _logger.LogDebug("Attempt {Attempt}/{MaxAttempts}: Raw LLM response (first 500 chars): {Response}",
+                        attempt, maxAttempts, rawResponse.Length > 500 ? rawResponse.Substring(0, 500) + "..." : rawResponse);
+
+                    var cleanJson = JsonExtractor.ExtractJson(rawResponse);
+
+                    if (string.IsNullOrWhiteSpace(cleanJson))
+                    {
+                        _logger.LogWarning("Attempt {Attempt}/{MaxAttempts}: JsonExtractor returned empty result", attempt, maxAttempts);
+
+                        if (attempt < maxAttempts)
+                        {
+                            // Retry with more explicit prompt
+                            _logger.LogInformation("Retrying with more explicit JSON-only prompt");
+                            prompt = BuildRetryPrompt(graphQLRequest);
+                            continue;
+                        }
+
+                        return CreateGraphQLError("LLM did not return valid JSON data after retries");
+                    }
+
+                    _logger.LogDebug("Attempt {Attempt}/{MaxAttempts}: Extracted JSON (first 500 chars): {Json}",
+                        attempt, maxAttempts, cleanJson.Length > 500 ? cleanJson.Substring(0, 500) + "..." : cleanJson);
+
+                    // Try to wrap in GraphQL response format - this validates the JSON
+                    var graphQLResponse = WrapInGraphQLResponse(cleanJson);
+
+                    // Success! Return the valid response
+                    if (attempt > 1)
+                    {
+                        _logger.LogInformation("Successfully generated valid GraphQL response on attempt {Attempt}", attempt);
+                    }
+
+                    return graphQLResponse;
+                }
+                catch (JsonException ex) when (attempt < maxAttempts)
+                {
+                    _logger.LogWarning(ex, "Attempt {Attempt}/{MaxAttempts}: JSON parsing failed, retrying", attempt, maxAttempts);
+                    prompt = BuildRetryPrompt(graphQLRequest);
+                }
+            }
+
+            // If we get here, all attempts failed
+            return CreateGraphQLError("Failed to generate valid GraphQL response after multiple attempts");
         }
         catch (Exception ex)
         {
@@ -95,38 +140,26 @@ public class GraphQLRequestHandler
 
     private static string BuildGraphQLPrompt(GraphQLRequest request)
     {
-        var prompt = $@"You are a GraphQL API mock server. Generate realistic mock data for the following GraphQL query.
+        var prompt = $@"JSON for: {request.Query}
 
-GraphQL Query:
-{request.Query}";
+RULES: 2 items max. Complete values only. NO ... NO dots NO // NO comments.
+{{""users"":[{{""id"":1,""name"":""A""}},{{""id"":2,""name"":""B""}}]}}";
 
         if (request.Variables != null && request.Variables.Count > 0)
         {
             prompt += $@"
-
-Variables:
-{JsonSerializer.Serialize(request.Variables, new JsonSerializerOptions { WriteIndented = true })}";
+Vars: {JsonSerializer.Serialize(request.Variables)}";
         }
 
-        if (!string.IsNullOrWhiteSpace(request.OperationName))
-        {
-            prompt += $@"
+        return prompt;
+    }
 
-Operation Name: {request.OperationName}";
-        }
+    private static string BuildRetryPrompt(GraphQLRequest request)
+    {
+        var prompt = $@"JSON: {request.Query}
 
-        prompt += @"
-
-Instructions:
-1. Analyze the GraphQL query to understand what data structure is requested
-2. Generate realistic, varied mock data that matches the query structure EXACTLY
-3. Include all requested fields in the response
-4. Use realistic data types (strings, numbers, booleans, nulls as appropriate)
-5. For arrays/lists, return 3-5 items with varied data
-6. Return ONLY valid JSON that matches the query structure - no markdown, no explanations
-7. DO NOT wrap the response in a 'data' field - return the data structure directly
-
-Generate the mock data now:";
+{{ }} ONLY. 2 items. NO ... NO // NO text.
+{{""field"":[{{""id"":1}}]}}";
 
         return prompt;
     }
@@ -146,7 +179,8 @@ Generate the mock data now:";
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Invalid JSON from LLM, returning error response");
+            _logger.LogError(ex, "Invalid JSON from LLM. Attempted to parse: {Json}",
+                dataJson.Length > 200 ? dataJson.Substring(0, 200) + "..." : dataJson);
             return CreateGraphQLError("Failed to generate valid GraphQL response");
         }
     }

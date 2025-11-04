@@ -3,7 +3,16 @@
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
 v1.2.0 — 2025-11-04
-- Native GraphQL support and fully modular protocol architecture.
+- Native GraphQL support, fully modular protocol architecture, and Polly resilience policies.
+  - Added: Polly Resilience Policies (MAJOR)
+    - Exponential backoff retry with configurable attempts (default: 3) and base delay (default: 1s)
+    - Jitter included to prevent thundering herd problems
+    - Circuit breaker pattern to prevent cascading failures (opens after 5 consecutive failures, stays open for 30s)
+    - Comprehensive logging for all retry attempts and circuit breaker state transitions
+    - Enabled by default for production resilience
+    - Fully configurable via appsettings.json (EnableRetryPolicy, MaxRetryAttempts, RetryBaseDelaySeconds, EnableCircuitBreaker, CircuitBreakerFailureThreshold, CircuitBreakerDurationSeconds)
+    - Applies to all protocols: REST, GraphQL, SSE streaming, and SignalR
+    - Added Polly NuGet package dependency (v8.6.4)
   - Added: GraphQL API Support
     - Native GraphQL endpoint: POST to /api/mock/graphql with standard GraphQL queries
     - Query-driven data generation (query itself defines response structure)

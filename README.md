@@ -14,6 +14,7 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 **What's New:**
 - **Native GraphQL Support** - POST to `/graphql` with standard GraphQL queries
 - **Fully Modular Architecture** - Use only the protocols you need (REST, GraphQL, SSE, SignalR)
+- **Polly Resilience Policies** - Built-in exponential backoff retry and circuit breaker patterns (enabled by default)
 - **30-40% Reduced Memory** - When using modular setup with single protocol
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
 
@@ -72,6 +73,73 @@ dotnet add package mostlylucid.mockllmapi
    ollama pull llama3
    ```
 
+### Choosing an LLM Model
+
+This package was **developed and tested with `llama3`** (8B parameters), which provides excellent results for all features. However, it works with any Ollama-compatible model:
+
+#### Recommended Models
+
+| Model | Size | Speed | Quality | Best For |
+|-------|------|-------|---------|----------|
+| **llama3** (default) | 8B | Fast | Excellent | General use, production |
+| **mistral:7b** | 7B | Fast | Excellent | Alternative to llama3 |
+| **phi3** | 3.8B | Very Fast | Good | Quick prototyping |
+| **tinyllama** | 1.1B | Ultra Fast | Basic | Resource-constrained environments |
+
+#### Model-Specific Configuration
+
+**For llama3 or mistral:7b (Recommended):**
+```json
+{
+  "ModelName": "llama3",  // or "mistral:7b"
+  "Temperature": 1.2      // High variety, diverse outputs
+}
+```
+
+**For smaller models (phi3, tinyllama):**
+```json
+{
+  "ModelName": "tinyllama",
+  "Temperature": 0.7      // Lower temperature for stability
+}
+```
+
+**Why Temperature Matters:**
+- **Larger models (7B+)** can handle high temperatures (1.0-1.5) while maintaining valid JSON
+- **Smaller models (<4B)** need lower temperatures (0.6-0.8) to avoid:
+  - Invalid JSON syntax (missing quotes, brackets)
+  - Truncated responses with ellipsis ("...")
+  - Hallucinated field names or structures
+- Lower temperature = more predictable output, less variety
+- Higher temperature = more creative output, more variety (but riskier for small models)
+
+#### Installation
+
+```bash
+# Recommended (best quality)
+ollama pull llama3
+
+# Alternative options
+ollama pull mistral:7b
+ollama pull phi3
+ollama pull tinyllama
+```
+
+**Important Limitations:**
+- **Smaller models** (`tinyllama`, `phi3`) work but may:
+  - Generate simpler/less varied data
+  - Struggle with complex GraphQL queries
+  - Need more retry attempts
+  - Work best with simple queries and small response sizes
+- **All models** can struggle with:
+  - **Very complex/deeply nested GraphQL queries** (>5 levels deep)
+  - **Many fields per object** (>10 fields)
+  - **Large array requests** - Limit to 2-5 items for reliability
+- **If seeing errors** about truncated JSON ("...") or comments ("//"):
+  - Lower temperature to 0.8 or below
+  - Simplify your GraphQL query (fewer fields, less nesting)
+  - Increase `MaxRetryAttempts` to 5 or more
+
 ### Basic Usage
 
 **Program.cs:**
@@ -116,10 +184,71 @@ That's it! Now all requests to `/api/mock/**` return intelligent mock data.
     "Temperature": 1.2,
     "TimeoutSeconds": 30,
     "EnableVerboseLogging": false,
-    "CustomPromptTemplate": null
+    "CustomPromptTemplate": null,
+
+    // Resilience Policies (enabled by default)
+    "EnableRetryPolicy": true,
+    "MaxRetryAttempts": 3,
+    "RetryBaseDelaySeconds": 1.0,
+    "EnableCircuitBreaker": true,
+    "CircuitBreakerFailureThreshold": 5,
+    "CircuitBreakerDurationSeconds": 30
   }
 }
 ```
+
+### Resilience Policies
+
+**New in v1.2.0:** Built-in Polly resilience policies protect your application from LLM service failures!
+
+The package includes two resilience patterns enabled by default:
+
+**Exponential Backoff Retry**
+- Automatically retries failed LLM requests with exponential delays (1s, 2s, 4s...)
+- Includes jitter to prevent thundering herd problems
+- Handles connection errors, timeouts, and non-success status codes
+- Default: 3 attempts with 1 second base delay
+
+**Circuit Breaker**
+- Opens after consecutive failures to prevent cascading failures
+- Stays open for a configured duration before allowing test requests
+- Three states: Closed (normal), Open (rejecting), Half-Open (testing)
+- Default: Opens after 5 consecutive failures, stays open for 30 seconds
+
+**Configuration:**
+
+```json
+{
+  "mostlylucid.mockllmapi": {
+    // Enable/disable retry policy
+    "EnableRetryPolicy": true,
+    "MaxRetryAttempts": 3,
+    "RetryBaseDelaySeconds": 1.0,  // Actual delays: 1s, 2s, 4s (exponential)
+
+    // Enable/disable circuit breaker
+    "EnableCircuitBreaker": true,
+    "CircuitBreakerFailureThreshold": 5,  // Open after 5 consecutive failures
+    "CircuitBreakerDurationSeconds": 30   // Stay open for 30 seconds
+  }
+}
+```
+
+**Logging:**
+
+The resilience policies log all retry attempts and circuit breaker state changes:
+
+```
+[Warning] LLM request failed (attempt 2/4). Retrying in 2000ms. Error: Connection refused
+[Error] Circuit breaker OPENED after 5 consecutive failures. All LLM requests will be rejected for 30 seconds
+[Information] Circuit breaker CLOSED. LLM requests will be attempted normally
+```
+
+**When to Adjust:**
+
+- **Slow LLM?** Increase `MaxRetryAttempts` or `RetryBaseDelaySeconds`
+- **Aggressive recovery?** Reduce `CircuitBreakerDurationSeconds`
+- **Many transient errors?** Increase `CircuitBreakerFailureThreshold`
+- **Disable for local testing?** Set both `EnableRetryPolicy` and `EnableCircuitBreaker` to `false`
 
 ### Via Code
 
@@ -1096,11 +1225,11 @@ dotnet test --verbosity detailed
 ```
 
 **Test Coverage:**
-- ✅ Body reading (empty, JSON content)
-- ✅ Shape extraction (query param, header, body field, precedence)
-- ✅ Prompt generation (randomness, shape inclusion, streaming modes)
-- ✅ Request building (temperature, model, messages)
-- ✅ Edge cases (invalid JSON, missing data)
+-  Body reading (empty, JSON content)
+-  Shape extraction (query param, header, body field, precedence)
+-  Prompt generation (randomness, shape inclusion, streaming modes)
+-  Request building (temperature, model, messages)
+-  Edge cases (invalid JSON, missing data)
 
 ## Architecture
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
@@ -11,12 +12,12 @@ public class FakeLlmClient : LlmClient
 {
     private static int _counter = 0;
 
-    public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory)
-        : base(options, httpClientFactory)
+    public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
+        : base(options, httpClientFactory, logger)
     {
     }
 
-    public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default)
+    public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
     {
         // Return fake JSON data
         var id = Interlocked.Increment(ref _counter);
@@ -31,7 +32,7 @@ public class FakeLlmClient : LlmClient
         return Task.FromResult(json);
     }
 
-    public Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
+    public new Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
     {
         var results = new List<string>();
         for (int i = 0; i < count; i++)
