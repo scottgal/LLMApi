@@ -145,6 +145,13 @@ public class MockDataBackgroundService(
                 }
             }
 
+            // Skip if we don't have meaningful data yet (empty object or whitespace)
+            if (string.IsNullOrWhiteSpace(cleanJson) || cleanJson.Trim() == "{}" || cleanJson.Trim() == "[]")
+            {
+                logger.LogDebug("Skipping empty data for context: {Context}, waiting for LLM response", contextConfig.Name);
+                return;
+            }
+
             // Parse JSON to verify it's valid
             var jsonDoc = System.Text.Json.JsonDocument.Parse(cleanJson);
 
