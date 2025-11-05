@@ -90,6 +90,29 @@ public class MockDataBackgroundService(
     {
         try
         {
+            // Check if error simulation is requested
+            if (contextConfig.ErrorConfig != null)
+            {
+                // Send error data instead of generating mock data
+                await hubContext.Clients.Group(contextConfig.Name).SendAsync("DataUpdate", new
+                {
+                    context = contextConfig.Name,
+                    method = contextConfig.Method,
+                    path = contextConfig.Path,
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    error = new
+                    {
+                        code = contextConfig.ErrorConfig.StatusCode,
+                        message = contextConfig.ErrorConfig.GetMessage(),
+                        details = contextConfig.ErrorConfig.Details
+                    }
+                }, cancellationToken);
+
+                logger.LogDebug("Pushed error data to context: {Context} (Code: {StatusCode})",
+                    contextConfig.Name, contextConfig.ErrorConfig.StatusCode);
+                return;
+            }
+
             // Create a scope to resolve scoped services
             using var scope = serviceScopeFactory.CreateScope();
             var promptBuilder = scope.ServiceProvider.GetRequiredService<PromptBuilder>();

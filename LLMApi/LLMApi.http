@@ -292,3 +292,128 @@ Accept: application/json
 {
   "query": "{ organization { id name industry employees { id name title department { name manager { name email } } projects { id title status startDate endDate budget { amount currency } milestones { title dueDate completed } } } } }"
 }
+
+###
+
+###############################################################################
+# ERROR SIMULATION
+# Test error responses and edge cases for robust client development
+# Four ways to specify errors (in precedence order):
+#   1. Query params: ?error=404&errorMessage=Custom&errorDetails=Details
+#   2. Headers: X-Error-Code, X-Error-Message, X-Error-Details
+#   3. Shape JSON: {"$error": 404} or {"$error": {"code": 404, "message": "...", "details": "..."}}
+#   4. Body: {"error": 404} or {"error": {"code": 404, "message": "...", "details": "..."}}
+###############################################################################
+
+### ERROR: 404 Not Found via query param
+GET {{LLMApi_HostAddress}}/api/mock/users/999?error=404
+Accept: application/json
+
+###
+
+### ERROR: 401 Unauthorized with custom message (query param)
+# Decoded: errorMessage="Token expired" errorDetails="Please refresh your authentication token"
+GET {{LLMApi_HostAddress}}/api/mock/protected/data?error=401&errorMessage=Token%20expired&errorDetails=Please%20refresh%20your%20authentication%20token
+Accept: application/json
+
+###
+
+### ERROR: 403 Forbidden via header
+GET {{LLMApi_HostAddress}}/api/mock/admin/users
+X-Error-Code: 403
+X-Error-Message: Insufficient permissions
+X-Error-Details: Admin access required
+Accept: application/json
+
+###
+
+### ERROR: 500 Internal Server Error via header
+POST {{LLMApi_HostAddress}}/api/mock/orders
+Content-Type: application/json
+X-Error-Code: 500
+X-Error-Message: Database connection failed
+Accept: application/json
+
+{
+  "orderId": "12345",
+  "items": []
+}
+
+###
+
+### ERROR: 400 Bad Request via shape JSON (simple)
+GET {{LLMApi_HostAddress}}/api/mock/users?shape=%7B%22%24error%22%3A400%7D
+Accept: application/json
+
+###
+
+### ERROR: 422 Unprocessable Entity via shape JSON (complex)
+# Shape: {"$error": {"code": 422, "message": "Validation failed", "details": "Email format invalid"}}
+POST {{LLMApi_HostAddress}}/api/mock/users?shape=%7B%22%24error%22%3A%7B%22code%22%3A422%2C%22message%22%3A%22Validation%20failed%22%2C%22details%22%3A%22Email%20format%20invalid%22%7D%7D
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "John Doe",
+  "email": "invalid-email"
+}
+
+###
+
+### ERROR: 429 Too Many Requests via body
+POST {{LLMApi_HostAddress}}/api/mock/api/requests
+Content-Type: application/json
+Accept: application/json
+
+{
+  "error": {
+    "code": 429,
+    "message": "Rate limit exceeded",
+    "details": "Maximum 100 requests per minute. Please try again later."
+  },
+  "endpoint": "/api/mock/requests"
+}
+
+###
+
+### ERROR: 503 Service Unavailable in streaming endpoint
+# Decoded: errorMessage="Service temporarily unavailable"
+GET {{LLMApi_HostAddress}}/api/mock/stream/data?error=503&errorMessage=Service%20temporarily%20unavailable
+Accept: text/event-stream
+
+###
+
+### ERROR: GraphQL with error response
+# Decoded: errorMessage="Authentication required"
+POST {{LLMApi_HostAddress}}/api/mock/graphql?error=401&errorMessage=Authentication%20required
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "{ users { id name email } }"
+}
+
+###
+
+### ERROR: 409 Conflict (resource already exists)
+POST {{LLMApi_HostAddress}}/api/mock/users
+Content-Type: application/json
+X-Error-Code: 409
+X-Error-Message: User already exists
+X-Error-Details: A user with this email address is already registered
+Accept: application/json
+
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com"
+}
+
+###
+
+### ERROR: Multiple errors - query param overrides header
+# Query param takes precedence, so this will return 404 instead of 500
+GET {{LLMApi_HostAddress}}/api/mock/data?error=404
+X-Error-Code: 500
+Accept: application/json
+
+###

@@ -34,6 +34,23 @@ internal static class SignalRManagementEndpoints
                     Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"]) ? form["body"].ToString() : null,
                     Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"]) ? form["shape"].ToString() : null
                 };
+
+                // Parse error configuration if present
+                if (form.ContainsKey("error") && !string.IsNullOrWhiteSpace(form["error"]))
+                {
+                    var errorStr = form["error"].ToString();
+                    if (int.TryParse(errorStr, out var errorCode) && errorCode >= 100 && errorCode < 600)
+                    {
+                        var errorMessage = form.ContainsKey("errorMessage") && !string.IsNullOrWhiteSpace(form["errorMessage"])
+                            ? form["errorMessage"].ToString()
+                            : null;
+                        var errorDetails = form.ContainsKey("errorDetails") && !string.IsNullOrWhiteSpace(form["errorDetails"])
+                            ? form["errorDetails"].ToString()
+                            : null;
+
+                        config.ErrorConfig = new Models.ErrorConfig(errorCode, errorMessage, errorDetails);
+                    }
+                }
             }
             else
             {

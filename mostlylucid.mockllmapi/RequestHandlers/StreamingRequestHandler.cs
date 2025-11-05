@@ -60,6 +60,23 @@ public class StreamingRequestHandler
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
+        // Check if error simulation is requested
+        if (shapeInfo.ErrorConfig != null)
+        {
+            context.Response.StatusCode = shapeInfo.ErrorConfig.StatusCode;
+            context.Response.ContentType = "text/event-stream";
+            context.Response.Headers.CacheControl = "no-cache";
+
+            _logger.LogDebug("Returning simulated error in SSE stream: {StatusCode} - {Message}",
+                shapeInfo.ErrorConfig.StatusCode, shapeInfo.ErrorConfig.GetMessage());
+
+            // Send error as SSE event and close stream
+            var errorJson = shapeInfo.ErrorConfig.ToJson();
+            await context.Response.WriteAsync($"data: {errorJson}\n\n", cancellationToken);
+            await context.Response.Body.FlushAsync(cancellationToken);
+            return;
+        }
+
         // Extract context name
         var contextName = _contextExtractor.ExtractContextName(request, body);
 

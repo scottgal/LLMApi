@@ -61,4 +61,10 @@ public class HubContextConfig
     /// Number of currently connected clients
     /// </summary>
     public int ConnectionCount { get; set; } = 0;
+
+    /// <summary>
+    /// Optional: Error configuration for simulating error responses
+    /// When set, error data will be sent to SignalR clients instead of generating mock data
+    /// </summary>
+    public ErrorConfig? ErrorConfig { get; set; }
 }

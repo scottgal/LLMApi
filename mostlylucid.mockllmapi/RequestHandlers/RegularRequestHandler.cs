@@ -62,6 +62,15 @@ public class RegularRequestHandler
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
+        // Check if error simulation is requested
+        if (shapeInfo.ErrorConfig != null)
+        {
+            context.Response.StatusCode = shapeInfo.ErrorConfig.StatusCode;
+            _logger.LogDebug("Returning simulated error: {StatusCode} - {Message}",
+                shapeInfo.ErrorConfig.StatusCode, shapeInfo.ErrorConfig.GetMessage());
+            return shapeInfo.ErrorConfig.ToJson();
+        }
+
         // Extract context name
         var contextName = _contextExtractor.ExtractContextName(request, body);
 

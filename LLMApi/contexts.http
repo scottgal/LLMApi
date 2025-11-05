@@ -532,3 +532,317 @@ X-Response-Shape: {"orderId": 0, "userId": 0}
 ### - Shared data (IDs, names, emails) is automatically extracted
 ### - LLM uses context history to maintain consistency
 ### - Works with REST, Streaming, GraphQL, and SignalR endpoints
+
+###############################################################################
+### ERROR SIMULATION
+### Test error handling without modifying server code
+###############################################################################
+
+###
+### QUERY PARAMETER ERRORS
+###
+
+### Simple 404 error (default message)
+GET {{baseUrl}}/api/mock/users/999?error=404
+
+### 401 Unauthorized with custom message
+GET {{baseUrl}}/api/mock/users?error=401&errorMessage=Invalid authentication token
+
+### 500 Internal Server Error with message and details
+GET {{baseUrl}}/api/mock/orders?error=500&errorMessage=Database connection failed&errorDetails=Connection timeout after 30 seconds
+
+### 400 Bad Request
+POST {{baseUrl}}/api/mock/users?error=400&errorMessage=Invalid request payload
+Content-Type: application/json
+
+{
+  "name": "Test User"
+}
+
+### 403 Forbidden
+GET {{baseUrl}}/api/mock/admin/users?error=403&errorMessage=Insufficient permissions
+
+### 429 Too Many Requests
+GET {{baseUrl}}/api/mock/api/rate-limit?error=429&errorMessage=Rate limit exceeded&errorDetails=Try again in 60 seconds
+
+### 503 Service Unavailable
+GET {{baseUrl}}/api/mock/external/service?error=503&errorMessage=Service temporarily unavailable
+
+###
+### HEADER-BASED ERRORS
+###
+
+### 404 via header
+GET {{baseUrl}}/api/mock/products/999
+X-Error-Code: 404
+X-Error-Message: Product not found
+
+### 401 via header
+GET {{baseUrl}}/api/mock/secure/data
+X-Error-Code: 401
+X-Error-Message: Authentication required
+X-Error-Details: Please provide a valid API key
+
+### 500 via header
+POST {{baseUrl}}/api/mock/orders
+Content-Type: application/json
+X-Error-Code: 500
+X-Error-Message: Payment processing failed
+
+{
+  "orderId": 123,
+  "total": 99.99
+}
+
+###
+### SHAPE JSON ERRORS
+###
+
+### Simple error in shape (404)
+GET {{baseUrl}}/api/mock/users/123
+X-Response-Shape: {"$error": 404}
+
+### Complex error in shape with message and details
+GET {{baseUrl}}/api/mock/payments/456
+X-Response-Shape: {
+  "$error": {
+    "code": 402,
+    "message": "Payment required",
+    "details": "Subscription has expired"
+  }
+}
+
+### Error with shape - shape is sanitized (error returned, shape ignored)
+POST {{baseUrl}}/api/mock/orders
+Content-Type: application/json
+
+{
+  "shape": {
+    "$error": {
+      "code": 503,
+      "message": "Service maintenance",
+      "details": "System will be back online at 10:00 AM"
+    },
+    "orderId": 0,
+    "status": "string"
+  }
+}
+
+###
+### BODY JSON ERRORS
+###
+
+### Simple error in body
+POST {{baseUrl}}/api/mock/users
+Content-Type: application/json
+
+{
+  "error": 409,
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+
+### Complex error in body
+POST {{baseUrl}}/api/mock/bookings
+Content-Type: application/json
+
+{
+  "error": {
+    "code": 422,
+    "message": "Validation failed",
+    "details": "Check-in date must be in the future"
+  },
+  "hotelId": 123,
+  "checkinDate": "2025-01-01"
+}
+
+###
+### GRAPHQL ERRORS
+###
+
+### Simple GraphQL error
+POST {{baseUrl}}/api/mock/graphql?error=404&errorMessage=Query not found
+Content-Type: application/json
+
+{
+  "query": "query { user(id: 999) { id name email } }"
+}
+
+### GraphQL authentication error
+POST {{baseUrl}}/api/mock/graphql
+Content-Type: application/json
+X-Error-Code: 401
+X-Error-Message: Unauthorized access
+
+{
+  "query": "mutation { deleteUser(id: 123) { success } }"
+}
+
+### GraphQL error via body
+POST {{baseUrl}}/api/mock/graphql
+Content-Type: application/json
+
+{
+  "query": "query { posts { id title } }",
+  "error": {
+    "code": 500,
+    "message": "Internal server error",
+    "details": "Database query timeout"
+  }
+}
+
+###
+### STREAMING ERRORS
+###
+
+### Streaming endpoint with error (SSE format)
+GET {{baseUrl}}/api/mock/stream/sensor-data?error=503&errorMessage=Sensor offline
+Accept: text/event-stream
+
+### Streaming error via header
+GET {{baseUrl}}/api/mock/stream/live-feed
+Accept: text/event-stream
+X-Error-Code: 429
+X-Error-Message: Rate limit exceeded
+X-Error-Details: Maximum 10 connections per client
+
+###
+### ERROR PRECEDENCE EXAMPLES
+### Query params > Headers > Shape JSON > Body JSON
+###
+
+### Query param overrides header
+GET {{baseUrl}}/api/mock/test1?error=404
+X-Error-Code: 500
+# Result: 404 (query param wins)
+
+### Header overrides shape
+GET {{baseUrl}}/api/mock/test2
+X-Error-Code: 401
+X-Response-Shape: {"$error": 500}
+# Result: 401 (header wins)
+
+### Shape overrides body
+POST {{baseUrl}}/api/mock/test3
+Content-Type: application/json
+
+{
+  "shape": {"$error": 403},
+  "error": 500
+}
+# Result: 403 (shape wins)
+
+###
+### COMMON ERROR CODES REFERENCE
+###
+
+### 400 Bad Request - Invalid syntax
+GET {{baseUrl}}/api/mock/validation?error=400&errorMessage=Missing required field: email
+
+### 401 Unauthorized - Authentication needed
+GET {{baseUrl}}/api/mock/profile?error=401&errorMessage=Please login to continue
+
+### 403 Forbidden - No permission
+GET {{baseUrl}}/api/mock/admin?error=403&errorMessage=Admin access required
+
+### 404 Not Found - Resource doesn't exist
+GET {{baseUrl}}/api/mock/users/99999?error=404&errorMessage=User not found
+
+### 405 Method Not Allowed - Wrong HTTP method
+POST {{baseUrl}}/api/mock/readonly?error=405&errorMessage=POST method not allowed
+
+### 408 Request Timeout - Request took too long
+GET {{baseUrl}}/api/mock/slow-query?error=408&errorMessage=Request timeout
+
+### 409 Conflict - Resource conflict
+POST {{baseUrl}}/api/mock/users?error=409&errorMessage=Email already exists
+
+### 422 Unprocessable Entity - Validation failed
+POST {{baseUrl}}/api/mock/orders?error=422&errorMessage=Invalid payment method
+
+### 429 Too Many Requests - Rate limiting
+GET {{baseUrl}}/api/mock/api?error=429&errorMessage=Rate limit: 100 requests per minute
+
+### 500 Internal Server Error - Server error
+GET {{baseUrl}}/api/mock/crash?error=500&errorMessage=Unexpected server error
+
+### 501 Not Implemented - Feature not available
+GET {{baseUrl}}/api/mock/beta-feature?error=501&errorMessage=Feature coming soon
+
+### 502 Bad Gateway - Upstream error
+GET {{baseUrl}}/api/mock/proxy?error=502&errorMessage=Upstream service error
+
+### 503 Service Unavailable - Maintenance
+GET {{baseUrl}}/api/mock/maintenance?error=503&errorMessage=Scheduled maintenance
+
+### 504 Gateway Timeout - Upstream timeout
+GET {{baseUrl}}/api/mock/external?error=504&errorMessage=Upstream service timeout
+
+###
+### ERRORS WITH CONTEXT
+### Test error handling in contextual flows
+###
+
+### Simulate failed authentication in flow
+GET {{baseUrl}}/api/mock/login?context=error-flow-001&error=401&errorMessage=Invalid credentials
+
+### Simulate resource not found
+GET {{baseUrl}}/api/mock/users/999?context=error-flow-001&error=404&errorMessage=User not found
+
+### Retry with successful request (no error param)
+GET {{baseUrl}}/api/mock/users/1?context=error-flow-001
+X-Response-Shape: {"id": 0, "name": "string", "email": "string"}
+
+###
+### MIXED SUCCESS AND ERROR SCENARIOS
+###
+
+### Step 1: Successful user creation
+POST {{baseUrl}}/api/mock/users?context=mixed-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "userId": 0,
+    "name": "string",
+    "email": "string"
+  }
+}
+
+### Step 2: Failed order (payment error)
+POST {{baseUrl}}/api/mock/orders?context=mixed-flow-001&error=402&errorMessage=Payment method declined
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "total": 0.0
+  }
+}
+
+### Step 3: Retry with updated payment (success)
+POST {{baseUrl}}/api/mock/orders?context=mixed-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "total": 0.0,
+    "status": "string"
+  }
+}
+
+###
+### ERROR SIMULATION NOTES:
+### - Errors bypass LLM generation for faster responses
+### - HTTP status code is set on the response
+### - Error format: {"error": {"code": 404, "message": "...", "details": "..."}}
+### - GraphQL errors use GraphQL format: {"errors": [...], "data": null}
+### - Streaming errors return SSE format: data: {"error": {...}}
+### - Precedence: Query params > Headers > Shape JSON > Body JSON
+### - Works with all endpoint types: REST, Streaming, GraphQL, SignalR
+### - $error hints are removed from shape before LLM prompt generation
+### - Combine with contexts to test error recovery flows
+###

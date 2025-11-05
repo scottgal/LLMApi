@@ -34,6 +34,7 @@ public class GraphQLRequestHandlerTests
     private GraphQLRequestHandler CreateHandler(LlmClient? llmClient = null)
     {
         var options = CreateOptions();
+        var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
         var contextManagerLogger = NullLogger<OpenApiContextManager>.Instance;
         var contextManager = new OpenApiContextManager(contextManagerLogger, options);
@@ -42,7 +43,7 @@ public class GraphQLRequestHandlerTests
         var delayHelper = new DelayHelper(options);
         var logger = NullLogger<GraphQLRequestHandler>.Instance;
 
-        return new GraphQLRequestHandler(options, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, logger);
+        return new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, logger);
     }
 
     private DefaultHttpContext CreateHttpContext(string? body = null)

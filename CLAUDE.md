@@ -221,6 +221,103 @@ dotnet nuget push mostlylucid.mockllmapi/bin/Release/mostlylucid.mockllmapi.1.0.
   --source ~/local-nuget-feed
 ```
 
+## Error Simulation
+
+The package includes comprehensive error simulation capabilities for testing client error handling.
+
+### Error Configuration Methods
+
+Error responses can be configured using four methods (in precedence order):
+
+1. **Query Parameters** (highest precedence)
+```http
+GET /api/mock/users?error=404&errorMessage=Not%20found&errorDetails=User%20ID%20invalid
+```
+
+2. **HTTP Headers**
+```http
+GET /api/mock/users
+X-Error-Code: 401
+X-Error-Message: Unauthorized
+X-Error-Details: Token expired
+```
+
+3. **Shape JSON** (`$error` property)
+```http
+GET /api/mock/users?shape={"$error":404}
+# Or complex:
+GET /api/mock/users?shape={"$error":{"code":422,"message":"Validation failed","details":"Email invalid"}}
+```
+
+4. **Request Body** (`error` property)
+```json
+{
+  "error": {
+    "code": 409,
+    "message": "Conflict",
+    "details": "Resource already exists"
+  }
+}
+```
+
+### Error Response Formats
+
+**Regular/Streaming endpoints**:
+```json
+{
+  "error": {
+    "code": 404,
+    "message": "Not Found",
+    "details": "Optional additional context"
+  }
+}
+```
+
+**GraphQL endpoint**:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Not Found",
+      "extensions": {
+        "code": 404,
+        "details": "Optional additional context"
+      }
+    }
+  ]
+}
+```
+
+**SignalR contexts**:
+Configure via `ErrorConfig` property in `HubContextConfig`:
+```csharp
+new HubContextConfig
+{
+    Name = "errors",
+    ErrorConfig = new ErrorConfig(500, "Server error", "Database unavailable")
+}
+```
+
+### Error Handling in Code
+
+The `ErrorConfig` class (Models/ErrorConfig.cs) provides:
+- Default messages for common HTTP status codes (400-504)
+- JSON and GraphQL response formatting
+- Automatic JSON escaping for safe output
+
+The `ShapeExtractor` service automatically extracts and sanitizes error hints from shapes,
+removing `$error` properties before passing shapes to the LLM.
+
+### Testing Error Responses
+
+See `LLMApi/LLMApi.http` for comprehensive error simulation examples including:
+- 4xx client errors (400, 401, 403, 404, 409, 422, 429)
+- 5xx server errors (500, 503)
+- GraphQL errors
+- Streaming endpoint errors
+- Error precedence demonstrations
+
 ## Troubleshooting
 
 **"Mapmostlylucid.mockllmapi requires endpoint routing"**

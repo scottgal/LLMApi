@@ -85,6 +85,7 @@ This package provides **five independent features** - use any combination you ne
 - **Highly Variable Data**: Each request/update generates completely different realistic data
 - **NuGet Package**: Easy to add to existing projects
 - **API Contexts (NEW in v1.5.0)**: Maintain consistency across related requests
+- **Error Simulation**: Comprehensive error testing with 4xx/5xx status codes, custom messages, and multiple configuration methods
 
 ---
 
@@ -1533,6 +1534,128 @@ Available placeholders:
 - `{randomSeed}` - Generated random seed (GUID)
 - `{timestamp}` - Unix timestamp
 - `{shape}` - Shape specification (if provided)
+
+### Error Simulation
+
+Test your client's error handling with comprehensive error simulation capabilities.
+
+**Four ways to configure errors** (in precedence order):
+
+1. **Query Parameters** (highest precedence):
+```bash
+curl "http://localhost:5000/api/mock/users?error=404&errorMessage=Not%20found&errorDetails=User%20does%20not%20exist"
+```
+
+2. **HTTP Headers**:
+```bash
+curl -H "X-Error-Code: 401" \
+     -H "X-Error-Message: Unauthorized" \
+     -H "X-Error-Details: Token expired" \
+     http://localhost:5000/api/mock/users
+```
+
+3. **Shape JSON** (using `$error` property):
+```bash
+# Simple: just status code
+curl "http://localhost:5000/api/mock/users?shape=%7B%22%24error%22%3A404%7D"
+
+# Complex: with message and details
+curl "http://localhost:5000/api/mock/users?shape=%7B%22%24error%22%3A%7B%22code%22%3A422%2C%22message%22%3A%22Validation%20failed%22%2C%22details%22%3A%22Email%20invalid%22%7D%7D"
+```
+
+4. **Request Body** (using `error` property):
+```bash
+curl -X POST http://localhost:5000/api/mock/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "error": {
+      "code": 409,
+      "message": "Conflict",
+      "details": "User already exists"
+    }
+  }'
+```
+
+**Error Response Formats:**
+
+Regular/Streaming endpoints:
+```json
+{
+  "error": {
+    "code": 404,
+    "message": "Not Found",
+    "details": "Optional additional context"
+  }
+}
+```
+
+GraphQL endpoint:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Not Found",
+      "extensions": {
+        "code": 404,
+        "details": "Optional additional context"
+      }
+    }
+  ]
+}
+```
+
+**SignalR Error Simulation:**
+
+Configure errors in SignalR contexts for testing real-time error handling:
+
+```json
+{
+  "HubContexts": [
+    {
+      "Name": "errors",
+      "Description": "Error simulation stream",
+      "ErrorConfig": {
+        "Code": 500,
+        "Message": "Server error",
+        "Details": "Database connection lost"
+      }
+    }
+  ]
+}
+```
+
+Or dynamically via the management API:
+
+```bash
+curl -X POST http://localhost:5000/api/management/contexts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "errors",
+    "description": "Test errors",
+    "error": 503,
+    "errorMessage": "Service unavailable",
+    "errorDetails": "Maintenance in progress"
+  }'
+```
+
+**Supported HTTP Status Codes:**
+
+The package includes default messages for common HTTP status codes:
+- **4xx Client Errors**: 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 405 (Method Not Allowed), 408 (Request Timeout), 409 (Conflict), 422 (Unprocessable Entity), 429 (Too Many Requests)
+- **5xx Server Errors**: 500 (Internal Server Error), 501 (Not Implemented), 502 (Bad Gateway), 503 (Service Unavailable), 504 (Gateway Timeout)
+
+Custom messages and details override the defaults.
+
+**Use Cases:**
+- Test client retry logic and exponential backoff
+- Validate error message display in UI
+- Test authentication/authorization flows
+- Simulate rate limiting scenarios
+- Practice graceful degradation patterns
+- Test error logging and monitoring
+
+See `LLMApi/LLMApi.http` for comprehensive examples of all error simulation methods.
 
 ### Multiple Instances
 

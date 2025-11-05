@@ -13,6 +13,7 @@ namespace mostlylucid.mockllmapi.RequestHandlers;
 public class GraphQLRequestHandler
 {
     private readonly LLMockApiOptions _options;
+    private readonly ShapeExtractor _shapeExtractor;
     private readonly ContextExtractor _contextExtractor;
     private readonly OpenApiContextManager _contextManager;
     private readonly PromptBuilder _promptBuilder;
@@ -22,6 +23,7 @@ public class GraphQLRequestHandler
 
     public GraphQLRequestHandler(
         IOptions<LLMockApiOptions> options,
+        ShapeExtractor shapeExtractor,
         ContextExtractor contextExtractor,
         OpenApiContextManager contextManager,
         PromptBuilder promptBuilder,
@@ -30,6 +32,7 @@ public class GraphQLRequestHandler
         ILogger<GraphQLRequestHandler> logger)
     {
         _options = options.Value;
+        _shapeExtractor = shapeExtractor;
         _contextExtractor = contextExtractor;
         _contextManager = contextManager;
         _promptBuilder = promptBuilder;
@@ -49,6 +52,18 @@ public class GraphQLRequestHandler
     {
         // Apply random request delay if configured
         await _delayHelper.ApplyRequestDelayAsync(cancellationToken);
+
+        // Extract shape information (for error config)
+        var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
+
+        // Check if error simulation is requested
+        if (shapeInfo.ErrorConfig != null)
+        {
+            context.Response.StatusCode = shapeInfo.ErrorConfig.StatusCode;
+            _logger.LogDebug("Returning simulated error for GraphQL: {StatusCode} - {Message}",
+                shapeInfo.ErrorConfig.StatusCode, shapeInfo.ErrorConfig.GetMessage());
+            return shapeInfo.ErrorConfig.ToGraphQLJson();
+        }
 
         // Extract context name
         var contextName = _contextExtractor.ExtractContextName(request, body);

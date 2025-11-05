@@ -6,7 +6,7 @@ namespace mostlylucid.mockllmapi.Models;
 public class ShapeInfo
 {
     /// <summary>
-    /// The sanitized shape (without cache hints)
+    /// The sanitized shape (without cache or error hints)
     /// </summary>
     public string? Shape { get; set; }
 
@@ -19,4 +19,10 @@ public class ShapeInfo
     /// Whether this is a JSON Schema (vs descriptive shape)
     /// </summary>
     public bool IsJsonSchema { get; set; }
+
+    /// <summary>
+    /// Error configuration for simulating error responses (from $error hint or error params)
+    /// If not null, the endpoint should return an error instead of generating mock data
+    /// </summary>
+    public ErrorConfig? ErrorConfig { get; set; }
 }

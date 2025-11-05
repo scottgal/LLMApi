@@ -11,25 +11,31 @@ namespace mostlylucid.mockllmapi.Services;
 public class ShapeExtractor
 {
     /// <summary>
-    /// Extracts shape information from the request, including cache hints and JSON Schema detection
+    /// Extracts shape information from the request, including cache hints, error config, and JSON Schema detection
     /// </summary>
     public ShapeInfo ExtractShapeInfo(HttpRequest request, string? body)
     {
         var shapeText = ExtractShapeText(request, body);
+        var errorConfig = ExtractErrorConfig(request, body, shapeText);
 
         if (string.IsNullOrWhiteSpace(shapeText))
         {
-            return new ShapeInfo();
+            return new ShapeInfo
+            {
+                ErrorConfig = errorConfig
+            };
         }
 
         var isJsonSchema = DetectJsonSchema(shapeText);
         var (sanitizedShape, cacheCount) = ExtractCacheHintAndSanitize(shapeText);
+        sanitizedShape = SanitizeErrorHints(sanitizedShape);
 
         return new ShapeInfo
         {
             Shape = sanitizedShape,
             CacheCount = cacheCount,
-            IsJsonSchema = isJsonSchema
+            IsJsonSchema = isJsonSchema,
+            ErrorConfig = errorConfig
         };
     }
 
@@ -145,6 +151,182 @@ public class ShapeExtractor
         catch
         {
             return (shapeText, 0); // if invalid JSON, ignore cache count
+        }
+    }
+
+    /// <summary>
+    /// Extracts error configuration from query params, headers, or shape JSON
+    /// Precedence: Query params > Headers > Shape JSON
+    /// </summary>
+    private ErrorConfig? ExtractErrorConfig(HttpRequest request, string? body, string? shapeText)
+    {
+        // 1) Query parameters: ?error=404 or ?error=404&errorMessage=Custom&errorDetails=Details
+        if (request.Query.TryGetValue("error", out var errorQuery) && errorQuery.Count > 0)
+        {
+            var errorStr = errorQuery[0];
+            if (int.TryParse(errorStr, out var statusCode) && statusCode >= 100 && statusCode < 600)
+            {
+                var message = request.Query.TryGetValue("errorMessage", out var msgQuery) && msgQuery.Count > 0
+                    ? msgQuery[0]
+                    : null;
+                var details = request.Query.TryGetValue("errorDetails", out var detailsQuery) && detailsQuery.Count > 0
+                    ? detailsQuery[0]
+                    : null;
+
+                return new ErrorConfig(statusCode, message, details);
+            }
+        }
+
+        // 2) Headers: X-Error-Code and X-Error-Message
+        if (request.Headers.TryGetValue("X-Error-Code", out var errorHeader) && errorHeader.Count > 0)
+        {
+            var errorStr = errorHeader[0];
+            if (int.TryParse(errorStr, out var statusCode) && statusCode >= 100 && statusCode < 600)
+            {
+                var message = request.Headers.TryGetValue("X-Error-Message", out var msgHeader) && msgHeader.Count > 0
+                    ? msgHeader[0]
+                    : null;
+                var details = request.Headers.TryGetValue("X-Error-Details", out var detailsHeader) && detailsHeader.Count > 0
+                    ? detailsHeader[0]
+                    : null;
+
+                return new ErrorConfig(statusCode, message, details);
+            }
+        }
+
+        // 3) Shape JSON: {"$error": 404} or {"$error": {"code": 404, "message": "...", "details": "..."}}
+        if (!string.IsNullOrWhiteSpace(shapeText))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(shapeText);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("$error", out var errorProp))
+                {
+                    // Simple form: {"$error": 404}
+                    if (errorProp.ValueKind == JsonValueKind.Number && errorProp.TryGetInt32(out var simpleCode))
+                    {
+                        if (simpleCode >= 100 && simpleCode < 600)
+                            return new ErrorConfig(simpleCode);
+                    }
+
+                    // Complex form: {"$error": {"code": 404, "message": "...", "details": "..."}}
+                    if (errorProp.ValueKind == JsonValueKind.Object)
+                    {
+                        if (errorProp.TryGetProperty("code", out var codeProp) &&
+                            codeProp.ValueKind == JsonValueKind.Number &&
+                            codeProp.TryGetInt32(out var complexCode) &&
+                            complexCode >= 100 && complexCode < 600)
+                        {
+                            var message = errorProp.TryGetProperty("message", out var msgProp) &&
+                                          msgProp.ValueKind == JsonValueKind.String
+                                ? msgProp.GetString()
+                                : null;
+
+                            var details = errorProp.TryGetProperty("details", out var detailsProp) &&
+                                          detailsProp.ValueKind == JsonValueKind.String
+                                ? detailsProp.GetString()
+                                : null;
+
+                            return new ErrorConfig(complexCode, message, details);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignore JSON parse errors
+            }
+        }
+
+        // 4) Body property: {"error": 404} or {"error": {"code": 404, ...}}
+        if (!string.IsNullOrWhiteSpace(body) &&
+            request.ContentType != null &&
+            request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("error", out var errorProp))
+                {
+                    // Simple form
+                    if (errorProp.ValueKind == JsonValueKind.Number && errorProp.TryGetInt32(out var simpleCode))
+                    {
+                        if (simpleCode >= 100 && simpleCode < 600)
+                            return new ErrorConfig(simpleCode);
+                    }
+
+                    // Complex form
+                    if (errorProp.ValueKind == JsonValueKind.Object)
+                    {
+                        if (errorProp.TryGetProperty("code", out var codeProp) &&
+                            codeProp.ValueKind == JsonValueKind.Number &&
+                            codeProp.TryGetInt32(out var complexCode) &&
+                            complexCode >= 100 && complexCode < 600)
+                        {
+                            var message = errorProp.TryGetProperty("message", out var msgProp) &&
+                                          msgProp.ValueKind == JsonValueKind.String
+                                ? msgProp.GetString()
+                                : null;
+
+                            var details = errorProp.TryGetProperty("details", out var detailsProp) &&
+                                          detailsProp.ValueKind == JsonValueKind.String
+                                ? detailsProp.GetString()
+                                : null;
+
+                            return new ErrorConfig(complexCode, message, details);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignore JSON parse errors
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Removes $error hints from shape JSON
+    /// </summary>
+    private string? SanitizeErrorHints(string? shapeText)
+    {
+        if (string.IsNullOrWhiteSpace(shapeText))
+            return shapeText;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(shapeText);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return shapeText;
+
+            // Check if $error exists
+            if (!doc.RootElement.TryGetProperty("$error", out _))
+                return shapeText;
+
+            // Rebuild without $error
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (string.Equals(prop.Name, "$error", StringComparison.OrdinalIgnoreCase))
+                        continue; // skip error hint
+
+                    prop.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+        catch
+        {
+            return shapeText; // if invalid JSON, return as-is
         }
     }
 }
