@@ -27,6 +27,13 @@ public class LLMockApiOptions
     public double Temperature { get; set; } = 1.2;
 
     /// <summary>
+    /// Maximum input tokens/length for model prompts (default: 2048)
+    /// Used to automatically truncate context history to fit within model limits
+    /// Common values: 2048 (Llama2), 4096 (Llama3), 8192 (larger models)
+    /// </summary>
+    public int MaxInputTokens { get; set; } = 2048;
+
+    /// <summary>
     /// Custom prompt template for non-streaming requests (optional)
     /// Available placeholders: {method}, {path}, {body}, {randomSeed}, {timestamp}
     /// </summary>

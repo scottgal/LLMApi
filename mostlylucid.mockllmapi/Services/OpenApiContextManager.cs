@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
@@ -11,13 +12,18 @@ namespace mostlylucid.mockllmapi.Services;
 public class OpenApiContextManager
 {
     private readonly ILogger<OpenApiContextManager> _logger;
+    private readonly LLMockApiOptions _options;
     private readonly ConcurrentDictionary<string, ApiContext> _contexts;
     private const int MaxRecentCalls = 15;
     private const int SummarizeThreshold = 20;
+    private const int EstimatedTokensPerChar = 4; // Rough estimate: 1 token ≈ 4 characters
 
-    public OpenApiContextManager(ILogger<OpenApiContextManager> logger)
+    public OpenApiContextManager(
+        ILogger<OpenApiContextManager> logger,
+        IOptions<LLMockApiOptions> options)
     {
         _logger = logger;
+        _options = options.Value;
         _contexts = new ConcurrentDictionary<string, ApiContext>(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -99,20 +105,67 @@ public class OpenApiContextManager
             }
         }
 
-        // Add recent calls
+        // Add recent calls with dynamic truncation based on MaxInputTokens
         lock (context.RecentCalls)
         {
             if (context.RecentCalls.Count > 0)
             {
                 sb.AppendLine("\nRecent API calls:");
-                foreach (var call in context.RecentCalls.TakeLast(MaxRecentCalls))
+
+                // Calculate tokens used so far (base context: summary + shared data)
+                var baseTokens = EstimateTokens(sb.ToString());
+
+                // Reserve 20% of max tokens for context history (80% for base prompt)
+                var maxContextTokens = (int)(_options.MaxInputTokens * 0.2);
+                var remainingTokens = maxContextTokens - baseTokens;
+
+                _logger.LogDebug("Context '{Context}': Base tokens={BaseTokens}, Max context tokens={MaxContext}, Remaining={Remaining}",
+                    contextName, baseTokens, maxContextTokens, remainingTokens);
+
+                // Add calls from most recent, stopping if we exceed token limit
+                var recentCalls = context.RecentCalls.TakeLast(MaxRecentCalls).ToList();
+                var callsToInclude = new List<string>();
+                var droppedCalls = new List<string>();
+
+                foreach (var call in recentCalls.AsEnumerable().Reverse())
                 {
-                    sb.AppendLine($"  [{call.Timestamp:HH:mm:ss}] {call.Method} {call.Path}");
+                    var callText = new StringBuilder();
+                    callText.AppendLine($"  [{call.Timestamp:HH:mm:ss}] {call.Method} {call.Path}");
                     if (!string.IsNullOrWhiteSpace(call.RequestBody))
                     {
-                        sb.AppendLine($"    Request: {TruncateJson(call.RequestBody, 200)}");
+                        callText.AppendLine($"    Request: {TruncateJson(call.RequestBody, 200)}");
                     }
-                    sb.AppendLine($"    Response: {TruncateJson(call.ResponseBody, 300)}");
+                    callText.AppendLine($"    Response: {TruncateJson(call.ResponseBody, 300)}");
+
+                    var callTokens = EstimateTokens(callText.ToString());
+                    if (remainingTokens - callTokens < 0 && callsToInclude.Count > 0)
+                    {
+                        // Can't fit this call, but we have at least one
+                        droppedCalls.Add($"{call.Method} {call.Path}");
+                        continue;
+                    }
+
+                    callsToInclude.Insert(0, callText.ToString());
+                    remainingTokens -= callTokens;
+                }
+
+                if (droppedCalls.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "Context '{Context}': Dropped {DroppedCount}/{TotalCount} calls to fit {MaxTokens} token limit (20% of max). " +
+                        "Dropped: [{DroppedCalls}]",
+                        contextName, droppedCalls.Count, recentCalls.Count, _options.MaxInputTokens,
+                        string.Join(", ", droppedCalls));
+                }
+
+                foreach (var callText in callsToInclude)
+                {
+                    sb.Append(callText);
+                }
+
+                if (callsToInclude.Count < recentCalls.Count)
+                {
+                    sb.AppendLine($"  ... ({recentCalls.Count - callsToInclude.Count} earlier calls omitted to fit {_options.MaxInputTokens} token limit)");
                 }
             }
         }
@@ -120,6 +173,14 @@ public class OpenApiContextManager
         sb.AppendLine("\nGenerate a response that maintains consistency with the above context.");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Estimates token count from text (rough approximation: 1 token ≈ 4 characters)
+    /// </summary>
+    private int EstimateTokens(string text)
+    {
+        return string.IsNullOrEmpty(text) ? 0 : text.Length / EstimatedTokensPerChar;
     }
 
     /// <summary>

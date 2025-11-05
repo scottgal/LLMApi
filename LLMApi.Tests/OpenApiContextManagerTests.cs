@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
 using Xunit;
 
@@ -10,7 +11,11 @@ public class OpenApiContextManagerTests
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         var logger = loggerFactory.CreateLogger<OpenApiContextManager>();
-        return new OpenApiContextManager(logger);
+        var options = Microsoft.Extensions.Options.Options.Create(new LLMockApiOptions
+        {
+            MaxInputTokens = 2048
+        });
+        return new OpenApiContextManager(logger, options);
     }
 
     [Fact]

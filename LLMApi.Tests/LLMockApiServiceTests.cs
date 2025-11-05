@@ -261,7 +261,7 @@ public class LLMockApiServiceTests
 
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance);
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts);
         var promptBuilder = new PromptBuilder(opts);
         var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance);
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);

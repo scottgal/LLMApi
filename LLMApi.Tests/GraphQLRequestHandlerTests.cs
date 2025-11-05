@@ -36,7 +36,7 @@ public class GraphQLRequestHandlerTests
         var options = CreateOptions();
         var contextExtractor = new ContextExtractor();
         var contextManagerLogger = NullLogger<OpenApiContextManager>.Instance;
-        var contextManager = new OpenApiContextManager(contextManagerLogger);
+        var contextManager = new OpenApiContextManager(contextManagerLogger, options);
         var promptBuilder = new PromptBuilder(options);
         llmClient ??= new FakeGraphQLLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var delayHelper = new DelayHelper(options);
