@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace LLMApi.Tests;
@@ -550,7 +551,9 @@ message Order {
     [Fact]
     public void ProtoDefinitionManager_AddAndRetrieveDefinition()
     {
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
+        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
         var protoContent = "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         var definition = manager.AddProtoDefinition(protoContent, "test.proto");
@@ -565,7 +568,9 @@ message Order {
     [Fact]
     public void ProtoDefinitionManager_FindService_Success()
     {
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
+        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
         var protoContent = "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "user.proto");
@@ -580,7 +585,9 @@ message Order {
     [Fact]
     public void ProtoDefinitionManager_FindMethod_Success()
     {
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
+        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
         var protoContent = "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "user.proto");
@@ -596,7 +603,9 @@ message Order {
     [Fact]
     public void ProtoDefinitionManager_RemoveDefinition_Success()
     {
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
+        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
         var protoContent = "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "test.proto");
@@ -611,7 +620,9 @@ message Order {
     [Fact]
     public void ProtoDefinitionManager_ClearAll_Success()
     {
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
+        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
 
         manager.AddProtoDefinition("syntax = \"proto3\"; service S1 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto1.proto");
         manager.AddProtoDefinition("syntax = \"proto3\"; service S2 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto2.proto");

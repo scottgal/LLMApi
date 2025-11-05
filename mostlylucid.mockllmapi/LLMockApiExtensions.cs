@@ -268,6 +268,7 @@ public static class LlMockApiExtensions
         if (services.All(x => x.ServiceType != typeof(ProtoDefinitionManager)))
         {
             services.AddSingleton<ProtoDefinitionManager>();
+            services.AddSingleton<GrpcReflectionService>();
             services.AddSingleton<DynamicProtobufHandler>();
             services.AddScoped<GrpcRequestHandler>();
             services.AddGrpc(); // Enable gRPC support
@@ -835,10 +836,20 @@ public static class LlMockApiExtensions
                 "Ensure you have called app.UseRouting() before calling this method.");
         }
 
+        // Wire ProtoDefinitionManager and GrpcReflectionService together
+        var protoManager = app.ApplicationServices.GetService<ProtoDefinitionManager>();
+        var reflectionService = app.ApplicationServices.GetService<GrpcReflectionService>();
+
+        if (protoManager != null && reflectionService != null)
+        {
+            protoManager.SetReflectionService(reflectionService);
+        }
+
         // Upload a proto file (multipart form or plain text body)
         routeBuilder.MapPost(pattern, GrpcManagementEndpoints.HandleProtoUpload)
             .WithName("LLMockApi-Grpc-UploadProto")
             .WithTags("gRPC Proto Management")
+            .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Accepts<string>("text/plain")
             .Produces(200)

@@ -610,45 +610,65 @@ The parser supports common proto3 features but has limitations:
 - Options and annotations (ignored)
 - Import statements (not resolved)
 
-### gRPC Server Reflection (Partial Support)
+### gRPC Server Reflection (In Progress)
 
 Standard gRPC clients expect servers to support the [gRPC Server Reflection Protocol](https://github.com/grpc/grpc/blob/master/doc/server-reflection.md).
 
 **Current Status:**
-- gRPC reflection package (`Grpc.AspNetCore.Server.Reflection`) is installed
-- Full reflection implementation is in progress
+- Reflection infrastructure implemented using `protobuf-net.Reflection` (v3.2.52)
+- Proto files are compiled to `FileDescriptorSet` when uploaded
+- `GrpcReflectionService` stores and manages compiled descriptors
+- Integration with `ProtoDefinitionManager` complete
 
 **What Works:**
-- Use management API (`GET /api/grpc-protos`) to list uploaded proto files
-- Use JSON endpoint for service discovery and testing
-- Demo page shows all available services and methods
+- Dynamic proto compilation: Uploaded `.proto` files are parsed and compiled at runtime
+- Descriptor storage: FileDescriptorSet objects are generated and cached
+- Management API: `GET /api/grpc-protos` lists all uploaded proto files with full details
+- JSON endpoint: Full service discovery and testing via HTTP/JSON
+- Demo page: Interactive UI shows all available services and methods
 
-**What Doesn't Work Yet:**
-- Standard grpc reflection endpoints (`ServerReflection` service)
-- Tools like `grpcurl` can't use `list` or `describe` commands without `-proto` flag
+**What's In Progress:**
+- Standard gRPC reflection endpoint mapping (`grpc.reflection.v1alpha.ServerReflection` service)
+- Full grpcurl integration without requiring `-proto` flag
 
-**Why Not Fully Implemented:**
-gRPC reflection requires `FileDescriptor` objects from the Protocol Buffer compiler. Our regex-based parser doesn't generate these. Full implementation requires either:
+**Technical Implementation:**
 
-1. Running `protoc` at runtime to compile .proto files to descriptors
-2. Manually constructing `FileDescriptor` objects from parsed data
-3. Using `Google.Protobuf.Reflection` to build descriptors dynamically
+When you upload a `.proto` file, the system:
 
-**Workarounds:**
+1. **Parses the proto** using regex-based `ProtoParser` for JSON/HTTP endpoints
+2. **Compiles for reflection** using protobuf-net.Reflection's `FileDescriptorSet`:
+   ```csharp
+   var fileSet = new FileDescriptorSet { ImportPath = { "." } };
+   fileSet.Add(protoName, true, new StringReader(protoContent));
+   fileSet.Process(); // Compiles the .proto file
+   ```
+3. **Converts descriptors** between protobuf-net and Google.Protobuf formats for compatibility
+4. **Stores both representations** for dual-protocol support
+
+**Current Workarounds:**
 ```bash
-# Provide proto file manually to grpcurl
+# Provide proto file manually to grpcurl (always works)
 grpcurl -proto yourfile.proto localhost:5116 list
 
-# Or use the JSON endpoint for testing
+# Use the JSON endpoint for testing (no grpcurl needed)
 curl http://localhost:5116/api/grpc/UserService/GetUser \
   -H "Content-Type: application/json" \
   -d '{"user_id": 123}'
 
-# Or check available services via management API
+# Check available services via management API
 curl http://localhost:5116/api/grpc-protos
+
+# Use the interactive demo page at http://localhost:5116/Grpc
 ```
 
-Future versions will implement full reflection support for seamless integration with standard gRPC tooling.
+**Why Not Fully Complete:**
+
+The gRPC reflection protocol requires:
+- Mapping the `ServerReflection` RPC service to handle reflection queries
+- Proper implementation of all reflection methods (ListServices, FileByFilename, etc.)
+- Integration with ASP.NET Core gRPC server infrastructure
+
+The foundation is in place - proto files are compiled and descriptors are available. The remaining work is mapping the reflection service endpoint and ensuring compatibility with tools like grpcurl for service discovery.
 
 ## Testing Strategies
 

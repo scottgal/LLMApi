@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services;
@@ -10,6 +11,21 @@ public class ProtoDefinitionManager
 {
     private readonly ConcurrentDictionary<string, ProtoDefinition> _definitions = new();
     private readonly ProtoParser _parser = new();
+    private readonly ILogger<ProtoDefinitionManager> _logger;
+    private GrpcReflectionService? _reflectionService;
+
+    public ProtoDefinitionManager(ILogger<ProtoDefinitionManager> logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Sets the reflection service (called by DI after both services are created)
+    /// </summary>
+    public void SetReflectionService(GrpcReflectionService reflectionService)
+    {
+        _reflectionService = reflectionService;
+    }
 
     /// <summary>
     /// Adds a proto definition from raw proto content
@@ -18,6 +34,13 @@ public class ProtoDefinitionManager
     {
         var definition = _parser.Parse(protoContent, fileName);
         _definitions[definition.Name] = definition;
+
+        // Register with gRPC reflection service if available
+        if (_reflectionService != null)
+        {
+            _reflectionService.RegisterProto(definition.Name, definition);
+        }
+
         return definition;
     }
 
@@ -90,7 +113,14 @@ public class ProtoDefinitionManager
     /// </summary>
     public bool RemoveDefinition(string name)
     {
-        return _definitions.TryRemove(name, out _);
+        var removed = _definitions.TryRemove(name, out _);
+
+        if (removed && _reflectionService != null)
+        {
+            _reflectionService.RemoveProto(name);
+        }
+
+        return removed;
     }
 
     /// <summary>
@@ -99,6 +129,11 @@ public class ProtoDefinitionManager
     public void ClearAll()
     {
         _definitions.Clear();
+
+        if (_reflectionService != null)
+        {
+            _reflectionService.ClearAll();
+        }
     }
 
     /// <summary>
