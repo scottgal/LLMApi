@@ -689,11 +689,11 @@ connection.on('SpecDeleted', (data) => {
 ## Format Support
 
 The system supports:
-- ✅ OpenAPI 3.0.x
-- ✅ OpenAPI 3.1.x
-- ✅ Swagger 2.0
-- ✅ JSON format
-- ✅ YAML format
+- OpenAPI 3.0.x
+- OpenAPI 3.1.x
+- Swagger 2.0
+- JSON format
+- YAML format
 
 Both JSON and YAML specs are automatically detected and parsed.
 
@@ -702,8 +702,8 @@ Both JSON and YAML specs are automatically detected and parsed.
 ### 1. Use Descriptive Spec Names
 
 ```http
-❌ Bad:  {"name": "spec1", ...}
-✅ Good: {"name": "github-v3", ...}
+BAD:  {"name": "spec1", ...}
+GOOD: {"name": "github-v3", ...}
 ```
 
 ### 2. Set Appropriate Base Paths

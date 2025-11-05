@@ -1,0 +1,534 @@
+### Context Memory Examples
+### This file demonstrates API Contexts - maintaining consistency across related requests
+
+@baseUrl = http://localhost:5116
+
+###############################################################################
+### BASIC CONTEXT USAGE
+###############################################################################
+
+### Example 1: Basic Context - Query Parameter
+### First request in a context
+GET {{baseUrl}}/api/mock/users?context=demo-session
+X-Response-Shape: {"id": 0, "name": "string", "email": "string"}
+
+### Second request in same context
+### Notice how the LLM will maintain consistency with the previous user
+GET {{baseUrl}}/api/mock/users?context=demo-session
+X-Response-Shape: {"id": 0, "name": "string", "email": "string"}
+
+###
+
+### Example 2: Context via Header
+GET {{baseUrl}}/api/mock/products/123
+X-Api-Context: demo-session
+X-Response-Shape: {"productId": 0, "name": "string", "price": 0.0}
+
+###
+
+### Example 3: Context via Request Body
+POST {{baseUrl}}/api/mock/orders
+Content-Type: application/json
+
+{
+  "context": "demo-session",
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "total": 0.0
+  }
+}
+
+###############################################################################
+### E-COMMERCE FLOW - Multi-Step Consistent Journey
+###############################################################################
+
+### Step 1: Create a new user
+POST {{baseUrl}}/api/mock/users?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "userId": 0,
+    "name": "string",
+    "email": "string",
+    "address": {
+      "street": "string",
+      "city": "string",
+      "zipCode": "string"
+    },
+    "phone": "string"
+  }
+}
+
+### Step 2: Browse products (will reference the user context)
+GET {{baseUrl}}/api/mock/products?context=ecommerce-flow-001&limit=3
+X-Response-Shape: [{"productId": 0, "name": "string", "price": 0.0, "category": "string"}]
+
+### Step 3: Add items to cart (will use same userId from step 1)
+POST {{baseUrl}}/api/mock/cart?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "cartId": 0,
+    "userId": 0,
+    "items": [
+      {
+        "productId": 0,
+        "name": "string",
+        "quantity": 0,
+        "price": 0.0
+      }
+    ],
+    "subtotal": 0.0
+  }
+}
+
+### Step 4: Create order (will reference userId and cartId from previous steps)
+POST {{baseUrl}}/api/mock/orders?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "cartId": 0,
+    "items": [],
+    "total": 0.0,
+    "shippingAddress": {
+      "street": "string",
+      "city": "string",
+      "zipCode": "string"
+    },
+    "status": "string"
+  }
+}
+
+### Step 5: Process payment (will use orderId and userId from context)
+POST {{baseUrl}}/api/mock/payments?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "paymentId": 0,
+    "orderId": 0,
+    "userId": 0,
+    "amount": 0.0,
+    "method": "string",
+    "status": "string",
+    "timestamp": "string"
+  }
+}
+
+### Step 6: Confirm shipment (references all previous data)
+POST {{baseUrl}}/api/mock/shipments?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "shipmentId": 0,
+    "orderId": 0,
+    "userId": 0,
+    "trackingNumber": "string",
+    "carrier": "string",
+    "estimatedDelivery": "string",
+    "status": "string"
+  }
+}
+
+###############################################################################
+### STOCK TICKER - Realistic Price Variance
+###############################################################################
+
+### First call - Establish baseline stock prices
+GET {{baseUrl}}/api/mock/stocks?context=market-session-001
+X-Response-Shape: [
+  {
+    "symbol": "string",
+    "name": "string",
+    "price": 0.0,
+    "change": 0.0,
+    "changePercent": 0.0,
+    "volume": 0,
+    "timestamp": "string"
+  }
+]
+
+### Wait a moment, then call again - prices will change realistically
+### Same stocks, but prices move up/down gradually (not random jumps)
+GET {{baseUrl}}/api/mock/stocks?context=market-session-001
+X-Response-Shape: [
+  {
+    "symbol": "string",
+    "name": "string",
+    "price": 0.0,
+    "change": 0.0,
+    "changePercent": 0.0,
+    "volume": 0,
+    "timestamp": "string"
+  }
+]
+
+### Third call - Continues the trend
+GET {{baseUrl}}/api/mock/stocks?context=market-session-001
+X-Response-Shape: [
+  {
+    "symbol": "string",
+    "name": "string",
+    "price": 0.0,
+    "change": 0.0,
+    "changePercent": 0.0,
+    "volume": 0,
+    "timestamp": "string"
+  }
+]
+
+###############################################################################
+### GAME STATE PROGRESSION
+###############################################################################
+
+### Start new game session
+POST {{baseUrl}}/api/mock/game/start?context=game-session-abc123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "playerName": "string",
+    "level": 0,
+    "health": 0,
+    "maxHealth": 0,
+    "experience": 0,
+    "gold": 0,
+    "inventory": [],
+    "location": "string"
+  }
+}
+
+### Complete a quest - level and stats should increase
+POST {{baseUrl}}/api/mock/game/quest/complete?context=game-session-abc123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "questId": 0,
+    "questName": "string",
+    "experienceGained": 0,
+    "goldReward": 0,
+    "itemReward": {
+      "itemId": 0,
+      "name": "string",
+      "type": "string",
+      "rarity": "string"
+    },
+    "newLevel": 0,
+    "newExperience": 0,
+    "newGold": 0
+  }
+}
+
+### Battle encounter - health decreases, experience increases
+POST {{baseUrl}}/api/mock/game/battle?context=game-session-abc123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "enemyName": "string",
+    "damageTaken": 0,
+    "damageDealt": 0,
+    "experienceGained": 0,
+    "lootDropped": [],
+    "currentHealth": 0,
+    "victory": true
+  }
+}
+
+### Use healing item - health restored
+POST {{baseUrl}}/api/mock/game/heal?context=game-session-abc123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "itemUsed": "string",
+    "healthRestored": 0,
+    "currentHealth": 0,
+    "maxHealth": 0
+  }
+}
+
+### Check player stats - should reflect all previous actions
+GET {{baseUrl}}/api/mock/game/player?context=game-session-abc123
+X-Response-Shape: {
+  "playerId": 0,
+  "playerName": "string",
+  "level": 0,
+  "health": 0,
+  "maxHealth": 0,
+  "experience": 0,
+  "gold": 0,
+  "inventory": [],
+  "questsCompleted": 0,
+  "enemiesDefeated": 0,
+  "location": "string"
+}
+
+###############################################################################
+### GRAPHQL WITH CONTEXT
+###############################################################################
+
+### Create user via GraphQL
+POST {{baseUrl}}/api/mock/graphql?context=graphql-session-001
+Content-Type: application/json
+
+{
+  "query": "mutation CreateUser { createUser(name: \"Alice\", email: \"alice@example.com\") { id name email createdAt } }"
+}
+
+### Query user - will maintain consistency with created user
+POST {{baseUrl}}/api/mock/graphql?context=graphql-session-001
+Content-Type: application/json
+
+{
+  "query": "query GetUser($id: ID!) { user(id: $id) { id name email posts { id title content likes } } }",
+  "variables": {
+    "id": "1"
+  }
+}
+
+### Create post for user - userId will be consistent
+POST {{baseUrl}}/api/mock/graphql?context=graphql-session-001
+Content-Type: application/json
+
+{
+  "query": "mutation CreatePost { createPost(userId: 1, title: \"My First Post\", content: \"Hello World\") { id title content author { id name } createdAt } }"
+}
+
+###############################################################################
+### STREAMING WITH CONTEXT
+###############################################################################
+
+### First streaming call - establishes baseline data
+GET {{baseUrl}}/api/mock/stream/sensor-data?context=iot-session-001
+Accept: text/event-stream
+X-Response-Shape: {
+  "sensorId": "string",
+  "temperature": 0.0,
+  "humidity": 0.0,
+  "timestamp": "string"
+}
+
+### Second streaming call - data will show realistic changes
+GET {{baseUrl}}/api/mock/stream/sensor-data?context=iot-session-001
+Accept: text/event-stream
+X-Response-Shape: {
+  "sensorId": "string",
+  "temperature": 0.0,
+  "humidity": 0.0,
+  "timestamp": "string"
+}
+
+###############################################################################
+### SOCIAL MEDIA SIMULATION
+###############################################################################
+
+### Create user profile
+POST {{baseUrl}}/api/mock/social/users?context=social-app-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "userId": 0,
+    "username": "string",
+    "displayName": "string",
+    "bio": "string",
+    "followers": 0,
+    "following": 0,
+    "postsCount": 0
+  }
+}
+
+### Create post by user
+POST {{baseUrl}}/api/mock/social/posts?context=social-app-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "postId": 0,
+    "userId": 0,
+    "username": "string",
+    "content": "string",
+    "likes": 0,
+    "comments": 0,
+    "shares": 0,
+    "timestamp": "string"
+  }
+}
+
+### Add comment to post
+POST {{baseUrl}}/api/mock/social/comments?context=social-app-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "commentId": 0,
+    "postId": 0,
+    "userId": 0,
+    "username": "string",
+    "content": "string",
+    "likes": 0,
+    "timestamp": "string"
+  }
+}
+
+### Get user feed - shows consistent userId, usernames, postIds
+GET {{baseUrl}}/api/mock/social/feed?context=social-app-001
+X-Response-Shape: [
+  {
+    "postId": 0,
+    "userId": 0,
+    "username": "string",
+    "content": "string",
+    "likes": 0,
+    "comments": 0,
+    "timestamp": "string"
+  }
+]
+
+###############################################################################
+### BOOKING SYSTEM
+###############################################################################
+
+### Search available hotels
+GET {{baseUrl}}/api/mock/hotels/search?context=booking-001&city=Paris&checkin=2025-06-01&checkout=2025-06-05
+X-Response-Shape: [
+  {
+    "hotelId": 0,
+    "name": "string",
+    "city": "string",
+    "rating": 0.0,
+    "pricePerNight": 0.0,
+    "availability": true,
+    "amenities": []
+  }
+]
+
+### Get hotel details - will reference hotels from search
+GET {{baseUrl}}/api/mock/hotels/123?context=booking-001
+X-Response-Shape: {
+  "hotelId": 0,
+  "name": "string",
+  "description": "string",
+  "city": "string",
+  "address": "string",
+  "rating": 0.0,
+  "pricePerNight": 0.0,
+  "rooms": [],
+  "amenities": [],
+  "photos": []
+}
+
+### Create booking - will use hotelId from previous calls
+POST {{baseUrl}}/api/mock/bookings?context=booking-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "bookingId": 0,
+    "hotelId": 0,
+    "hotelName": "string",
+    "guestName": "string",
+    "guestEmail": "string",
+    "checkinDate": "string",
+    "checkoutDate": "string",
+    "numberOfGuests": 0,
+    "roomType": "string",
+    "totalPrice": 0.0,
+    "status": "string"
+  }
+}
+
+### Payment for booking - references bookingId and total from previous step
+POST {{baseUrl}}/api/mock/payments/booking?context=booking-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "paymentId": 0,
+    "bookingId": 0,
+    "amount": 0.0,
+    "currency": "string",
+    "method": "string",
+    "status": "string",
+    "confirmationNumber": "string"
+  }
+}
+
+###############################################################################
+### CONTEXT MANAGEMENT
+###############################################################################
+
+### List all active contexts
+GET {{baseUrl}}/api/openapi/contexts
+
+### Get specific context details
+GET {{baseUrl}}/api/openapi/contexts/demo-session
+
+### Clear a specific context (start fresh)
+DELETE {{baseUrl}}/api/openapi/contexts/demo-session
+
+### Clear all contexts
+DELETE {{baseUrl}}/api/openapi/contexts
+
+###############################################################################
+### ALTERNATIVE CONTEXT PARAMETER NAME
+###############################################################################
+
+### You can use 'api-context' instead of 'context' for clarity
+GET {{baseUrl}}/api/mock/users?api-context=my-session
+X-Response-Shape: {"id": 0, "name": "string"}
+
+### Works with all parameter types
+POST {{baseUrl}}/api/mock/orders
+Content-Type: application/json
+
+{
+  "apiContext": "my-session",
+  "shape": {
+    "orderId": 0,
+    "total": 0.0
+  }
+}
+
+###############################################################################
+### MULTI-CONTEXT ISOLATION
+###############################################################################
+
+### Context 1: Session A
+GET {{baseUrl}}/api/mock/users?context=session-a
+X-Response-Shape: {"id": 0, "name": "string"}
+
+### Context 2: Session B (completely independent)
+GET {{baseUrl}}/api/mock/users?context=session-b
+X-Response-Shape: {"id": 0, "name": "string"}
+
+### Second call to Session A - maintains its own history
+GET {{baseUrl}}/api/mock/orders?context=session-a
+X-Response-Shape: {"orderId": 0, "userId": 0}
+
+### Second call to Session B - maintains its own separate history
+GET {{baseUrl}}/api/mock/orders?context=session-b
+X-Response-Shape: {"orderId": 0, "userId": 0}
+
+###
+
+### NOTES:
+### - Contexts are case-insensitive: "Session-A" and "session-a" are the same
+### - Contexts persist in memory until cleared or server restarts
+### - Each context tracks up to 15 recent calls (older calls are summarized)
+### - Shared data (IDs, names, emails) is automatically extracted
+### - LLM uses context history to maintain consistency
+### - Works with REST, Streaming, GraphQL, and SignalR endpoints

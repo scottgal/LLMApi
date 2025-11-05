@@ -508,8 +508,8 @@ The LLM sees all previous calls and generates responses that reference the same 
 ### 1. Use Descriptive Context Names
 
 ```http
-❌ Bad:  ?context=test1
-✅ Good: ?context=user-checkout-flow-jan15
+BAD:  ?context=test1
+GOOD: ?context=user-checkout-flow-jan15
 ```
 
 ### 2. Clear Contexts When Done

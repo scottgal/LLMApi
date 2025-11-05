@@ -2,6 +2,103 @@
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.5.0 — 2025-01-05
+- API Contexts for maintaining consistency across related requests, OpenAPI dynamic mocking enhancements, and token management.
+  - Added: API Contexts - Shared Memory Across Requests (MAJOR)
+    - Cross-endpoint context support: All endpoint types (REST, Streaming, GraphQL, SignalR) support shared context
+    - Multiple ways to pass context: Query param (?context=name or ?api-context=name), HTTP header (X-Api-Context), or request body ({"context": "name"})
+    - Automatic context tracking: System remembers recent calls (method, path, request, response) in each context
+    - Smart data extraction: Automatically extracts and tracks IDs, names, emails from responses for consistency
+    - Context history in prompts: LLM generates new responses maintaining consistency with previous context history
+    - Use cases: E-commerce flows, stock tickers with realistic variance, game state progression, multi-step user journeys
+  - Added: SignalR Context Support
+    - SignalR hubs can reference API contexts via ApiContextName property in HubContextConfig
+    - Enables realistic data variance for real-time streams (e.g., stock prices that change gradually)
+  - Added: Token Budget Management & Intelligent Truncation
+    - MaxInputTokens configuration: Control token budget per model (default: 2048)
+    - 80/20 priority allocation: Base prompt gets 80% of tokens, context history gets 20%
+    - Automatic truncation: Older calls dropped when context history exceeds budget
+    - Detailed logging: See exactly which calls were dropped and why
+    - Token estimation: Approximates 1 token ≈ 4 characters for quick budget calculations
+  - Added: Model-Specific Configuration Examples
+    - Comprehensive configuration examples for 6 popular Ollama models in appsettings.json
+    - Llama 3/3.1 (4K context) - Recommended
+    - TinyLlama (2K context) - Fast but limited
+    - Qwen 3 14B (4K context) - Good quality
+    - Mistral/Mixtral (8K context) - High quality
+    - Llama 2 (4K context) - Older
+    - Phi-3 (4K context) - Microsoft
+    - Each includes recommended MaxInputTokens values for optimal performance
+  - Added: Context Management API
+    - GET /api/openapi/contexts - List all contexts with stats
+    - GET /api/openapi/contexts/{name} - Get specific context details
+    - DELETE /api/openapi/contexts/{name} - Clear specific context
+    - DELETE /api/openapi/contexts - Clear all contexts
+  - Added: Comprehensive Documentation
+    - Created docs/API-CONTEXTS.md: Complete guide with Mermaid diagrams, use cases, implementation details
+    - Created docs/OPENAPI-FEATURES.md: Complete OpenAPI dynamic mocking guide with architecture diagrams
+    - Updated README.md with feature navigation, table of contents, and context examples
+    - Added ~220 lines of context usage examples to management.http
+  - Added: OpenAPI Dynamic Spec Loading
+    - Load specs from URLs, files, or inline JSON/YAML
+    - Real-time spec management with SignalR notifications
+    - Automatic endpoint generation with path parameters
+    - Interactive testing directly from browser UI
+  - Changed: mostlylucid.mockllmapi/Services/ContextExtractor.cs (NEW)
+    - Extracts context names from requests with precedence: Query param > Header > Body
+  - Changed: mostlylucid.mockllmapi/Services/OpenApiContextManager.cs
+    - Added IOptions<LLMockApiOptions> dependency for token budget management
+    - Implemented intelligent token-based truncation with 80/20 allocation
+    - Added detailed logging of dropped calls
+    - Token estimation using 4 characters per token approximation
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
+    - Integrated ContextExtractor and OpenApiContextManager
+    - Extract context name, retrieve history, build prompt with context, store response
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
+    - Added context support following same pattern as RegularRequestHandler
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs
+    - Integrated context support including in retry logic
+    - Context history included in both main and retry prompts
+  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
+    - Added OpenApiContextManager dependency for SignalR context support
+    - Get/store context for each data generation cycle based on ApiContextName
+  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
+    - Added ApiContextName property for SignalR context support
+  - Changed: mostlylucid.mockllmapi/Services/PromptBuilder.cs
+    - Added contextHistory parameter to BuildPrompt method
+    - Context history included in LLM prompts when provided
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Registered ContextExtractor service in DI container
+  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
+    - Added MaxInputTokens property (default: 2048) with model-specific guidance
+  - Changed: LLMApi/management.http
+    - Added extensive context usage examples (~220 lines)
+    - REST, Streaming, GraphQL with contexts
+    - Use case examples: E-commerce, stock ticker, game state
+  - Changed: LLMApi/appsettings.json
+    - Added comprehensive model-specific configuration examples with MaxInputTokens
+  - Changed: LLMApi.Tests/OpenApiContextManagerTests.cs
+    - Updated to use new constructor signature with IOptions<LLMockApiOptions>
+  - Changed: LLMApi.Tests/GraphQLRequestHandlerTests.cs
+    - Updated to use new constructor signature
+  - Changed: LLMApi.Tests/LLMockApiServiceTests.cs
+    - Updated to use new constructor signature
+  - Changed: RELEASE_NOTES.md
+    - Added comprehensive v1.5.0 release notes
+  - Changed: README.md
+    - Added table of contents for easy navigation
+    - Created "Feature Documentation" section linking to detailed guides
+    - Updated configuration section with MaxInputTokens and context notes
+    - Added context usage examples
+    - Improved "What's New" section highlighting v1.5.0 features
+  - Outcome:
+    - Consistent mock data across multi-step workflows
+    - Realistic data variance for real-time streams
+    - Better token management preventing prompt length issues
+    - Comprehensive documentation for all features
+    - All 147 tests passing
+    - No breaking changes - full backward compatibility
+
 v1.2.1 — 2025-11-04
 - Critical retry policy bug fix resolving "request already sent" errors.
   - Fixed: Retry Policy HTTP Request Reuse Issue
