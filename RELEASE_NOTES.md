@@ -102,10 +102,10 @@ GraphQL endpoint:
 ```
 
 **Works Everywhere:**
-- ✅ REST endpoints
-- ✅ Streaming (SSE) endpoints
-- ✅ GraphQL endpoint
-- ✅ SignalR hubs (via `HubContextConfig.ErrorConfig`)
+-  REST endpoints
+-  Streaming (SSE) endpoints
+-  GraphQL endpoint
+-  SignalR hubs (via `HubContextConfig.ErrorConfig`)
 
 **Use Cases:**
 - Test retry logic and exponential backoff
@@ -212,7 +212,7 @@ curl -X PATCH http://localhost:5000/api/contexts/my-context/shared-data \
 - HTTP status codes are correctly set on responses
 
 **URL Encoding Requirements:**
-- ⚠️ **IMPORTANT**: Query parameter values MUST be URL-encoded
+- ️ **IMPORTANT**: Query parameter values MUST be URL-encoded
 - Common encodings: space→`%20`, `&`→`%26`, `:`→`%3A`, `'`→`%27`, `,`→`%2C`
 - All `.http` file examples now include decoded comments for clarity
 - Headers and body content do NOT require URL encoding
@@ -415,7 +415,7 @@ Each includes recommended `MaxInputTokens` values for optimal performance.
 ### Technical Details
 Changed from this (broken):
 ```csharp
-// ❌ BAD: Request created once, reused for retries
+//  BAD: Request created once, reused for retries
 var httpReq = new HttpRequestMessage(...);
 await _resiliencePipeline.ExecuteAsync(async ct =>
     await client.SendAsync(httpReq, ct), cancellationToken);
@@ -423,7 +423,7 @@ await _resiliencePipeline.ExecuteAsync(async ct =>
 
 To this (fixed):
 ```csharp
-// ✅ GOOD: Fresh request for each retry attempt
+//  GOOD: Fresh request for each retry attempt
 await _resiliencePipeline.ExecuteAsync(async ct => {
     using var httpReq = new HttpRequestMessage(...);
     return await client.SendAsync(httpReq, ct);
