@@ -19,6 +19,7 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageReleaseNotes>Latest: v1.6.1 — Documentation fix: Added v1.6.0 release notes to package (apologies for the oversight!). v1.6.0: Error Simulation &amp; Context Management! Test client error handling with 4xx/5xx status codes via query params, headers, shape, or body. API Context Management endpoints (/api/contexts) to view, inspect, and modify context history programmatically. See RELEASE_NOTES.md for full details.</PackageReleaseNotes>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
+      <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/release notes.txt"))</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

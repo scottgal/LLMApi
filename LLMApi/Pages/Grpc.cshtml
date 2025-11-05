@@ -753,18 +753,16 @@ message DailyForecast {
                 return;
             }
 
-            // Create FormData with file
-            const formData = new FormData();
-            const blob = new Blob([content], { type: 'text/plain' });
-            formData.append('file', blob, `${name}.proto`);
-            formData.append('name', name);
-
             showStatus('uploadStatus', 'loading', 'Uploading proto file...');
 
             try {
-                const response = await fetch('/api/grpc-protos', {
+                // Send as plain text with filename in URL
+                const response = await fetch(`/api/grpc-protos?name=${encodeURIComponent(name)}`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: content
                 });
 
                 if (response.ok) {

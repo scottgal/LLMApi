@@ -51,6 +51,16 @@ internal static class GrpcManagementEndpoints
                 {
                     return Results.BadRequest(new { error = "No proto content provided" });
                 }
+
+                // Try to get filename from query string
+                if (context.Request.Query.TryGetValue("name", out var nameValue))
+                {
+                    var name = nameValue.ToString().Trim();
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        fileName = name.EndsWith(".proto") ? name : $"{name}.proto";
+                    }
+                }
             }
 
             var definition = manager.AddProtoDefinition(protoContent, fileName);
@@ -90,15 +100,23 @@ internal static class GrpcManagementEndpoints
 
         return Results.Ok(new
         {
-            definitions = definitions.Select(d => new
+            protos = definitions.Select(d => new
             {
                 name = d.Name,
                 package = d.Package,
                 syntax = d.Syntax,
                 uploadedAt = d.UploadedAt,
-                serviceCount = d.Services.Count,
-                messageCount = d.Messages.Count,
-                services = d.Services.Select(s => s.Name).ToList()
+                services = d.Services.Select(s => new
+                {
+                    name = s.Name,
+                    methods = s.Methods.Select(m => new
+                    {
+                        name = m.Name,
+                        inputType = m.InputType,
+                        outputType = m.OutputType,
+                        type = m.GetMethodType().ToString()
+                    }).ToList()
+                }).ToList()
             }),
             count = definitions.Count
         });

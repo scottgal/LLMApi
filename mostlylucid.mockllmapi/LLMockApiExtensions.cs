@@ -982,7 +982,10 @@ public static class LlMockApiExtensions
             })
             .WithName("LLMockApi-Grpc-UnaryCall-Protobuf")
             .WithTags("gRPC Service Calls (Protobuf)")
+            .DisableAntiforgery()
             .Accepts<byte[]>("application/grpc+proto")
+            .Accepts<string>("application/json")
+            .Accepts<byte[]>("application/octet-stream")
             .Produces(200, contentType: "application/grpc+proto")
             .Produces(400)
             .Produces(500);
