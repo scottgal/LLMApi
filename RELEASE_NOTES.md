@@ -1,5 +1,27 @@
 # Release Notes
 
+## v1.6.1 (2025-01-05)
+
+**Documentation Fix**
+
+### Fixed
+- **Missing Release Notes**: Package maintainer forgot to update `release notes.txt` in v1.6.0 NuGet package
+  - The v1.6.0 release went out with release notes still showing v1.5.0
+  - This v1.6.1 release corrects that oversight
+  - Added comprehensive v1.6.0 release notes to `release notes.txt` (included in NuGet package)
+  - No code changes - purely documentation
+
+### What Changed
+- Updated `mostlylucid.mockllmapi/release notes.txt` with full v1.6.0 feature documentation
+- Added this humble v1.6.1 entry acknowledging the oversight
+
+### Apologies
+Sorry for the confusion! The v1.6.0 features (Error Simulation and Context Management API) are all there and working perfectly - just the release notes file didn't get updated in the package.
+
+**If you installed v1.6.0, you don't need to upgrade to v1.6.1** - they're functionally identical. This is purely a documentation fix.
+
+---
+
 ## v1.6.0 (2025-01-05)
 
 **NO BREAKING CHANGES** - All existing code continues to work!

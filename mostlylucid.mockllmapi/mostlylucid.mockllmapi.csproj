@@ -8,16 +8,16 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>mostlylucid.mockllmapi</PackageId>
-    <Version>1.6.0</Version>
+    <Version>1.6.1</Version>
     <Authors>mostlyLucid</Authors>
     <Company>mostlyLucid</Company>
-    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Supports REST, GraphQL, SSE streaming, SignalR real-time data, and OpenAPI specs. NEW in v1.6.0: Comprehensive error simulation for testing client error handling! v1.5.0: API Contexts for consistent multi-step workflows. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
+    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Supports REST, GraphQL, SSE streaming, SignalR real-time data, and OpenAPI specs. NEW in v1.6.1: Documentation fix (added missing release notes from v1.6.0). v1.6.0: Comprehensive error simulation for testing client error handling! v1.5.0: API Contexts for consistent multi-step workflows. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
     <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9;signalr;realtime;graphql;sse;openapi;contexts</PackageTags>
     <RepositoryUrl>https://github.com/scottgal/LLMApi</RepositoryUrl>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>Latest: v1.5.0 — API Contexts! Maintain consistency across related requests with shared memory. Perfect for e-commerce flows, stock tickers, game state. Includes token management, OpenAPI dynamic spec loading, and comprehensive documentation. See RELEASE_NOTES.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>Latest: v1.6.1 — Documentation fix: Added v1.6.0 release notes to package (apologies for the oversight!). v1.6.0: Error Simulation &amp; Context Management! Test client error handling with 4xx/5xx status codes via query params, headers, shape, or body. API Context Management endpoints (/api/contexts) to view, inspect, and modify context history programmatically. See RELEASE_NOTES.md for full details.</PackageReleaseNotes>
     <RootNamespace>mostlylucid.mockllmapi</RootNamespace>
   </PropertyGroup>
 

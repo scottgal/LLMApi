@@ -1,6 +1,139 @@
-﻿mostlylucid.mockllmapi — Release Notes
+mostlylucid.mockllmapi — Release Notes
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
+
+v1.6.1 — 2025-01-05
+- Documentation fix: Package maintainer forgot to update release notes.txt in v1.6.0.
+  - Changed: mostlylucid.mockllmapi/release notes.txt
+    - Added v1.6.0 release notes that should have been included originally
+    - Added this humble v1.6.1 entry acknowledging the oversight
+  - No code changes - purely a documentation update
+  - Outcome: Release notes now properly reflect v1.6.0 features (error simulation & context management API)
+
+v1.6.0 — 2025-01-05
+- Comprehensive error simulation and API context management endpoints for testing and debugging.
+  - Added: Comprehensive Error Simulation (MAJOR)
+    - Four ways to configure errors (in precedence order): Query parameters, HTTP headers, Shape JSON ($error property), Request body (error property)
+    - Supported status codes: 4xx (400, 401, 403, 404, 405, 408, 409, 422, 429) and 5xx (500, 501, 502, 503, 504)
+    - Default error messages for all status codes (can be overridden with custom messages and details)
+    - Works across all endpoint types: REST, Streaming (SSE), GraphQL, and SignalR
+    - Proper error response formats: JSON for REST/Streaming, GraphQL format with errors array, SSE format for streams
+    - SignalR error simulation via HubContextConfig.ErrorConfig property
+    - Use cases: Test retry logic, validate error UI, test authentication flows, simulate rate limiting, practice graceful degradation
+  - Added: API Context Management Endpoints (MAJOR)
+    - New management API at /api/contexts with 8 endpoints
+    - GET /api/contexts - List all contexts with summary info (totalCalls, lastUsedAt, createdAt, recentCallCount, sharedDataCount)
+    - GET /api/contexts/{name} - Get full context details with all calls and shared data (supports ?includeCallDetails=true&maxCalls=10)
+    - GET /api/contexts/{name}/prompt - View formatted prompt text that gets sent to LLM
+    - POST /api/contexts/{name}/calls - Manually add calls to context (useful for pre-populating or testing)
+    - PATCH /api/contexts/{name}/shared-data - Update shared data for context (merges with existing)
+    - POST /api/contexts/{name}/clear - Clear all calls but keep context registered
+    - DELETE /api/contexts/{name} - Delete context completely
+    - DELETE /api/contexts - Clear all contexts
+    - Enable with app.MapLLMockApiContextManagement("/api/contexts")
+    - Use cases: Debug context state, pre-populate contexts for testing, export history, build automated tests, inspect LLM input
+  - Added: URL Encoding Documentation & Warnings
+    - Comprehensive URL encoding guide in README.md and CLAUDE.md
+    - Common character encodings documented: space→%20, &→%26, :→%3A, '→%27, ,→%2C
+    - All .http file examples now properly URL-encoded with decoded comments for clarity
+    - Important note: Query parameters MUST be URL-encoded; headers and body content do NOT require encoding
+  - Changed: mostlylucid.mockllmapi/Models/ErrorConfig.cs (NEW)
+    - Error configuration model with Code, Message, Details properties
+    - GetDefaultMessage() provides sensible defaults for 14 common HTTP status codes
+    - ToJson() generates REST/Streaming error format: {"error": {"code": 404, "message": "...", "details": "..."}}
+    - ToGraphQLJson() generates GraphQL error format: {"data": null, "errors": [{"message": "...", "extensions": {"code": 404, ...}}]}
+    - Automatic JSON escaping for special characters (quotes, newlines, tabs)
+  - Changed: mostlylucid.mockllmapi/ApiContextManagementEndpoints.cs (NEW)
+    - Management endpoint handlers for all 8 context operations
+    - Built on existing OpenApiContextManager service
+    - Proper 404 handling with helpful error messages listing available contexts
+    - Returns ApiContext with full history (RecentCalls, SharedData, ContextSummary)
+    - Supports filtering with includeCallDetails and maxCalls query parameters
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Added MapLLMockApiContextManagement() extension method
+    - Maps all 8 context management endpoints with proper route patterns
+    - Tagged with "API Contexts" for OpenAPI/Swagger organization
+  - Changed: mostlylucid.mockllmapi/Services/ShapeExtractor.cs
+    - ExtractErrorConfig() method extracts error hints from all 4 sources (query, header, shape, body)
+    - Implements precedence rules: Query > Header > Shape > Body
+    - SanitizeShapeFromErrorHints() removes $error properties from shapes before LLM prompt generation
+    - Handles both simple ($error: 404) and complex ($error: {code, message, details}) formats
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
+    - Integrated error simulation: Returns error response immediately if ErrorConfig present
+    - Sets HTTP status code on response
+    - Bypasses LLM generation for faster error responses
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
+    - Error simulation support for SSE endpoints
+    - Returns single SSE event with error JSON when ErrorConfig present
+    - Proper text/event-stream content type with error status code
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs
+    - GraphQL error format support with proper errors array structure
+    - Extensions object includes status code and optional details
+    - Returns null data with errors array as per GraphQL spec
+  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
+    - SignalR error simulation via HubContextConfig.ErrorConfig
+    - Broadcasts error messages to connected clients when ErrorConfig is set
+    - Proper error format in real-time streams
+  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
+    - Added ErrorConfig property for SignalR error simulation
+    - Optional property - only used when errors need to be simulated in real-time streams
+  - Changed: mostlylucid.mockllmapi/SignalRManagementEndpoints.cs
+    - Support for ErrorConfig in dynamic context creation
+    - Extracts error, errorMessage, errorDetails from request body
+    - Creates ErrorConfig and assigns to HubContextConfig
+  - Changed: LLMApi/Program.cs
+    - Added app.MapLLMockApiContextManagement("/api/contexts") to enable context management endpoints in demo
+  - Changed: LLMApi/contexts.http
+    - Replaced old context management section with new API Context Management API examples
+    - Added 90+ lines of comprehensive examples for all 8 endpoints
+    - Complete workflow example showing list, inspect, add, update, and use context
+    - Error case examples (non-existent context, missing fields)
+  - Changed: LLMApi/LLMApi.http
+    - Added ERROR SIMULATION section with 13 comprehensive examples
+    - Examples cover all 4 configuration methods (query, header, shape, body)
+    - All query parameter examples properly URL-encoded with decoded comments
+    - Error precedence demonstrations
+    - Common error codes reference (400-504)
+    - Errors with context flows
+    - Special characters encoding examples (space, &, :, ', ,)
+  - Changed: README.md
+    - Added comprehensive "Error Simulation" section (~120 lines)
+    - Four configuration methods documented with examples
+    - Error response formats for REST, GraphQL, and SignalR
+    - Supported status codes list with descriptions
+    - Use cases for error simulation
+    - URL encoding warnings and examples
+    - SignalR error configuration examples
+  - Changed: CLAUDE.md
+    - Added "Error Simulation" section with implementation details
+    - URL encoding requirements and reference table
+    - Error extraction precedence rules
+    - ShapeExtractor error handling flow
+    - Testing error responses section with .http file reference
+  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
+    - Version bumped from 1.5.0 to 1.6.0
+    - Description updated to highlight v1.6.0 error simulation feature
+    - PackageReleaseNotes updated with v1.6.0 summary
+  - Changed: LLMApi.Tests/ErrorHandlingTests.cs (NEW)
+    - 28 comprehensive error handling tests
+    - ErrorConfig model tests: Constructor, default messages, GetMessage(), ToJson(), ToGraphQLJson(), JSON escaping
+    - ShapeExtractor error extraction tests: All 4 sources (query, header, shape, body), precedence rules, sanitization
+    - Request handler tests: RegularRequestHandler, GraphQLRequestHandler, StreamingRequestHandler error responses
+    - Both simple and complex error formats tested
+    - Special character handling verified
+  - Changed: RELEASE_NOTES.md
+    - Added comprehensive v1.6.0 release notes section
+    - Detailed documentation of all new features
+    - Configuration examples
+    - Migration examples
+    - Breaking changes (none) and upgrade notes
+  - Outcome:
+    - Comprehensive error simulation for testing client error handling across all endpoint types
+    - API context management endpoints for debugging and programmatic context manipulation
+    - Better documentation with URL encoding warnings preventing common mistakes
+    - All 171 tests passing (28 new error tests)
+    - Zero breaking changes - full backward compatibility
+    - Opt-in features: Error simulation only when error parameters provided, context management requires explicit endpoint mapping
 
 v1.5.0 — 2025-01-05
 - API Contexts for maintaining consistency across related requests, OpenAPI dynamic mocking enhancements, and token management.
