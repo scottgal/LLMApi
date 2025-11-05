@@ -468,20 +468,148 @@ Content-Type: application/json
 }
 
 ###############################################################################
-### CONTEXT MANAGEMENT
+### API CONTEXT MANAGEMENT API
+### Programmatically view and modify context history
 ###############################################################################
 
-### List all active contexts
-GET {{baseUrl}}/api/openapi/contexts
+### List all API contexts (summary view)
+GET {{baseUrl}}/api/contexts
+Accept: application/json
 
-### Get specific context details
-GET {{baseUrl}}/api/openapi/contexts/demo-session
+###
 
-### Clear a specific context (start fresh)
-DELETE {{baseUrl}}/api/openapi/contexts/demo-session
+### Get specific context with full details (all calls and shared data)
+GET {{baseUrl}}/api/contexts/demo-session
+Accept: application/json
 
-### Clear all contexts
-DELETE {{baseUrl}}/api/openapi/contexts
+###
+
+### Get specific context (limit call history to last 10)
+GET {{baseUrl}}/api/contexts/ecommerce-flow-001?maxCalls=10
+Accept: application/json
+
+###
+
+### Get context summary only (no call details)
+GET {{baseUrl}}/api/contexts/demo-session?includeCallDetails=false
+Accept: application/json
+
+###
+
+### Get the formatted prompt text for a context (what LLM sees)
+GET {{baseUrl}}/api/contexts/demo-session/prompt
+Accept: application/json
+
+###
+
+### Manually add a call to a context
+# Useful for pre-populating context data or testing
+POST {{baseUrl}}/api/contexts/test-context/calls
+Content-Type: application/json
+Accept: application/json
+
+{
+  "method": "GET",
+  "path": "/api/mock/products/123",
+  "requestBody": null,
+  "responseBody": "{\"id\": \"123\", \"name\": \"Widget\", \"price\": 29.99}"
+}
+
+###
+
+### Add multiple calls to build context history
+POST {{baseUrl}}/api/contexts/test-context/calls
+Content-Type: application/json
+
+{
+  "method": "POST",
+  "path": "/api/mock/cart",
+  "requestBody": "{\"productId\": \"123\", \"quantity\": 2}",
+  "responseBody": "{\"cartId\": \"cart-456\", \"items\": [{\"productId\": \"123\", \"quantity\": 2}], \"total\": 59.98}"
+}
+
+###
+
+### Update shared data for a context
+# Shared data is automatically extracted but can be manually set/updated
+PATCH {{baseUrl}}/api/contexts/test-context/shared-data
+Content-Type: application/json
+Accept: application/json
+
+{
+  "userId": "user-789",
+  "cartId": "cart-456",
+  "sessionToken": "token-abc123"
+}
+
+###
+
+### Clear a specific context (removes all calls, starts fresh)
+POST {{baseUrl}}/api/contexts/demo-session/clear
+Accept: application/json
+
+###
+
+### Delete a specific context completely
+DELETE {{baseUrl}}/api/contexts/demo-session
+Accept: application/json
+
+###
+
+### Clear all API contexts
+DELETE {{baseUrl}}/api/contexts
+Accept: application/json
+
+###
+
+### Complete management workflow example
+### Step 1: View all contexts
+GET {{baseUrl}}/api/contexts
+
+### Step 2: Inspect specific context
+GET {{baseUrl}}/api/contexts/ecommerce-flow-001
+
+### Step 3: View what the LLM sees for this context
+GET {{baseUrl}}/api/contexts/ecommerce-flow-001/prompt
+
+### Step 4: Manually add data to context
+POST {{baseUrl}}/api/contexts/ecommerce-flow-001/calls
+Content-Type: application/json
+
+{
+  "method": "GET",
+  "path": "/api/mock/special-offer",
+  "requestBody": null,
+  "responseBody": "{\"offerId\": \"SAVE20\", \"discount\": 20, \"expiresAt\": \"2025-12-31\"}"
+}
+
+### Step 5: Update shared discount code
+PATCH {{baseUrl}}/api/contexts/ecommerce-flow-001/shared-data
+Content-Type: application/json
+
+{
+  "activePromoCode": "SAVE20",
+  "discountPercent": 20
+}
+
+### Step 6: Make API call using updated context
+POST {{baseUrl}}/api/mock/checkout?context=ecommerce-flow-001
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "total": 0.0,
+    "discount": 0.0,
+    "promoCode": "string"
+  }
+}
+
+### Step 7: Clean up - delete context
+DELETE {{baseUrl}}/api/contexts/ecommerce-flow-001
+
+###
 
 ###############################################################################
 ### ALTERNATIVE CONTEXT PARAMETER NAME

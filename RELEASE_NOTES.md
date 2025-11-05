@@ -1,5 +1,258 @@
 # Release Notes
 
+## v1.6.0 (2025-01-05)
+
+**NO BREAKING CHANGES** - All existing code continues to work!
+
+### New Features
+
+#### Comprehensive Error Simulation (MAJOR)
+
+Test your client's error handling with production-like error responses across all endpoint types!
+
+**Four Ways to Configure Errors** (in precedence order):
+
+1. **Query Parameters** (highest precedence):
+   ```bash
+   GET /api/mock/users?error=404&errorMessage=Not%20found&errorDetails=User%20does%20not%20exist
+   ```
+
+2. **HTTP Headers**:
+   ```bash
+   curl -H "X-Error-Code: 401" \
+        -H "X-Error-Message: Unauthorized" \
+        -H "X-Error-Details: Token expired" \
+        http://localhost:5000/api/mock/users
+   ```
+
+3. **Shape JSON** (using `$error` property):
+   ```bash
+   # Simple: just status code
+   ?shape={"$error":404}
+
+   # Complex: with message and details
+   ?shape={"$error":{"code":422,"message":"Validation failed","details":"Email invalid"}}
+   ```
+
+4. **Request Body** (using `error` property):
+   ```json
+   {
+     "error": {
+       "code": 409,
+       "message": "Conflict",
+       "details": "User already exists"
+     }
+   }
+   ```
+
+**Supported HTTP Status Codes:**
+- **4xx Client Errors**: 400, 401, 403, 404, 405, 408, 409, 422, 429
+- **5xx Server Errors**: 500, 501, 502, 503, 504
+- All codes include sensible default messages that can be overridden
+
+**Error Response Formats:**
+
+Regular/Streaming endpoints:
+```json
+{
+  "error": {
+    "code": 404,
+    "message": "Not Found",
+    "details": "Optional additional context"
+  }
+}
+```
+
+GraphQL endpoint:
+```json
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Not Found",
+      "extensions": {
+        "code": 404,
+        "details": "Optional additional context"
+      }
+    }
+  ]
+}
+```
+
+**Works Everywhere:**
+- ✅ REST endpoints
+- ✅ Streaming (SSE) endpoints
+- ✅ GraphQL endpoint
+- ✅ SignalR hubs (via `HubContextConfig.ErrorConfig`)
+
+**Use Cases:**
+- Test retry logic and exponential backoff
+- Validate error message display in UI
+- Test authentication/authorization flows
+- Simulate rate limiting scenarios (429)
+- Practice graceful degradation patterns
+- Test error logging and monitoring
+- Client-side error boundary testing
+
+**SignalR Error Simulation:**
+```json
+{
+  "HubContexts": [
+    {
+      "Name": "errors",
+      "Description": "Error simulation stream",
+      "ErrorConfig": {
+        "Code": 500,
+        "Message": "Server error",
+        "Details": "Database connection lost"
+      }
+    }
+  ]
+}
+```
+
+#### API Context Management Endpoints (MAJOR)
+
+Programmatically view, inspect, and modify API context history!
+
+**New Management API** at `/api/contexts`:
+
+- `GET /api/contexts` - List all contexts with summary info
+- `GET /api/contexts/{name}` - Get full context details
+  - Query params: `?includeCallDetails=true&maxCalls=10`
+- `GET /api/contexts/{name}/prompt` - View formatted LLM prompt
+- `POST /api/contexts/{name}/calls` - Manually add calls
+- `PATCH /api/contexts/{name}/shared-data` - Update shared data
+- `POST /api/contexts/{name}/clear` - Clear context history
+- `DELETE /api/contexts/{name}` - Delete context completely
+- `DELETE /api/contexts` - Clear all contexts
+
+**Enable in Program.cs:**
+```csharp
+app.MapLLMockApiContextManagement("/api/contexts");
+```
+
+**Example Usage:**
+```bash
+# List all contexts
+curl http://localhost:5000/api/contexts
+
+# Get specific context
+curl http://localhost:5000/api/contexts/checkout-flow
+
+# View what LLM sees
+curl http://localhost:5000/api/contexts/checkout-flow/prompt
+
+# Manually add a call
+curl -X POST http://localhost:5000/api/contexts/my-context/calls \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "GET",
+    "path": "/api/mock/products/123",
+    "responseBody": "{\"id\":\"123\",\"name\":\"Widget\",\"price\":29.99}"
+  }'
+
+# Update shared data
+curl -X PATCH http://localhost:5000/api/contexts/my-context/shared-data \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"user-789","cartId":"cart-456"}'
+```
+
+**Use Cases:**
+- Debug context state during development
+- Pre-populate contexts for testing
+- Export context history for analysis
+- Build automated test suites
+- Inspect LLM input for debugging
+- Monitor context growth over time
+
+### New Files
+- `mostlylucid.mockllmapi/Models/ErrorConfig.cs` - Error configuration model with default messages
+- `mostlylucid.mockllmapi/ApiContextManagementEndpoints.cs` - Context management API endpoints
+- `LLMApi.Tests/ErrorHandlingTests.cs` - 28 comprehensive error handling tests
+
+### Documentation Improvements
+- Added comprehensive error simulation section to README.md (~120 lines)
+- Added error simulation section to CLAUDE.md with encoding guide
+- Added 13 error examples to `LLMApi.http` covering all scenarios
+- Added URL encoding documentation and warnings
+- Added 90+ lines of context management examples to `contexts.http`
+- All query parameter examples now properly URL-encoded with decoded comments
+
+### Technical Details
+
+**Error Handling Implementation:**
+- `ErrorConfig` class with `ToJson()` and `ToGraphQLJson()` methods
+- Automatic JSON escaping for safe output
+- Error extraction in `ShapeExtractor` with precedence rules
+- `$error` hints are sanitized from shapes before LLM prompt generation
+- All request handlers (Regular, Streaming, GraphQL) support errors
+- HTTP status codes are correctly set on responses
+
+**URL Encoding Requirements:**
+- ⚠️ **IMPORTANT**: Query parameter values MUST be URL-encoded
+- Common encodings: space→`%20`, `&`→`%26`, `:`→`%3A`, `'`→`%27`, `,`→`%2C`
+- All `.http` file examples now include decoded comments for clarity
+- Headers and body content do NOT require URL encoding
+
+**Context Management:**
+- Built on existing `OpenApiContextManager` service
+- Returns `ApiContext` with full history and shared data
+- Supports filtering with `includeCallDetails` and `maxCalls` parameters
+- Proper 404 handling with helpful error messages listing available contexts
+
+### Configuration
+
+No new configuration required! Error simulation and context management work out of the box.
+
+Optional: Map context management endpoints if needed:
+```csharp
+app.MapLLMockApiContextManagement("/api/contexts");
+```
+
+### Test Coverage
+
+- **28 new error handling tests** covering:
+  - `ErrorConfig` model with all default messages
+  - Error extraction from all 4 sources (query, header, shape, body)
+  - Error precedence rules
+  - All request handler types (REST, GraphQL, Streaming)
+  - Both JSON and GraphQL error formats
+  - Special character escaping
+- **All 171 tests passing** (143 existing + 28 new)
+- Zero compilation errors or warnings introduced
+
+### Breaking Changes
+
+**None!** This is a fully backward-compatible release.
+
+### Upgrade Notes
+- Error simulation is opt-in - only triggered when error parameters are provided
+- Context management API is opt-in - call `MapLLMockApiContextManagement()` to enable
+- No changes to existing functionality or APIs
+- All existing code works without modification
+
+### Migration Examples
+
+**Before (v1.5.0):**
+```csharp
+// Your code
+app.MapLLMockApi("/api/mock");
+// Everything still works!
+```
+
+**After (v1.6.0 - optional new features):**
+```csharp
+// Add context management
+app.MapLLMockApi("/api/mock");
+app.MapLLMockApiContextManagement("/api/contexts");
+
+// Test error handling
+// GET /api/mock/users?error=404
+```
+
+---
+
 ## v1.5.0 (2025-01-05)
 
 **NO BREAKING CHANGES** - All existing code continues to work!

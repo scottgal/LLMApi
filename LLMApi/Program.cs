@@ -37,6 +37,9 @@ app.MapLLMockOpenApi();
 // Map LLMock OpenAPI management endpoints (for dynamic spec loading)
 app.MapLLMockOpenApiManagement();
 
+// Map API Context management endpoints (for viewing/modifying context history)
+app.MapLLMockApiContextManagement("/api/contexts");
+
 app.Run();
 
 // Expose Program as partial to support WebApplicationFactory in integration tests

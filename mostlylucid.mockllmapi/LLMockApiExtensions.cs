@@ -745,6 +745,67 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
+    /// Maps API Context management endpoints for viewing and modifying context history
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">The route pattern for management endpoints (default: "/api/contexts")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockApiContextManagement(
+        this IApplicationBuilder app,
+        string pattern = "/api/contexts")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockApiContextManagement requires endpoint routing. Call UseRouting() before MapLLMockApiContextManagement().");
+        }
+
+        var contextPattern = pattern.TrimEnd('/');
+
+        // List all API contexts (summary)
+        routeBuilder.MapGet(contextPattern, ApiContextManagementEndpoints.HandleListAllContexts)
+            .WithName("LLMockApi-ApiContext-ListAll")
+            .WithTags("API Contexts");
+
+        // Get a specific context with full details
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleGetContext)
+            .WithName("LLMockApi-ApiContext-Get")
+            .WithTags("API Contexts");
+
+        // Get the formatted prompt for a context
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}/prompt", ApiContextManagementEndpoints.HandleGetContextPrompt)
+            .WithName("LLMockApi-ApiContext-GetPrompt")
+            .WithTags("API Contexts");
+
+        // Add a call to a context
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/calls", ApiContextManagementEndpoints.HandleAddToContext)
+            .WithName("LLMockApi-ApiContext-AddCall")
+            .WithTags("API Contexts");
+
+        // Update shared data for a context
+        routeBuilder.MapPatch($"{contextPattern}/{{contextName}}/shared-data", ApiContextManagementEndpoints.HandleUpdateSharedData)
+            .WithName("LLMockApi-ApiContext-UpdateSharedData")
+            .WithTags("API Contexts");
+
+        // Clear a specific context (removes all calls but keeps context registered)
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/clear", ApiContextManagementEndpoints.HandleClearContext)
+            .WithName("LLMockApi-ApiContext-Clear")
+            .WithTags("API Contexts");
+
+        // Delete a specific context completely
+        routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleDeleteContext)
+            .WithName("LLMockApi-ApiContext-Delete")
+            .WithTags("API Contexts");
+
+        // Clear all API contexts
+        routeBuilder.MapDelete(contextPattern, ApiContextManagementEndpoints.HandleClearAllContexts)
+            .WithName("LLMockApi-ApiContext-ClearAll")
+            .WithTags("API Contexts");
+
+        return app;
+    }
+
+    /// <summary>
     /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
     /// Adds LLMock API services to the service collection using appsettings configuration
     /// </summary>
