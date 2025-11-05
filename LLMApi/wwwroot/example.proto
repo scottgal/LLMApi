@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package example;
+
+// Simple user service for testing
+service UserService {
+  // Get a single user by ID (unary call)
+  rpc GetUser (GetUserRequest) returns (User);
+
+  // List all users (unary call)
+  rpc ListUsers (ListUsersRequest) returns (UserList);
+
+  // Create a new user (unary call)
+  rpc CreateUser (CreateUserRequest) returns (User);
+
+  // Stream users (server streaming - not yet implemented)
+  rpc StreamUsers (StreamUsersRequest) returns (stream User);
+}
+
+// Request to get a user by ID
+message GetUserRequest {
+  int32 user_id = 1;
+}
+
+// Request to list users with pagination
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  optional string filter = 3;
+}
+
+// Request to create a new user
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  optional string phone = 3;
+}
+
+// Request for streaming users
+message StreamUsersRequest {
+  int32 batch_size = 1;
+}
+
+// User message
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  optional string phone = 4;
+  string created_at = 5;
+  bool is_active = 6;
+  UserRole role = 7;
+}
+
+// List of users
+message UserList {
+  repeated User users = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// User role enumeration
+enum UserRole {
+  UNKNOWN = 0;
+  ADMIN = 1;
+  USER = 2;
+  GUEST = 3;
+}

@@ -166,7 +166,12 @@ public class StreamingRequestHandler
                             // Apply streaming delay if configured
                             await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
 
-                            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { chunk, done = false })}\n\n");
+                            // Send the accumulated content so far (partial JSON building up)
+                            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(new {
+                                chunk,
+                                accumulated = accumulated.ToString(),
+                                done = false
+                            })}\n\n");
                             await context.Response.Body.FlushAsync();
                         }
                     }

@@ -1,0 +1,185 @@
+@LLMApi_HostAddress = http://localhost:5116
+
+###############################################################################
+# gRPC PROTO MANAGEMENT ENDPOINTS
+# Upload and manage .proto files that define gRPC services
+###############################################################################
+
+### Upload proto file (plain text body)
+POST {{LLMApi_HostAddress}}/api/grpc-protos
+Content-Type: text/plain
+
+syntax = "proto3";
+
+package example;
+
+service UserService {
+  rpc GetUser (GetUserRequest) returns (User);
+  rpc ListUsers (ListUsersRequest) returns (UserList);
+}
+
+message GetUserRequest {
+  int32 user_id = 1;
+}
+
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  string created_at = 4;
+}
+
+message UserList {
+  repeated User users = 1;
+  int32 total_count = 2;
+}
+
+### List all uploaded proto definitions
+GET {{LLMApi_HostAddress}}/api/grpc-protos
+
+### Get details of a specific proto definition
+GET {{LLMApi_HostAddress}}/api/grpc-protos/uploaded.proto
+
+### Delete a specific proto definition
+DELETE {{LLMApi_HostAddress}}/api/grpc-protos/uploaded.proto
+
+### Clear all proto definitions
+DELETE {{LLMApi_HostAddress}}/api/grpc-protos
+
+###############################################################################
+# gRPC SERVICE CALLS
+# Invoke mock gRPC methods defined in uploaded proto files
+###############################################################################
+
+### GetUser - Simple unary call with user ID
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/GetUser
+Content-Type: application/json
+
+{
+  "user_id": 12345
+}
+
+### ListUsers - Unary call with pagination parameters
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/ListUsers
+Content-Type: application/json
+
+{
+  "page": 1,
+  "page_size": 10,
+  "filter": "active"
+}
+
+### CreateUser - Unary call to create a new user
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/CreateUser
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+1-555-0123"
+}
+
+### Test with empty request (should still work)
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/GetUser
+Content-Type: application/json
+
+{}
+
+###############################################################################
+# COMPLETE WORKFLOW EXAMPLE
+# This demonstrates the full workflow from upload to invocation
+###############################################################################
+
+### STEP 1: Upload a proto file
+POST {{LLMApi_HostAddress}}/api/grpc-protos
+Content-Type: text/plain
+
+syntax = "proto3";
+
+package store;
+
+service ProductService {
+  rpc GetProduct (GetProductRequest) returns (Product);
+  rpc SearchProducts (SearchRequest) returns (ProductList);
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  repeated string categories = 3;
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  int32 stock = 5;
+  repeated string tags = 6;
+}
+
+message ProductList {
+  repeated Product products = 1;
+  int32 total = 2;
+}
+
+### STEP 2: Verify proto was uploaded
+GET {{LLMApi_HostAddress}}/api/grpc-protos
+
+### STEP 3: Get specific proto details
+GET {{LLMApi_HostAddress}}/api/grpc-protos/uploaded.proto
+
+### STEP 4: Call GetProduct method
+POST {{LLMApi_HostAddress}}/api/grpc/ProductService/GetProduct
+Content-Type: application/json
+
+{
+  "product_id": "PROD-12345"
+}
+
+### STEP 5: Call SearchProducts with complex request
+POST {{LLMApi_HostAddress}}/api/grpc/ProductService/SearchProducts
+Content-Type: application/json
+
+{
+  "query": "laptop",
+  "limit": 20,
+  "categories": ["electronics", "computers"]
+}
+
+###############################################################################
+# ERROR SCENARIOS
+# Test how the system handles various error conditions
+###############################################################################
+
+### Call method before uploading proto (should return 400)
+POST {{LLMApi_HostAddress}}/api/grpc/NonExistentService/NonExistentMethod
+Content-Type: application/json
+
+{
+  "test": "data"
+}
+
+### Call non-existent method on existing service (should return 400)
+# First upload a proto, then call a method that doesn't exist
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/NonExistentMethod
+Content-Type: application/json
+
+{
+  "test": "data"
+}
+
+### Call with invalid JSON (should handle gracefully)
+POST {{LLMApi_HostAddress}}/api/grpc/UserService/GetUser
+Content-Type: application/json
+
+{ invalid json }

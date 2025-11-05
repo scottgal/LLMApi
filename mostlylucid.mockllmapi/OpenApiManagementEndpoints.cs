@@ -38,11 +38,15 @@ internal static class OpenApiManagementEndpoints
                 return Results.BadRequest(new { error = "Source is required" });
             }
 
+            // Normalize empty strings to null for optional parameters
+            var basePath = string.IsNullOrWhiteSpace(request.BasePath) ? null : request.BasePath;
+            var contextName = string.IsNullOrWhiteSpace(request.ContextName) ? null : request.ContextName;
+
             var result = await manager.LoadSpecAsync(
                 request.Name,
                 request.Source,
-                request.BasePath,
-                request.ContextName,
+                basePath,
+                contextName,
                 ctx.RequestAborted);
 
             if (result.Success)
@@ -140,22 +144,38 @@ internal static class OpenApiManagementEndpoints
                 return Results.NotFound(new { error = $"Spec '{request.SpecName}' not found" });
             }
 
+            // Strip the basePath from the request path to match against OpenAPI document paths
+            var pathWithoutBase = request.Path;
+            if (!string.IsNullOrEmpty(spec.BasePath) && request.Path.StartsWith(spec.BasePath))
+            {
+                pathWithoutBase = request.Path.Substring(spec.BasePath.Length);
+                if (!pathWithoutBase.StartsWith("/"))
+                {
+                    pathWithoutBase = "/" + pathWithoutBase;
+                }
+            }
+
             // Find the matching operation
             var (operation, method) = handler.FindMatchingOperation(
                 spec.Document,
-                request.Path,
+                pathWithoutBase,
                 request.Method);
 
             if (operation == null || method == null)
             {
-                return Results.NotFound(new { error = $"Operation not found: {request.Method} {request.Path}" });
+                return Results.NotFound(new {
+                    error = $"Operation not found: {request.Method} {pathWithoutBase}",
+                    requestedPath = request.Path,
+                    lookupPath = pathWithoutBase,
+                    basePath = spec.BasePath
+                });
             }
 
-            // Generate mock response with spec's context
+            // Generate mock response with spec's context (use path without basePath for schema lookup)
             var response = await handler.HandleRequestAsync(
                 ctx,
                 spec.Document,
-                request.Path,
+                pathWithoutBase,
                 method.Value,
                 operation,
                 spec.ContextName,

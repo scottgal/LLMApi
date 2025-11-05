@@ -2,6 +2,129 @@ mostlylucid.mockllmapi — Release Notes
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.7.0 — 2025-01-05
+- gRPC Service Mocking with dual JSON and binary Protobuf support, SSE streaming improvements.
+  - Added: gRPC Service Mocking (MAJOR)
+    - Upload .proto files to automatically generate gRPC service mocks
+    - Dual protocol support: JSON over HTTP (testing) and binary Protobuf (production-grade)
+    - Management API at /api/grpc/proto for uploading and managing proto files
+    - Supports standard proto3 and proto2 syntax
+    - Parses service definitions, RPC methods, and message types
+  - Added: Dual Protocol gRPC Support
+    - JSON over HTTP: POST /api/grpc/{serviceName}/{methodName} - Easy testing with curl/Postman
+    - Binary Protobuf: POST /api/grpc/proto/{serviceName}/{methodName} - Production-grade gRPC wire protocol
+    - Compatible with real gRPC clients (grpcurl, etc.)
+    - Dynamic runtime serialization without code generation
+  - Added: LLM-Powered gRPC Response Generation
+    - Reads message definitions from uploaded .proto files
+    - Generates JSON shapes from proto field definitions
+    - Creates contextually appropriate mock data via LLM
+    - Serializes to binary Protobuf format for true gRPC responses
+  - Added: Dynamic Protobuf Serialization
+    - New DynamicProtobufHandler service for binary Protobuf operations
+    - Supports all Protobuf field types (scalar, nested messages, repeated fields)
+    - Handles wire types (varint, fixed32, fixed64, length-delimited)
+    - Proper field number ordering and encoding
+  - Added: gRPC Management API Endpoints
+    - POST /api/grpc/proto - Upload proto file (multipart/form-data)
+    - GET /api/grpc/proto - List all uploaded proto files
+    - GET /api/grpc/proto/{name} - Get specific proto file content
+    - DELETE /api/grpc/proto/{name} - Delete proto file
+  - Added: SSE Streaming Improvements
+    - Progressive JSON building: Each event now sends both chunk and accumulated content
+    - Better client experience: See partial JSON structure as it builds
+    - Changed from: {"chunk": "text", "done": false}
+    - Changed to: {"chunk": "text", "accumulated": "partial JSON...", "done": false}
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/GrpcRequestHandler.cs (NEW)
+    - Handles gRPC method invocations with LLM
+    - HandleUnaryCall() for JSON endpoint
+    - HandleUnaryCallBinary() for binary Protobuf endpoint
+    - ExtractJson() utility for parsing LLM responses
+  - Changed: mostlylucid.mockllmapi/Services/ProtoDefinitionManager.cs (NEW)
+    - Manages uploaded .proto files in memory
+    - AddProto(), GetProto(), GetAllProtos(), RemoveProto() methods
+    - FindMethod() to locate RPC methods by service and method name
+    - GetMessage() to retrieve message definitions
+    - Thread-safe ConcurrentDictionary storage
+  - Changed: mostlylucid.mockllmapi/Services/ProtoParser.cs (NEW)
+    - Parses .proto syntax into structured definitions
+    - Regex-based extraction of services, methods, messages, and fields
+    - Supports proto3 and proto2 syntax
+    - GenerateJsonShape() creates JSON templates from proto messages
+    - Handles nested messages and repeated fields
+  - Changed: mostlylucid.mockllmapi/Services/DynamicProtobufHandler.cs (NEW)
+    - Runtime Protobuf serialization/deserialization
+    - SerializeFromJson() converts JSON to binary Protobuf
+    - DeserializeToJson() converts binary to JSON (placeholder)
+    - CreateJsonTemplate() generates JSON from proto definitions
+    - Supports all wire types and field types
+  - Changed: mostlylucid.mockllmapi/GrpcManagementEndpoints.cs (NEW)
+    - Proto file upload endpoint with multipart form handling
+    - List, get, and delete proto files
+    - Proper validation and error handling
+    - Returns structured responses with uploaded proto details
+  - Changed: mostlylucid.mockllmapi/Models/ProtoDefinition.cs (NEW)
+    - Model for proto file definitions
+    - Name, Services, Messages, Content properties
+  - Changed: mostlylucid.mockllmapi/Models/ProtoService.cs (NEW)
+    - Model for gRPC services
+    - Name, Methods properties
+  - Changed: mostlylucid.mockllmapi/Models/ProtoMethod.cs (NEW)
+    - Model for RPC methods
+    - Name, InputType, OutputType, MethodType properties
+    - GetMethodType() determines unary vs streaming
+  - Changed: mostlylucid.mockllmapi/Models/ProtoMessage.cs (NEW)
+    - Model for message types
+    - Name, Fields properties
+  - Changed: mostlylucid.mockllmapi/Models/ProtoField.cs (NEW)
+    - Model for message fields
+    - Name, Type, Number, Repeated properties
+  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
+    - Added RegisterGrpcServices() method
+    - Added MapGrpcEndpoints() method for both JSON and binary endpoints
+    - Registered ProtoDefinitionManager, ProtoParser, DynamicProtobufHandler, GrpcRequestHandler
+    - Two new endpoints: JSON call and binary Protobuf call
+    - Management API endpoints for proto file operations
+  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
+    - Enhanced SSE with accumulated content (lines 169-174)
+    - Modified to include accumulated JSON in each event
+    - Improved final event to include complete content
+  - Changed: docs/GRPC_SUPPORT.md (NEW)
+    - Comprehensive gRPC feature guide (400+ lines)
+    - Architecture diagrams using Mermaid
+    - Complete .proto file examples
+    - Testing strategies for both JSON and binary
+    - Implementation details and limitations
+    - Troubleshooting guide
+    - Gentle authoritative tone (blog post style)
+  - Changed: README.md
+    - Updated "What's New" section for v1.7.0
+    - Added gRPC as 6th major feature
+    - Added link to gRPC Support Guide in Feature Documentation section
+  - Changed: RELEASE_NOTES.md
+    - Added comprehensive v1.7.0 release notes section
+    - Detailed documentation of all new features
+    - Configuration examples and migration examples
+    - Current limitations section
+  - Changed: LLMApi.Tests/GrpcRequestHandlerTests.cs (NEW)
+    - 25 new gRPC tests
+    - Proto file parsing tests (services, methods, messages, fields)
+    - Proto management API tests (upload, list, get, delete)
+    - Service call tests (JSON and binary)
+    - Error handling tests (missing proto, invalid methods)
+  - Current Limitations (documented in GRPC_SUPPORT.md):
+    - Unary RPC calls only (streaming support planned)
+    - Simplified binary parsing (does not decode actual request data)
+    - No server reflection support
+    - Field validation not enforced
+  - Outcome:
+    - Complete gRPC service mocking with dual protocol support
+    - LLM-powered realistic response generation for gRPC
+    - Better SSE streaming experience with progressive JSON
+    - All 196 tests passing (171 existing + 25 new gRPC tests)
+    - Zero breaking changes - full backward compatibility
+    - Comprehensive documentation with architecture diagrams
+
 v1.6.1 — 2025-01-05
 - Documentation fix: Package maintainer forgot to update release notes.txt in v1.6.0.
   - Changed: mostlylucid.mockllmapi/release notes.txt

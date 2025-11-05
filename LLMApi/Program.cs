@@ -40,6 +40,12 @@ app.MapLLMockOpenApiManagement();
 // Map API Context management endpoints (for viewing/modifying context history)
 app.MapLLMockApiContextManagement("/api/contexts");
 
+// Map gRPC proto management endpoints (for uploading/managing .proto files)
+app.MapLLMockGrpcManagement("/api/grpc-protos");
+
+// Map gRPC service call endpoints (for invoking mock gRPC methods)
+app.MapLLMockGrpc("/api/grpc");
+
 app.Run();
 
 // Expose Program as partial to support WebApplicationFactory in integration tests

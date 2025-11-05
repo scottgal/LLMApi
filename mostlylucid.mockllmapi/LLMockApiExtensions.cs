@@ -34,6 +34,7 @@ public static class LlMockApiExtensions
         RegisterRestServices(services);
         RegisterStreamingServices(services);
         RegisterGraphQLServices(services);
+        RegisterGrpcServices(services);
         return services;
     }
 
@@ -53,6 +54,7 @@ public static class LlMockApiExtensions
         RegisterRestServices(services);
         RegisterStreamingServices(services);
         RegisterGraphQLServices(services);
+        RegisterGrpcServices(services);
         return services;
     }
 
@@ -258,6 +260,17 @@ public static class LlMockApiExtensions
             services.AddSingleton<DynamicOpenApiManager>();
             services.AddSingleton<OpenApiContextManager>();
             services.AddSignalR(); // Ensure SignalR is registered for OpenApiHub
+        }
+    }
+
+    private static void RegisterGrpcServices(IServiceCollection services)
+    {
+        if (services.All(x => x.ServiceType != typeof(ProtoDefinitionManager)))
+        {
+            services.AddSingleton<ProtoDefinitionManager>();
+            services.AddSingleton<DynamicProtobufHandler>();
+            services.AddScoped<GrpcRequestHandler>();
+            services.AddGrpc(); // Enable gRPC support
         }
     }
 
@@ -801,6 +814,167 @@ public static class LlMockApiExtensions
         routeBuilder.MapDelete(contextPattern, ApiContextManagementEndpoints.HandleClearAllContexts)
             .WithName("LLMockApi-ApiContext-ClearAll")
             .WithTags("API Contexts");
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps gRPC proto management endpoints for uploading and managing .proto files
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">Base path pattern (default: "/api/grpc-protos")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockGrpcManagement(
+        this IApplicationBuilder app,
+        string pattern = "/api/grpc-protos")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockGrpcManagement requires endpoint routing. " +
+                "Ensure you have called app.UseRouting() before calling this method.");
+        }
+
+        // Upload a proto file (multipart form or plain text body)
+        routeBuilder.MapPost(pattern, GrpcManagementEndpoints.HandleProtoUpload)
+            .WithName("LLMockApi-Grpc-UploadProto")
+            .WithTags("gRPC Proto Management")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Accepts<string>("text/plain")
+            .Produces(200)
+            .Produces(400);
+
+        // List all uploaded proto definitions
+        routeBuilder.MapGet(pattern, GrpcManagementEndpoints.HandleListProtos)
+            .WithName("LLMockApi-Grpc-ListProtos")
+            .WithTags("gRPC Proto Management")
+            .Produces(200);
+
+        // Get details of a specific proto definition
+        routeBuilder.MapGet($"{pattern}/{{protoName}}", GrpcManagementEndpoints.HandleGetProto)
+            .WithName("LLMockApi-Grpc-GetProto")
+            .WithTags("gRPC Proto Management")
+            .Produces(200)
+            .Produces(404);
+
+        // Delete a specific proto definition
+        routeBuilder.MapDelete($"{pattern}/{{protoName}}", GrpcManagementEndpoints.HandleDeleteProto)
+            .WithName("LLMockApi-Grpc-DeleteProto")
+            .WithTags("gRPC Proto Management")
+            .Produces(200)
+            .Produces(404);
+
+        // Clear all proto definitions
+        routeBuilder.MapDelete(pattern, GrpcManagementEndpoints.HandleClearAllProtos)
+            .WithName("LLMockApi-Grpc-ClearAllProtos")
+            .WithTags("gRPC Proto Management")
+            .Produces(200);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps gRPC service call endpoints for invoking mock gRPC methods
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">Base path pattern (default: "/api/grpc")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockGrpc(
+        this IApplicationBuilder app,
+        string pattern = "/api/grpc")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockGrpc requires endpoint routing. " +
+                "Ensure you have called app.UseRouting() before calling this method.");
+        }
+
+        // Handle gRPC unary calls: POST /api/grpc/{serviceName}/{methodName}
+        routeBuilder.MapPost($"{pattern}/{{serviceName}}/{{methodName}}",
+            async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
+            {
+                try
+                {
+                    // Read request body as JSON
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestJson = await reader.ReadToEndAsync();
+
+                    if (string.IsNullOrWhiteSpace(requestJson))
+                    {
+                        requestJson = "{}"; // Empty request is valid for some methods
+                    }
+
+                    // Handle the gRPC call
+                    var response = await handler.HandleUnaryCall(
+                        serviceName,
+                        methodName,
+                        requestJson,
+                        context.RequestAborted);
+
+                    // Return JSON response
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync(response);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+                }
+                catch (Exception ex)
+                {
+                    context.Response.StatusCode = 500;
+                    await context.Response.WriteAsJsonAsync(new { error = "Internal server error", details = ex.Message });
+                }
+            })
+            .WithName("LLMockApi-Grpc-UnaryCall-JSON")
+            .WithTags("gRPC Service Calls (JSON)")
+            .Accepts<object>("application/json")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
+
+        // Handle gRPC unary calls with binary Protobuf: POST /api/grpc/proto/{serviceName}/{methodName}
+        routeBuilder.MapPost($"{pattern}/proto/{{serviceName}}/{{methodName}}",
+            async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
+            {
+                try
+                {
+                    // Read request body as binary Protobuf
+                    using var ms = new MemoryStream();
+                    await context.Request.Body.CopyToAsync(ms);
+                    var requestData = ms.ToArray();
+
+                    // Handle the gRPC call with binary Protobuf
+                    var responseData = await handler.HandleUnaryCallBinary(
+                        serviceName,
+                        methodName,
+                        requestData,
+                        context.RequestAborted);
+
+                    // Return binary Protobuf response
+                    context.Response.ContentType = "application/grpc+proto";
+                    await context.Response.Body.WriteAsync(responseData);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+                }
+                catch (Exception ex)
+                {
+                    context.Response.StatusCode = 500;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(new { error = "Internal server error", details = ex.Message });
+                }
+            })
+            .WithName("LLMockApi-Grpc-UnaryCall-Protobuf")
+            .WithTags("gRPC Service Calls (Protobuf)")
+            .Accepts<byte[]>("application/grpc+proto")
+            .Produces(200, contentType: "application/grpc+proto")
+            .Produces(400)
+            .Produces(500);
 
         return app;
     }

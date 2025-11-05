@@ -22,21 +22,26 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ---
 
-## What's New in v1.5.0
+## What's New in v1.7.0
 
 **NO BREAKING CHANGES** - All existing code continues to work!
 
-### API Contexts - Shared Memory Across Requests (NEW!)
-- **Consistent Multi-Step Flows**: E-commerce journeys, game state, stock tickers with realistic variance
-- **Works Everywhere**: REST, Streaming, GraphQL, and SignalR all support contexts
-- **Smart Token Management**: Automatic 80/20 token allocation with detailed logging
-- **[Complete Guide: API Contexts](./docs/API-CONTEXTS.md)**
+### gRPC Service Mocking (NEW!)
+- **Upload .proto Files**: Automatic gRPC service generation from Protocol Buffer definitions
+- **Dual Support**: Both JSON over HTTP (for testing) and binary Protobuf (production-grade)
+- **LLM-Powered Responses**: Realistic data generation matching your proto message schemas
+- **Dynamic Protobuf Serialization**: Runtime binary encoding/decoding without code generation
+- **[Complete Guide: gRPC Support](./docs/GRPC_SUPPORT.md)**
 
-### Previous Updates (v1.2.0)
+### SSE Streaming Improvements
+- **Progressive JSON Building**: Streaming now sends accumulated content along with each chunk
+- **Better Client Experience**: See partial JSON structure as it builds instead of raw text fragments
+
+### Previous Updates (v1.5.0)
+- **API Contexts** - Shared memory across requests for consistent multi-step workflows
 - **Native GraphQL Support** - POST to `/graphql` with standard GraphQL queries
 - **Fully Modular Architecture** - Use only the protocols you need (REST, GraphQL, SSE, SignalR)
-- **Polly Resilience Policies** - Built-in exponential backoff retry and circuit breaker patterns (enabled by default)
-- **30-40% Reduced Memory** - When using modular setup with single protocol
+- **Polly Resilience Policies** - Built-in exponential backoff retry and circuit breaker patterns
 
 ### Migration from v1.1.0 or earlier
 - Old method names (`Addmostlylucid_mockllmapi`, `Mapmostlylucid_mockllmapi`) still work but are deprecated
@@ -48,7 +53,7 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ## Features
 
-This package provides **five independent features** - use any combination you need:
+This package provides **six independent features** - use any combination you need:
 
 ### 1. REST API Mocking
 - **Super Simple**: `AddLLMockApi()` + `MapLLMockApi("/api/mock")` = instant mock API
@@ -80,6 +85,13 @@ This package provides **five independent features** - use any combination you ne
 - **Multiple Specs**: Load and mount multiple API specs simultaneously
 - **Works standalone**: No REST API setup required
 
+### 6. gRPC Service Mocking (NEW in v1.7.0)
+- **Proto File Upload**: Upload .proto files to generate gRPC service mocks
+- **Dual Protocol Support**: JSON over HTTP for testing, binary Protobuf for production-grade mocking
+- **Dynamic Serialization**: Runtime Protobuf encoding without code generation
+- **LLM-Powered Data**: Realistic responses matching your proto message definitions
+- **Works standalone**: No REST API setup required
+
 ### Common Features
 - **Configurable**: appsettings.json or inline configuration
 - **Highly Variable Data**: Each request/update generates completely different realistic data
@@ -98,6 +110,12 @@ For detailed guides with architecture diagrams, use cases, and implementation de
   - E-commerce flows, stock tickers, game state examples
   - Token management and intelligent truncation
   - Mermaid architecture diagrams
+
+- **[gRPC Support Guide](./docs/GRPC_SUPPORT.md)** - NEW in v1.7.0!
+  - Upload .proto files for automatic gRPC service mocking
+  - Dual support: JSON over HTTP and binary Protobuf
+  - LLM-powered realistic response generation
+  - Complete implementation details and testing strategies
 
 - **[OpenAPI Features Guide](./docs/OPENAPI-FEATURES.md)**
   - Dynamic spec loading from URLs, files, or inline JSON

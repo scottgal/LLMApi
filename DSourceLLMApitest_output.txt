@@ -1,0 +1,104 @@
+Test run for D:\Source\LLMApi\LLMApi.Tests\bin\Debug\net8.0\LLMApi.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 18.0.0-preview-25451-107 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+D:\Source\LLMApi\LLMApi.Tests\bin\Debug\net8.0\LLMApi.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.21)
+[xUnit.net 00:00:00.04]   Discovering: LLMApi.Tests
+[xUnit.net 00:00:00.06]   Discovered:  LLMApi.Tests
+[xUnit.net 00:00:00.06]   Starting:    LLMApi.Tests
+[xUnit.net 00:00:00.12]     LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_QueryWithVariables_ReturnsValidResponse [FAIL]
+[xUnit.net 00:00:00.12]       Assert.True() Failure
+[xUnit.net 00:00:00.12]       Expected: True
+[xUnit.net 00:00:00.12]       Actual:   False
+[xUnit.net 00:00:00.12]       Stack Trace:
+[xUnit.net 00:00:00.12]         D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs(104,0): at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_QueryWithVariables_ReturnsValidResponse()
+[xUnit.net 00:00:00.12]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.12]     LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_MultipleTopLevelFields_ReturnsValidResponse [FAIL]
+[xUnit.net 00:00:00.13]       Assert.True() Failure
+[xUnit.net 00:00:00.13]       Expected: True
+[xUnit.net 00:00:00.13]       Actual:   False
+[xUnit.net 00:00:00.13]       Stack Trace:
+[xUnit.net 00:00:00.13]         D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs(171,0): at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_MultipleTopLevelFields_ReturnsValidResponse()
+[xUnit.net 00:00:00.13]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.13]     LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_NestedQuery_ReturnsValidResponse [FAIL]
+[xUnit.net 00:00:00.13]       Assert.True() Failure
+[xUnit.net 00:00:00.13]       Expected: True
+[xUnit.net 00:00:00.13]       Actual:   False
+[xUnit.net 00:00:00.13]       Stack Trace:
+[xUnit.net 00:00:00.13]         D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs(149,0): at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_NestedQuery_ReturnsValidResponse()
+[xUnit.net 00:00:00.13]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.13]     LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_BadLLMResponse_RetriesAndSucceeds [FAIL]
+[xUnit.net 00:00:00.13]       System.InvalidOperationException : The requested operation requires an element of type 'Object', but the target element has type 'Array'.
+[xUnit.net 00:00:00.13]       Stack Trace:
+[xUnit.net 00:00:00.13]            at System.Text.Json.ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType expectedType, JsonTokenType actualType)
+[xUnit.net 00:00:00.13]            at System.Text.Json.JsonDocument.TryGetNamedPropertyValue(Int32 index, ReadOnlySpan`1 propertyName, JsonElement& value)
+[xUnit.net 00:00:00.13]            at System.Text.Json.JsonElement.TryGetProperty(String propertyName, JsonElement& value)
+[xUnit.net 00:00:00.13]         D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs(373,0): at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_BadLLMResponse_RetriesAndSucceeds()
+[xUnit.net 00:00:00.13]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.13]     LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_InvalidJsonFromLLM_ReturnsError [FAIL]
+[xUnit.net 00:00:00.13]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.13]       Expected: 2
+[xUnit.net 00:00:00.13]       Actual:   1
+[xUnit.net 00:00:00.13]       Stack Trace:
+[xUnit.net 00:00:00.13]         D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs(402,0): at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_InvalidJsonFromLLM_ReturnsError()
+[xUnit.net 00:00:00.13]         --- End of stack trace from previous location ---
+  Failed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_QueryWithVariables_ReturnsValidResponse [32 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Stack Trace:
+     at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_QueryWithVariables_ReturnsValidResponse() in D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs:line 104
+--- End of stack trace from previous location ---
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_NullBody_ReturnsError [3 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_ErrorResponse_HasErrorsArray [1 ms]
+  Failed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_MultipleTopLevelFields_ReturnsValidResponse [< 1 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Stack Trace:
+     at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_MultipleTopLevelFields_ReturnsValidResponse() in D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs:line 171
+--- End of stack trace from previous location ---
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_ErrorResponse_DataIsNull [1 ms]
+  Failed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_NestedQuery_ReturnsValidResponse [< 1 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Stack Trace:
+     at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_NestedQuery_ReturnsValidResponse() in D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs:line 149
+--- End of stack trace from previous location ---
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_QueryWithOperationName_ReturnsValidResponse [< 1 ms]
+  Failed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_BadLLMResponse_RetriesAndSucceeds [1 ms]
+  Error Message:
+   System.InvalidOperationException : The requested operation requires an element of type 'Object', but the target element has type 'Array'.
+  Stack Trace:
+     at System.Text.Json.ThrowHelper.ThrowJsonElementWrongTypeException(JsonTokenType expectedType, JsonTokenType actualType)
+   at System.Text.Json.JsonDocument.TryGetNamedPropertyValue(Int32 index, ReadOnlySpan`1 propertyName, JsonElement& value)
+   at System.Text.Json.JsonElement.TryGetProperty(String propertyName, JsonElement& value)
+   at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_BadLLMResponse_RetriesAndSucceeds() in D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs:line 373
+--- End of stack trace from previous location ---
+  Failed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_InvalidJsonFromLLM_ReturnsError [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   1
+  Stack Trace:
+     at LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_InvalidJsonFromLLM_ReturnsError() in D:\Source\LLMApi\LLMApi.Tests\GraphQLRequestHandlerTests.cs:line 402
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:00.15]   Finished:    LLMApi.Tests
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_ValidResponse_HasDataWrapper [< 1 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_MissingQuery_ReturnsError [< 1 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_EmptyQuery_ReturnsError [< 1 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_SimpleQuery_ReturnsValidResponse [< 1 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_InvalidJson_ReturnsError [< 1 ms]
+  Passed LLMApi.Tests.GraphQLRequestHandlerTests.HandleGraphQLRequest_EmptyBody_ReturnsError [< 1 ms]
+
+Test Run Failed.
+Total tests: 15
+     Passed: 10
+     Failed: 5
+ Total time: 0.4244 Seconds
