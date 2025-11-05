@@ -1542,8 +1542,16 @@ Test your client's error handling with comprehensive error simulation capabiliti
 **Four ways to configure errors** (in precedence order):
 
 1. **Query Parameters** (highest precedence):
+
+**IMPORTANT**: Query parameter values MUST be URL-encoded. Spaces become `%20`, `&` becomes `%26`, `:` becomes `%3A`, etc.
+
 ```bash
+# Properly encoded (spaces as %20)
 curl "http://localhost:5000/api/mock/users?error=404&errorMessage=Not%20found&errorDetails=User%20does%20not%20exist"
+
+# More complex example with special characters
+# Decoded: "Invalid input: email & phone required"
+curl "http://localhost:5000/api/mock/users?error=400&errorMessage=Invalid%20input%3A%20email%20%26%20phone%20required"
 ```
 
 2. **HTTP Headers**:

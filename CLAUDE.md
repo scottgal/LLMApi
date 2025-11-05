@@ -230,8 +230,21 @@ The package includes comprehensive error simulation capabilities for testing cli
 Error responses can be configured using four methods (in precedence order):
 
 1. **Query Parameters** (highest precedence)
+
+**IMPORTANT**: Query parameter values must be URL-encoded. Common encodings:
+- Space → `%20`
+- `&` → `%26`
+- `:` → `%3A`
+- `'` → `%27`
+- `,` → `%2C`
+
 ```http
+# Properly encoded
 GET /api/mock/users?error=404&errorMessage=Not%20found&errorDetails=User%20ID%20invalid
+
+# Complex example with special characters
+# Decoded: "Invalid input: email & phone"
+GET /api/mock/users?error=400&errorMessage=Invalid%20input%3A%20email%20%26%20phone
 ```
 
 2. **HTTP Headers**

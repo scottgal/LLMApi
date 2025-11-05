@@ -298,6 +298,12 @@ Accept: application/json
 ###############################################################################
 # ERROR SIMULATION
 # Test error responses and edge cases for robust client development
+#
+# IMPORTANT: Query parameter values with spaces or special characters MUST be URL-encoded
+# - Space → %20
+# - Example: "Token expired" → "Token%20expired"
+# - Use online URL encoders or libraries for complex strings
+#
 # Four ways to specify errors (in precedence order):
 #   1. Query params: ?error=404&errorMessage=Custom&errorDetails=Details
 #   2. Headers: X-Error-Code, X-Error-Message, X-Error-Details
@@ -414,6 +420,28 @@ Accept: application/json
 # Query param takes precedence, so this will return 404 instead of 500
 GET {{LLMApi_HostAddress}}/api/mock/data?error=404
 X-Error-Code: 500
+Accept: application/json
+
+###
+
+### ERROR: 429 Rate limit with complex message (properly encoded)
+# Decoded: errorMessage="Rate limit exceeded" errorDetails="Try again in 60 seconds"
+GET {{LLMApi_HostAddress}}/api/mock/api/rate-limit?error=429&errorMessage=Rate%20limit%20exceeded&errorDetails=Try%20again%20in%2060%20seconds
+Accept: application/json
+
+###
+
+### ERROR: 400 Bad Request with special characters
+# Decoded: errorMessage="Invalid input: email & phone required" errorDetails="Field 'user.email' is missing"
+# Note: & → %26, space → %20, ' → %27
+GET {{LLMApi_HostAddress}}/api/mock/validation?error=400&errorMessage=Invalid%20input%3A%20email%20%26%20phone%20required&errorDetails=Field%20%27user.email%27%20is%20missing
+Accept: application/json
+
+###
+
+### ERROR: 422 Validation with comma-separated list
+# Decoded: errorDetails="Missing fields: name, email, phone"
+GET {{LLMApi_HostAddress}}/api/mock/users?error=422&errorMessage=Validation%20failed&errorDetails=Missing%20fields%3A%20name%2C%20email%2C%20phone
 Accept: application/json
 
 ###
