@@ -260,17 +260,19 @@ public class LLMockApiServiceTests
         var logger = NullLogger<LLMockApiService>.Instance;
 
         var shapeExtractor = new ShapeExtractor();
+        var contextExtractor = new ContextExtractor();
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance);
         var promptBuilder = new PromptBuilder(opts);
         var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance);
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(opts);
 
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
-            opts, shapeExtractor, promptBuilder, llmClient, cacheManager, delayHelper,
+            opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, cacheManager, delayHelper,
             NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
-            opts, shapeExtractor, promptBuilder, llmClient, delayHelper,
+            opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,
             NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
 
         return new LLMockApiService(regularHandler, streamingHandler);

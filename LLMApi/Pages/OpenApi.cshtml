@@ -1,0 +1,702 @@
+@page
+@model LLMApi.Pages.OpenApiModel
+
+@{
+    ViewData["Title"] = "OpenAPI Manager";
+}
+
+@section Styles {
+    <style>
+        .container {
+            grid-template-columns: 2fr 3fr;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .spec-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .spec-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+
+        .spec-item h3 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .spec-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .endpoint-list {
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .endpoint-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .endpoint-info {
+            flex: 1;
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .method-GET { background: #28a745; color: white; }
+        .method-POST { background: #007bff; color: white; }
+        .method-PUT { background: #ffc107; color: #333; }
+        .method-DELETE { background: #dc3545; color: white; }
+        .method-PATCH { background: #17a2b8; color: white; }
+
+        .test-button {
+            padding: 5px 10px;
+            font-size: 0.85em;
+        }
+
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #e9ecef;
+        }
+
+        .test-result.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .test-result.error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .test-result pre {
+            margin: 5px 0 0 0;
+            padding: 10px;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.85em;
+        }
+
+        .help-section {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #007bff;
+        }
+
+        .help-section h4 {
+            margin-bottom: 8px;
+            color: #004085;
+        }
+
+        .help-section ul {
+            margin-left: 20px;
+        }
+
+        .help-section code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-loading {
+            background: #ffc107;
+            animation: pulse-loading 1.5s ease-in-out infinite;
+        }
+
+        @@keyframes pulse-loading {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        input[type="text"],
+        textarea {
+            font-family: 'Courier New', monospace;
+        }
+
+        textarea {
+            min-height: 200px;
+        }
+    </style>
+}
+
+<div style="margin-bottom: 20px;">
+    <div style="display: inline-flex; align-items: center; gap: 10px;">
+        <span class="status-indicator" id="connectionStatus"></span>
+        <span id="connectionText">Connecting to real-time updates...</span>
+    </div>
+</div>
+
+    <div class="container">
+        <!-- Left Panel: Load Spec -->
+        <div>
+            <div class="card">
+                <h2>Load OpenAPI Spec</h2>
+
+                <div class="help-section">
+                    <h4>Quick Start</h4>
+                    <ul>
+                        <li>Enter a URL to a live OpenAPI spec</li>
+                        <li>Or paste raw JSON/YAML directly</li>
+                        <li>Spec will be parsed and all endpoints created</li>
+                        <li>Test endpoints directly in the browser</li>
+                    </ul>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('url')">From URL</button>
+                    <button class="tab" onclick="switchTab('json')">Raw JSON/YAML</button>
+                </div>
+
+                <div id="urlTab" class="tab-content active">
+                    <form id="loadUrlForm" hx-post="/api/openapi/specs" hx-ext="json-enc" hx-swap="none">
+                        <div class="form-group">
+                            <label for="specName">Spec Name:</label>
+                            <input type="text" id="specName" name="name" placeholder="e.g., petstore" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="specUrl">OpenAPI Spec URL:</label>
+                            <input type="text" id="specUrl" name="source" placeholder="https://petstore3.swagger.io/api/v3/openapi.json" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="basePath">Base Path (optional):</label>
+                            <input type="text" id="basePath" name="basePath" placeholder="/api/v1" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contextName">Context Name (optional):</label>
+                            <input type="text" id="contextName" name="contextName" placeholder="e.g., demo-session-1" />
+                            <small style="color: #666; font-size: 0.85em;">
+                                Specs sharing the same context maintain consistent data (IDs, names, etc.)
+                            </small>
+                        </div>
+
+                        <button type="submit">Load Spec</button>
+                    </form>
+
+                    <div class="help-section" style="margin-top: 15px;">
+                        <h4>Example URLs</h4>
+                        <ul>
+                            <li><code>https://petstore3.swagger.io/api/v3/openapi.json</code></li>
+                            <li><code>https://api.apis.guru/v2/specs/github.com/1.1.4/openapi.yaml</code></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="jsonTab" class="tab-content">
+                    <form id="loadJsonForm">
+                        <div class="form-group">
+                            <label for="specNameJson">Spec Name:</label>
+                            <input type="text" id="specNameJson" placeholder="e.g., myapi" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rawSpec">Raw OpenAPI JSON/YAML:</label>
+                            <textarea id="rawSpec" placeholder='{"openapi": "3.0.0", "info": {...}, "paths": {...}}'></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="basePathJson">Base Path (optional):</label>
+                            <input type="text" id="basePathJson" placeholder="/api" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contextNameJson">Context Name (optional):</label>
+                            <input type="text" id="contextNameJson" placeholder="e.g., demo-session-1" />
+                            <small style="color: #666; font-size: 0.85em;">
+                                Specs sharing the same context maintain consistent data
+                            </small>
+                        </div>
+
+                        <button type="button" onclick="loadRawSpec()">Load Spec</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Context Viewer Card -->
+            <div class="card" style="margin-top: 20px;">
+                <h2>API Contexts <button class="secondary" style="margin-left: 10px; padding: 5px 10px; font-size: 0.85em;" onclick="refreshContexts()">Refresh</button></h2>
+
+                <div class="help-section">
+                    <p>Contexts maintain consistency across related API calls. View shared data and recent activity here.</p>
+                </div>
+
+                <div id="contextsList" class="spec-list"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Loaded Specs & Endpoints -->
+        <div>
+            <div class="card">
+                <h2>Loaded Specs <span id="specCount" style="color: #999; font-size: 0.9em;">(0)</span></h2>
+
+                <div class="help-section">
+                    <h4>What You Get</h4>
+                    <ul>
+                        <li>All endpoints from the spec are automatically created</li>
+                        <li>Test any endpoint directly from this page</li>
+                        <li>LLM generates realistic mock data based on schemas</li>
+                        <li>Reload or delete specs anytime</li>
+                    </ul>
+                </div>
+
+                <div id="specList" class="spec-list">
+                    <p style="color: #999; text-align: center; padding: 40px;">No specs loaded yet. Load one using the form on the left!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Notification Toast -->
+<div id="notification" class="notification"></div>
+
+@section Scripts {
+    <script>
+        let connection = null;
+        let activeTab = 'url';
+
+        // Initialize SignalR connection
+        function initSignalR() {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hub/openapi")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("SpecLoaded", (data) => {
+                showNotification(`✓ Spec '${data.specName}' loaded with ${data.endpointCount} endpoints`, 'success');
+                refreshSpecList();
+            });
+
+            connection.on("SpecDeleted", (data) => {
+                showNotification(`✓ Spec '${data.specName}' deleted`, 'info');
+                refreshSpecList();
+            });
+
+            connection.on("SpecReloaded", (data) => {
+                showNotification(`✓ Spec '${data.specName}' reloaded with ${data.endpointCount} endpoints`, 'success');
+                refreshSpecList();
+            });
+
+            connection.on("EndpointTested", (data) => {
+                const status = data.success ? '✓' : '✗';
+                showNotification(`${status} ${data.method} ${data.path}`, data.success ? 'success' : 'error');
+            });
+
+            connection.start()
+                .then(() => {
+                    updateConnectionStatus(true);
+                    refreshSpecList();
+                })
+                .catch(err => {
+                    console.error('SignalR connection error:', err);
+                    updateConnectionStatus(false);
+                });
+
+            connection.onreconnecting(() => updateConnectionStatus(false, true));
+            connection.onreconnected(() => updateConnectionStatus(true));
+            connection.onclose(() => updateConnectionStatus(false));
+        }
+
+        function updateConnectionStatus(connected, reconnecting = false) {
+            const indicator = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+
+            if (reconnecting) {
+                indicator.className = 'status-indicator status-loading';
+                text.textContent = 'Reconnecting...';
+            } else if (connected) {
+                indicator.className = 'status-indicator status-connected';
+                text.textContent = 'Connected - Real-time updates active';
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                text.textContent = 'Disconnected - Trying to reconnect...';
+            }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+            if (tab === 'url') {
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                document.getElementById('urlTab').classList.add('active');
+            } else {
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('jsonTab').classList.add('active');
+            }
+        }
+
+        async function refreshSpecList() {
+            try {
+                const response = await fetch('/api/openapi/specs');
+                const data = await response.json();
+
+                const specList = document.getElementById('specList');
+                const specCount = document.getElementById('specCount');
+
+                specCount.textContent = `(${data.count})`;
+
+                if (data.count === 0) {
+                    specList.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No specs loaded yet. Load one using the form on the left!</p>';
+                    return;
+                }
+
+                specList.innerHTML = data.specs.map(spec => `
+                    <div class="spec-item" id="spec-${spec.name}">
+                        <h3>${spec.name}${spec.contextName ? ` <span style="background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 0.7em;">📦 ${spec.contextName}</span>` : ''}</h3>
+                        <div class="spec-meta">
+                            ${spec.info?.title || 'Untitled'} v${spec.info?.version || 'unknown'}<br />
+                            Base: ${spec.basePath} | ${spec.endpointCount} endpoints<br />
+                            ${spec.contextName ? `Context: ${spec.contextName}<br />` : ''}
+                            Loaded: ${new Date(spec.loadedAt).toLocaleString()}
+                        </div>
+                        <div class="button-group">
+                            <button class="secondary" onclick="getSpecDetails('${spec.name}')">View Endpoints</button>
+                            <button class="secondary" onclick="reloadSpec('${spec.name}')">Reload</button>
+                            <button class="danger" onclick="deleteSpec('${spec.name}')">Delete</button>
+                        </div>
+                        <div id="endpoints-${spec.name}" class="endpoint-list" style="display: none;"></div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Error refreshing spec list:', err);
+                showNotification('Error loading specs', 'error');
+            }
+        }
+
+        async function getSpecDetails(specName) {
+            const endpointsDiv = document.getElementById(`endpoints-${specName}`);
+
+            if (endpointsDiv.style.display === 'block') {
+                endpointsDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/openapi/specs/${specName}`);
+                const data = await response.json();
+
+                endpointsDiv.innerHTML = data.endpoints.map((ep, idx) => `
+                    <div class="endpoint-item">
+                        <div class="endpoint-info">
+                            <span class="method-badge method-${ep.method}">${ep.method}</span>
+                            <code>${ep.path}</code>
+                            ${ep.summary ? `<br /><small style="color: #666;">${ep.summary}</small>` : ''}
+                        </div>
+                        <button class="test-button" onclick="testEndpoint('${specName}', '${ep.path}', '${ep.method}', ${idx})">Test</button>
+                    </div>
+                    <div id="result-${specName}-${idx}" class="test-result" style="display: none;"></div>
+                `).join('');
+
+                endpointsDiv.style.display = 'block';
+            } catch (err) {
+                console.error('Error getting spec details:', err);
+                showNotification('Error loading endpoint details', 'error');
+            }
+        }
+
+        async function testEndpoint(specName, path, method, idx) {
+            const resultDiv = document.getElementById(`result-${specName}-${idx}`);
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result';
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                const response = await fetch('/api/openapi/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ specName, path, method })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `
+                        <p><strong>✓ Success</strong></p>
+                        <pre>${JSON.stringify(JSON.parse(data.response), null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `
+                        <p><strong>✗ Error</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (err) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `<p><strong>✗ Error:</strong> ${err.message}</p>`;
+            }
+        }
+
+        async function deleteSpec(specName) {
+            if (!confirm(`Delete spec '${specName}'? This will remove all its endpoints.`)) return;
+
+            try {
+                const response = await fetch(`/api/openapi/specs/${specName}`, { method: 'DELETE' });
+                if (response.ok) {
+                    await connection.invoke("NotifySpecDeleted", specName);
+                } else {
+                    showNotification('Error deleting spec', 'error');
+                }
+            } catch (err) {
+                console.error('Error deleting spec:', err);
+                showNotification('Error deleting spec', 'error');
+            }
+        }
+
+        async function reloadSpec(specName) {
+            try {
+                const response = await fetch(`/api/openapi/specs/${specName}/reload`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    await connection.invoke("NotifySpecReloaded", specName, data.endpointCount);
+                } else {
+                    showNotification(`Error reloading spec: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                console.error('Error reloading spec:', err);
+                showNotification('Error reloading spec', 'error');
+            }
+        }
+
+        async function loadRawSpec() {
+            const name = document.getElementById('specNameJson').value.trim();
+            const rawSpec = document.getElementById('rawSpec').value.trim();
+            const basePath = document.getElementById('basePathJson').value.trim();
+            const contextName = document.getElementById('contextNameJson').value.trim();
+
+            if (!name || !rawSpec) {
+                alert('Please provide both name and spec content');
+                return;
+            }
+
+            // Convert raw spec to data URL
+            const blob = new Blob([rawSpec], { type: 'application/json' });
+            const dataUrl = `data:application/json;base64,${btoa(rawSpec)}`;
+
+            try {
+                const response = await fetch('/api/openapi/specs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        source: dataUrl,
+                        basePath: basePath || null,
+                        contextName: contextName || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    await connection.invoke("NotifySpecLoaded", name, data.endpointCount);
+                    document.getElementById('specNameJson').value = '';
+                    document.getElementById('rawSpec').value = '';
+                    document.getElementById('basePathJson').value = '';
+                    document.getElementById('contextNameJson').value = '';
+                } else {
+                    showNotification(`Error loading spec: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                console.error('Error loading spec:', err);
+                showNotification(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.borderLeftColor = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff';
+            notification.classList.add('show');
+
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        // HTMX event handlers
+        document.body.addEventListener('htmx:afterRequest', async (event) => {
+            if (event.detail.successful) {
+                const response = JSON.parse(event.detail.xhr.responseText);
+                if (response.success) {
+                    await connection.invoke("NotifySpecLoaded", response.specName, response.endpointCount);
+                    document.getElementById('loadUrlForm').reset();
+                } else {
+                    showNotification(`Error: ${response.error}`, 'error');
+                }
+            } else {
+                showNotification('Request failed', 'error');
+            }
+        });
+
+        // Context management functions
+        async function refreshContexts() {
+            try {
+                const response = await fetch('/api/openapi/contexts');
+                const data = await response.json();
+
+                const contextsList = document.getElementById('contextsList');
+
+                if (data.count === 0) {
+                    contextsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No active contexts. Contexts are created when specs are loaded with a contextName.</p>';
+                    return;
+                }
+
+                contextsList.innerHTML = data.contexts.map(ctx => `
+                    <div class="spec-item" style="border-left-color: #ffc107;">
+                        <h3>📦 ${ctx.name}</h3>
+                        <div class="spec-meta">
+                            Total Calls: ${ctx.totalCalls} | Recent: ${ctx.recentCallCount}<br />
+                            Shared Data: ${ctx.sharedDataCount} keys<br />
+                            Last Used: ${new Date(ctx.lastUsedAt).toLocaleString()}
+                        </div>
+                        <div class="button-group">
+                            <button class="secondary" onclick="viewContextDetails('${ctx.name}')">View Details</button>
+                            <button class="danger" onclick="clearContext('${ctx.name}')">Clear</button>
+                        </div>
+                        <div id="context-${ctx.name}" style="display: none;"></div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Error refreshing contexts:', err);
+                showNotification('Error loading contexts', 'error');
+            }
+        }
+
+        async function viewContextDetails(contextName) {
+            const detailsDiv = document.getElementById(`context-${contextName}`);
+
+            if (detailsDiv.style.display !== 'none') {
+                detailsDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/openapi/contexts/${encodeURIComponent(contextName)}`);
+                const context = await response.json();
+
+                detailsDiv.innerHTML = `
+                    <div style="background: white; padding: 15px; border-radius: 4px; margin-top: 10px;">
+                        <h4>Shared Data</h4>
+                        <div class="code-block">
+                            ${Object.entries(context.sharedData).map(([k, v]) => `${k}: ${v}`).join('<br />')}
+                        </div>
+
+                        <h4 style="margin-top: 15px;">Recent Calls (last 10)</h4>
+                        ${context.recentCalls.map(call => `
+                            <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                                <strong>${call.method} ${call.path}</strong><br />
+                                <small>${new Date(call.timestamp).toLocaleString()}</small>
+                                ${call.requestBody ? `<br /><small>Request: ${call.requestBody.substring(0, 100)}...</small>` : ''}
+                                <br /><small>Response: ${call.responseBody.substring(0, 150)}...</small>
+                            </div>
+                        `).join('')}
+
+                        ${context.summary ? `
+                            <h4 style="margin-top: 15px;">Earlier Activity Summary</h4>
+                            <div class="code-block">${context.summary.replace(/\n/g, '<br />')}</div>
+                        ` : ''}
+                    </div>
+                `;
+                detailsDiv.style.display = 'block';
+            } catch (err) {
+                console.error('Error loading context details:', err);
+                showNotification('Error loading context details', 'error');
+            }
+        }
+
+        async function clearContext(contextName) {
+            if (!confirm(`Clear context "${contextName}"? This will remove all stored history and shared data.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/openapi/contexts/${encodeURIComponent(contextName)}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showNotification(`Context "${contextName}" cleared`, 'success');
+                    refreshContexts();
+                } else {
+                    showNotification('Error clearing context', 'error');
+                }
+            } catch (err) {
+                console.error('Error clearing context:', err);
+                showNotification(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initSignalR();
+            refreshContexts();
+        });
+    </script>
+}

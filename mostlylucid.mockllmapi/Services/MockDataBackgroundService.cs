@@ -16,6 +16,7 @@ public class MockDataBackgroundService(
     IOptions<LLMockApiOptions> options,
     IServiceScopeFactory serviceScopeFactory,
     DynamicHubContextManager dynamicContextManager,
+    OpenApiContextManager apiContextManager,
     ILogger<MockDataBackgroundService> logger)
     : BackgroundService
 {
@@ -113,14 +114,20 @@ public class MockDataBackgroundService(
             shapeInfo.Shape = effectiveShape;
             shapeInfo.IsJsonSchema = shapeInfo.IsJsonSchema && !string.IsNullOrWhiteSpace(effectiveShape);
 
-            // Build prompt using the (possibly learned) shape
+            // Get API context history if configured
+            var contextHistory = !string.IsNullOrWhiteSpace(contextConfig.ApiContextName)
+                ? apiContextManager.GetContextForPrompt(contextConfig.ApiContextName)
+                : null;
+
+            // Build prompt using the (possibly learned) shape and context history
             var prompt = promptBuilder.BuildPrompt(
                 contextConfig.Method,
                 contextConfig.Path,
                 contextConfig.Body,
                 shapeInfo,
                 streaming: false,
-                description: contextConfig.Description);
+                description: contextConfig.Description,
+                contextHistory: contextHistory);
 
             // Pull from per-context cache; if empty, prefill with a batch in one upstream call
             var queue = _contextCaches.GetOrAdd(contextConfig.Name, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
@@ -167,6 +174,17 @@ public class MockDataBackgroundService(
                     }
                 }
                 catch { /* ignore shape derivation errors */ }
+            }
+
+            // Store in API context if configured
+            if (!string.IsNullOrWhiteSpace(contextConfig.ApiContextName))
+            {
+                apiContextManager.AddToContext(
+                    contextConfig.ApiContextName,
+                    contextConfig.Method,
+                    contextConfig.Path,
+                    contextConfig.Body,
+                    cleanJson);
             }
 
             // Send to all clients in this context group
@@ -216,13 +234,19 @@ public class MockDataBackgroundService(
                         IsJsonSchema = isJsonSchema
                     };
 
+                    // Get API context history if configured
+                    var contextHistory = !string.IsNullOrWhiteSpace(contextConfig.ApiContextName)
+                        ? apiContextManager.GetContextForPrompt(contextConfig.ApiContextName)
+                        : null;
+
                     var prompt = promptBuilder.BuildPrompt(
                         contextConfig.Method,
                         contextConfig.Path,
                         contextConfig.Body,
                         shapeInfo,
                         streaming: false,
-                        description: contextConfig.Description);
+                        description: contextConfig.Description,
+                        contextHistory: contextHistory);
 
                     await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
                     _initialPrefillComplete.TryAdd(contextConfig.Name, true);

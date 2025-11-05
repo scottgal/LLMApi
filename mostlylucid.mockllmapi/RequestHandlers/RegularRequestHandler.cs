@@ -13,6 +13,8 @@ public class RegularRequestHandler
 {
     private readonly LLMockApiOptions _options;
     private readonly ShapeExtractor _shapeExtractor;
+    private readonly ContextExtractor _contextExtractor;
+    private readonly OpenApiContextManager _contextManager;
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly CacheManager _cacheManager;
@@ -24,6 +26,8 @@ public class RegularRequestHandler
     public RegularRequestHandler(
         IOptions<LLMockApiOptions> options,
         ShapeExtractor shapeExtractor,
+        ContextExtractor contextExtractor,
+        OpenApiContextManager contextManager,
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         CacheManager cacheManager,
@@ -32,6 +36,8 @@ public class RegularRequestHandler
     {
         _options = options.Value;
         _shapeExtractor = shapeExtractor;
+        _contextExtractor = contextExtractor;
+        _contextManager = contextManager;
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _cacheManager = cacheManager;
@@ -56,6 +62,14 @@ public class RegularRequestHandler
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
+        // Extract context name
+        var contextName = _contextExtractor.ExtractContextName(request, body);
+
+        // Get context history if context is specified
+        var contextHistory = !string.IsNullOrWhiteSpace(contextName)
+            ? _contextManager.GetContextForPrompt(contextName)
+            : null;
+
         // Get response (with caching if requested)
         var content = await _cacheManager.GetOrFetchAsync(
             method,
@@ -65,11 +79,17 @@ public class RegularRequestHandler
             shapeInfo.CacheCount,
             async () =>
             {
-                var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false);
+                var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false, contextHistory: contextHistory);
                 var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
                 // Extract clean JSON from LLM response (might include markdown or explanatory text)
                 return JsonExtractor.ExtractJson(rawResponse);
             });
+
+        // Store in context if context name was provided
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, content);
+        }
 
         // Optionally include schema in header
         TryAddSchemaHeader(context, request, shapeInfo.Shape);

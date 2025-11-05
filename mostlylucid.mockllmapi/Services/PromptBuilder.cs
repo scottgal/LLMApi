@@ -16,7 +16,8 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
         string? body,
         ShapeInfo shapeInfo,
         bool streaming,
-        string? description = null)
+        string? description = null,
+        string? contextHistory = null)
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var randomSeed = Guid.NewGuid().ToString("N")[..8];
@@ -28,7 +29,8 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
                     .Replace("{randomSeed}", randomSeed)
                     .Replace("{timestamp}", timestamp.ToString())
                     .Replace("{shape}", shapeInfo.Shape ?? "")
-                    .Replace("{description}", description ?? "");
+                    .Replace("{description}", description ?? "")
+                    .Replace("{context}", contextHistory ?? "");
 
         // Use custom templates if provided
         if (!string.IsNullOrWhiteSpace(_options.CustomPromptTemplate) && !streaming)
@@ -38,7 +40,7 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
             return ApplyTemplate(_options.CustomStreamingPromptTemplate);
 
         // Build default compact prompt
-        var prompt = BuildDefaultPrompt(method, fullPathWithQuery, body, randomSeed, timestamp, streaming, description);
+        var prompt = BuildDefaultPrompt(method, fullPathWithQuery, body, randomSeed, timestamp, streaming, description, contextHistory);
 
         // Add constraints only if needed
         if (!string.IsNullOrWhiteSpace(shapeInfo.Shape))
@@ -58,9 +60,11 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
         string randomSeed,
         long timestamp,
         bool streaming,
-        string? description)
+        string? description,
+        string? contextHistory)
     {
         var desc = string.IsNullOrWhiteSpace(description) ? "" : $"Desc: {description}\n";
+        var context = string.IsNullOrWhiteSpace(contextHistory) ? "" : $"\n{contextHistory}\n";
 
         // Compact instructions for TinyLLaMA
         var baseInstr = streaming
@@ -68,7 +72,7 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
             : "TASK: Generate a varied mock API response.\n";
 
         return $@"{baseInstr}
-RULES: Output ONLY one valid JSON object/array. No markdown, no comments, no extra text.
+RULES: Output ONLY one valid JSON object/array. No markdown, no comments, no extra text.{context}
 RandomSeed: {randomSeed}, Time: {timestamp}
 {desc}Method: {method}
 Path: {fullPathWithQuery}

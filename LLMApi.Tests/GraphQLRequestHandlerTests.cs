@@ -34,12 +34,15 @@ public class GraphQLRequestHandlerTests
     private GraphQLRequestHandler CreateHandler(LlmClient? llmClient = null)
     {
         var options = CreateOptions();
+        var contextExtractor = new ContextExtractor();
+        var contextManagerLogger = NullLogger<OpenApiContextManager>.Instance;
+        var contextManager = new OpenApiContextManager(contextManagerLogger);
         var promptBuilder = new PromptBuilder(options);
         llmClient ??= new FakeGraphQLLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var delayHelper = new DelayHelper(options);
         var logger = NullLogger<GraphQLRequestHandler>.Instance;
 
-        return new GraphQLRequestHandler(options, promptBuilder, llmClient, delayHelper, logger);
+        return new GraphQLRequestHandler(options, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, logger);
     }
 
     private DefaultHttpContext CreateHttpContext(string? body = null)

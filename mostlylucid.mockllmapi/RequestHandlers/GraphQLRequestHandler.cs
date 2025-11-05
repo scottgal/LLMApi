@@ -13,6 +13,8 @@ namespace mostlylucid.mockllmapi.RequestHandlers;
 public class GraphQLRequestHandler
 {
     private readonly LLMockApiOptions _options;
+    private readonly ContextExtractor _contextExtractor;
+    private readonly OpenApiContextManager _contextManager;
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
@@ -20,12 +22,16 @@ public class GraphQLRequestHandler
 
     public GraphQLRequestHandler(
         IOptions<LLMockApiOptions> options,
+        ContextExtractor contextExtractor,
+        OpenApiContextManager contextManager,
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         DelayHelper delayHelper,
         ILogger<GraphQLRequestHandler> logger)
     {
         _options = options.Value;
+        _contextExtractor = contextExtractor;
+        _contextManager = contextManager;
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _delayHelper = delayHelper;
@@ -44,13 +50,21 @@ public class GraphQLRequestHandler
         // Apply random request delay if configured
         await _delayHelper.ApplyRequestDelayAsync(cancellationToken);
 
+        // Extract context name
+        var contextName = _contextExtractor.ExtractContextName(request, body);
+
+        // Get context history if context is specified
+        var contextHistory = !string.IsNullOrWhiteSpace(contextName)
+            ? _contextManager.GetContextForPrompt(contextName)
+            : null;
+
         try
         {
             // Parse GraphQL request
             var graphQLRequest = ParseGraphQLRequest(body);
 
             // Build prompt specifically for GraphQL
-            var prompt = BuildGraphQLPrompt(graphQLRequest);
+            var prompt = BuildGraphQLPrompt(graphQLRequest, contextHistory);
 
             // Try to get valid JSON from LLM (with retry)
             const int maxAttempts = 2;
@@ -75,7 +89,7 @@ public class GraphQLRequestHandler
                         {
                             // Retry with more explicit prompt
                             _logger.LogInformation("Retrying with more explicit JSON-only prompt");
-                            prompt = BuildRetryPrompt(graphQLRequest);
+                            prompt = BuildRetryPrompt(graphQLRequest, contextHistory);
                             continue;
                         }
 
@@ -87,6 +101,12 @@ public class GraphQLRequestHandler
 
                     // Try to wrap in GraphQL response format - this validates the JSON
                     var graphQLResponse = WrapInGraphQLResponse(cleanJson);
+
+                    // Store in context if context name was provided
+                    if (!string.IsNullOrWhiteSpace(contextName))
+                    {
+                        _contextManager.AddToContext(contextName, "POST", "/graphql", body, graphQLResponse);
+                    }
 
                     // Success! Return the valid response
                     if (attempt > 1)
@@ -138,10 +158,14 @@ public class GraphQLRequestHandler
         }
     }
 
-    private static string BuildGraphQLPrompt(GraphQLRequest request)
+    private static string BuildGraphQLPrompt(GraphQLRequest request, string? contextHistory = null)
     {
-        var prompt = $@"JSON for: {request.Query}
+        var contextSection = string.IsNullOrWhiteSpace(contextHistory)
+            ? ""
+            : $"\n{contextHistory}\n";
 
+        var prompt = $@"JSON for: {request.Query}
+{contextSection}
 CRITICAL: MUST be valid, complete JSON. If it's too complex, return LESS data.
 RULES:
 - Max 2 items in arrays
@@ -162,10 +186,14 @@ Vars: {JsonSerializer.Serialize(request.Variables)}";
         return prompt;
     }
 
-    private static string BuildRetryPrompt(GraphQLRequest request)
+    private static string BuildRetryPrompt(GraphQLRequest request, string? contextHistory = null)
     {
-        var prompt = $@"SIMPLE JSON ONLY: {request.Query}
+        var contextSection = string.IsNullOrWhiteSpace(contextHistory)
+            ? ""
+            : $"\n{contextHistory}\n";
 
+        var prompt = $@"SIMPLE JSON ONLY: {request.Query}
+{contextSection}
 MUST be valid, complete JSON. Keep it TINY.
 1 item. Flat structure. Short values.
 Example: {{""data"":[{{""id"":1}}]}}";

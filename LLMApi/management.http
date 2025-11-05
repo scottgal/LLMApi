@@ -1,0 +1,765 @@
+### OpenAPI Management Endpoints
+### Base URL: http://localhost:5116
+###
+### This file demonstrates all OpenAPI management endpoints for dynamic spec loading,
+### endpoint discovery, testing, and lifecycle management.
+###
+### Usage: Open in Visual Studio, Rider, or VS Code with REST Client extension
+### Press "Send Request" or click the play button next to each request
+
+### ===========================================
+### SPEC MANAGEMENT
+### ===========================================
+
+### 1. List all loaded OpenAPI specs
+GET http://localhost:5116/api/openapi/specs
+Accept: application/json
+
+###
+
+### 2. Load OpenAPI spec from URL (Petstore example)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "petstore",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/petstore"
+}
+
+###
+
+### 3. Load OpenAPI spec from local file
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "local-petstore",
+  "source": "./specs/petstore.json",
+  "basePath": "/api/v1"
+}
+
+###
+
+### 4. Load OpenAPI spec from raw JSON (data URL)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "inline-api",
+  "source": "data:application/json;base64,eyJvcGVuYXBpIjoiMy4wLjAiLCJpbmZvIjp7InRpdGxlIjoiU2ltcGxlIEFQSSIsInZlcnNpb24iOiIxLjAuMCJ9LCJwYXRocyI6eyIvdXNlcnMiOnsiZ2V0Ijp7InJlc3BvbnNlcyI6eyIyMDAiOnsiZGVzY3JpcHRpb24iOiJTdWNjZXNzIiwiY29udGVudCI6eyJhcHBsaWNhdGlvbi9qc29uIjp7InNjaGVtYSI6eyJ0eXBlIjoiYXJyYXkiLCJpdGVtcyI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJpZCI6eyJ0eXBlIjoiaW50ZWdlciJ9LCJuYW1lIjp7InR5cGUiOiJzdHJpbmcifX19fX19fX19fX19=",
+  "basePath": "/api"
+}
+
+###
+
+### 5. Get specific spec details with all endpoints
+GET http://localhost:5116/api/openapi/specs/petstore
+Accept: application/json
+
+###
+
+### 6. Reload a spec (useful if source changed)
+POST http://localhost:5116/api/openapi/specs/petstore/reload
+Content-Type: application/json
+
+###
+
+### 7. Delete a spec (removes all endpoints)
+DELETE http://localhost:5116/api/openapi/specs/petstore
+
+###
+
+### ===========================================
+### ENDPOINT TESTING
+### ===========================================
+
+### 8. Test GET endpoint with path parameter
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore",
+  "path": "/pet/123",
+  "method": "GET"
+}
+
+###
+
+### 9. Test POST endpoint
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore",
+  "path": "/pet",
+  "method": "POST"
+}
+
+###
+
+### 10. Test endpoint with query parameters
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore",
+  "path": "/pet/findByStatus?status=available",
+  "method": "GET"
+}
+
+###
+
+### ===========================================
+### MULTIPLE SPEC EXAMPLES
+### ===========================================
+
+### 11. Load GitHub API spec
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "github",
+  "source": "https://api.apis.guru/v2/specs/github.com/1.1.4/openapi.yaml",
+  "basePath": "/github"
+}
+
+###
+
+### 12. Load JSONPlaceholder-like spec (example)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "jsonplaceholder",
+  "source": "https://gist.githubusercontent.com/example/raw/openapi.json",
+  "basePath": "/placeholder"
+}
+
+###
+
+### ===========================================
+### ADVANCED USAGE
+### ===========================================
+
+### 13. Load spec with custom base path override
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "custom-api",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/custom/v2"
+}
+
+###
+
+### 14. Test multiple specs in sequence
+# First load spec 1
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "api-v1",
+  "source": "./specs/petstore.json",
+  "basePath": "/v1"
+}
+
+###
+
+# Then load spec 2
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "api-v2",
+  "source": "./specs/petstore.json",
+  "basePath": "/v2"
+}
+
+###
+
+# List both specs
+GET http://localhost:5116/api/openapi/specs
+
+###
+
+### ===========================================
+### WORKFLOW EXAMPLES
+### ===========================================
+
+### Complete workflow: Load -> View -> Test -> Reload -> Delete
+
+# Step 1: Load spec
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "demo-api",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/demo"
+}
+
+###
+
+# Step 2: Get spec details to see endpoints
+GET http://localhost:5116/api/openapi/specs/demo-api
+
+###
+
+# Step 3: Test an endpoint
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "demo-api",
+  "path": "/pet/42",
+  "method": "GET"
+}
+
+###
+
+# Step 4: Reload spec (e.g., after source update)
+POST http://localhost:5116/api/openapi/specs/demo-api/reload
+
+###
+
+# Step 5: Delete when done
+DELETE http://localhost:5116/api/openapi/specs/demo-api
+
+###
+
+### ===========================================
+### ERROR SCENARIOS
+### ===========================================
+
+### 15. Try to load spec with missing name (should fail)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json"
+}
+
+###
+
+### 16. Try to load invalid URL (should fail gracefully)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "invalid",
+  "source": "https://invalid-url-that-does-not-exist.com/openapi.json"
+}
+
+###
+
+### 17. Try to get non-existent spec (should return 404)
+GET http://localhost:5116/api/openapi/specs/does-not-exist
+
+###
+
+### 18. Try to test non-existent endpoint
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore",
+  "path": "/nonexistent/endpoint",
+  "method": "GET"
+}
+
+###
+
+### ===========================================
+### BATCH OPERATIONS
+### ===========================================
+
+### 19. Load multiple specs at once (sequential)
+
+# Load spec 1
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "spec-1",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/spec1"
+}
+
+###
+
+# Load spec 2
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "spec-2",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/spec2"
+}
+
+###
+
+# Load spec 3
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "spec-3",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/spec3"
+}
+
+###
+
+# Verify all loaded
+GET http://localhost:5116/api/openapi/specs
+
+###
+
+### ===========================================
+### INTEGRATION WITH EXISTING ENDPOINTS
+### ===========================================
+
+### 20. Compare OpenAPI mock vs regular mock
+
+# OpenAPI mock (from spec)
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore",
+  "path": "/pet/123",
+  "method": "GET"
+}
+
+###
+
+# Regular LLMock API (shape-based)
+GET http://localhost:5116/api/mock/pet/123?shape={"id":0,"name":"string","status":"string"}
+
+###
+
+### ===========================================
+### NOTES AND TIPS
+### ===========================================
+
+# 1. All specs are loaded in-memory and persist until server restart or explicit deletion
+# 2. Reloading a spec clears it from cache and re-fetches from source
+# 3. Base path can be omitted - defaults to spec's servers[0].url or /api
+# 4. Multiple specs can mount at different base paths
+# 5. SignalR hub at /hub/openapi provides real-time updates for UI
+# 6. Test endpoint generates fresh mock data each time using LLM
+# 7. Specs support OpenAPI 3.0, 3.1, and Swagger 2.0 formats
+# 8. Both JSON and YAML formats are supported
+# 9. URL sources are cached - use reload to force refresh
+# 10. Data URLs allow inline spec definitions without external files
+
+### ===========================================
+### CONTEXT MANAGEMENT
+### ===========================================
+
+### 20. Load spec WITH context for consistent data across calls
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "petstore-contextual",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/petstore-ctx",
+  "contextName": "demo-session-1"
+}
+
+###
+
+### 21. Test first endpoint - creates a pet
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore-contextual",
+  "path": "/pet/123",
+  "method": "GET"
+}
+
+### Note the pet name/details from response above, then...
+
+###
+
+### 22. Test related endpoint - should reference same pet data
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "petstore-contextual",
+  "path": "/pet/123/uploadImage",
+  "method": "POST"
+}
+
+### The response should reference the same pet from the previous call!
+
+###
+
+### 23. List all active contexts
+GET http://localhost:5116/api/openapi/contexts
+Accept: application/json
+
+###
+
+### 24. Get detailed context information (shows recent calls, shared data)
+GET http://localhost:5116/api/openapi/contexts/demo-session-1
+Accept: application/json
+
+###
+
+### 25. Load ANOTHER spec using the SAME context (shared state!)
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "petstore-orders",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/orders",
+  "contextName": "demo-session-1"
+}
+
+### Now both specs share the same context and will use consistent IDs/names!
+
+###
+
+### 26. Clear a specific context
+DELETE http://localhost:5116/api/openapi/contexts/demo-session-1
+
+###
+
+### 27. Clear all contexts
+DELETE http://localhost:5116/api/openapi/contexts
+
+###
+
+### ===========================================
+### CONTEXT USE CASES
+### ===========================================
+
+### Use Case 1: E-commerce Flow with Consistent User
+# Step 1: Load user API with context
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "users-api",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/users",
+  "contextName": "ecommerce-session"
+}
+
+###
+
+# Step 2: Create user
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "users-api",
+  "path": "/user",
+  "method": "POST"
+}
+
+### Note the userId from response
+
+###
+
+# Step 3: Load orders API with SAME context
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "orders-api",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/orders",
+  "contextName": "ecommerce-session"
+}
+
+###
+
+# Step 4: Create order - will use same userId!
+POST http://localhost:5116/api/openapi/test
+Content-Type: application/json
+
+{
+  "specName": "orders-api",
+  "path": "/store/order",
+  "method": "POST"
+}
+
+### The order response should reference the same user created earlier!
+
+###
+
+### Use Case 2: Multiple Isolated Sessions
+# Load same spec with different contexts for isolated testing
+
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "petstore-alice",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/alice",
+  "contextName": "alice-session"
+}
+
+###
+
+POST http://localhost:5116/api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "petstore-bob",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/bob",
+  "contextName": "bob-session"
+}
+
+### Now /alice/* and /bob/* endpoints maintain separate state!
+
+###
+
+### ===========================================
+### INTERACTIVE UI
+### ===========================================
+
+# For a visual interface with real-time updates, visit:
+# http://localhost:5116/OpenApi
+#
+# The UI provides:
+# - Drag-and-drop spec loading
+# - Live endpoint discovery
+# - One-click testing
+# - Real-time notifications
+# - Spec lifecycle management
+# - Beautiful syntax-highlighted responses
+
+###
+
+### ===========================================
+### CONTEXT SUPPORT (ALL ENDPOINT TYPES)
+### ===========================================
+###
+### API contexts maintain consistency across related calls
+### Works with: REST, Streaming, GraphQL, SignalR
+### Context names can be passed via query param, header, or body
+
+### REST API WITH CONTEXT - Query Parameter
+GET http://localhost:5116/api/mock/users/123?context=session-1&shape={"id":0,"name":"string","email":"string"}
+
+###
+
+### REST API WITH CONTEXT - Header
+GET http://localhost:5116/api/mock/orders/456
+X-Api-Context: session-1
+X-Response-Shape: {"orderId":0,"userId":0,"total":0,"items":[]}
+
+###
+
+### REST API WITH CONTEXT - Body Property
+POST http://localhost:5116/api/mock/products
+Content-Type: application/json
+
+{
+  "context": "session-1",
+  "shape": {
+    "productId": 0,
+    "name": "string",
+    "price": 0,
+    "inStock": true
+  }
+}
+
+###
+
+### STREAMING API WITH CONTEXT
+GET http://localhost:5116/api/mock/stream/stock-prices?context=trading-session&shape={"symbol":"string","price":0,"change":0}
+Accept: text/event-stream
+
+###
+
+### GRAPHQL WITH CONTEXT - Query Parameter
+POST http://localhost:5116/graphql?context=my-app
+Content-Type: application/json
+
+{
+  "query": "{ users { id name email } }"
+}
+
+###
+
+### GRAPHQL WITH CONTEXT - Body Property
+POST http://localhost:5116/graphql
+Content-Type: application/json
+
+{
+  "query": "{ orders { id userId total items { productId quantity } } }",
+  "apiContext": "my-app"
+}
+
+###
+
+### ===========================================
+### CONTEXT USE CASE: E-COMMERCE FLOW
+### ===========================================
+### Demonstrates maintaining consistent user/order data across multiple calls
+
+### Step 1: Create a user (context: ecommerce-demo)
+POST http://localhost:5116/api/mock/users?context=ecommerce-demo
+Content-Type: application/json
+
+{
+  "shape": {
+    "userId": 0,
+    "name": "string",
+    "email": "string",
+    "address": {
+      "street": "string",
+      "city": "string"
+    }
+  }
+}
+
+### Note the userId from the response above, then...
+
+###
+
+### Step 2: Create an order for the same user
+### The LLM will use the same userId and user details from context
+POST http://localhost:5116/api/mock/orders?context=ecommerce-demo
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 0,
+    "userId": 0,
+    "customerName": "string",
+    "items": [
+      {
+        "productId": 0,
+        "quantity": 0,
+        "price": 0
+      }
+    ],
+    "total": 0
+  }
+}
+
+###
+
+### Step 3: Get shipping details
+### Will reference the same user and order from context
+GET http://localhost:5116/api/mock/shipping/tracking?context=ecommerce-demo&shape={"trackingId":"string","orderId":0,"status":"string","address":{"street":"string","city":"string"}}
+
+###
+
+### Step 4: View the context history
+GET http://localhost:5116/api/openapi/contexts/ecommerce-demo
+
+###
+
+### Step 5: Clear the context when done
+DELETE http://localhost:5116/api/openapi/contexts/ecommerce-demo
+
+###
+
+### ===========================================
+### CONTEXT USE CASE: STOCK TICKER
+### ===========================================
+### Demonstrates realistic data variance with gradual changes
+
+### First call - establishes baseline stock prices
+GET http://localhost:5116/api/mock/stocks?context=market-data&shape={"symbol":"string","price":0,"volume":0,"change":0}
+
+###
+
+### Second call - prices will vary realistically from first call
+### Not completely random - the LLM sees previous prices and adjusts them
+GET http://localhost:5116/api/mock/stocks?context=market-data&shape={"symbol":"string","price":0,"volume":0,"change":0}
+
+###
+
+### Third call - continues the trend
+GET http://localhost:5116/api/mock/stocks?context=market-data&shape={"symbol":"string","price":0,"volume":0,"change":0}
+
+###
+
+### ===========================================
+### CONTEXT USE CASE: GAME STATE
+### ===========================================
+### Track player progression through a game session
+
+### Start game session
+POST http://localhost:5116/api/mock/game/start?context=game-123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "level": 0,
+    "health": 0,
+    "score": 0,
+    "inventory": []
+  }
+}
+
+###
+
+### Complete a quest - level/score/inventory will progress
+POST http://localhost:5116/api/mock/game/quest-complete?context=game-123
+Content-Type: application/json
+
+{
+  "shape": {
+    "playerId": 0,
+    "level": 0,
+    "health": 0,
+    "score": 0,
+    "inventory": ["string"],
+    "reward": {
+      "type": "string",
+      "value": 0
+    }
+  }
+}
+
+###
+
+### Get player stats - consistent with previous calls
+GET http://localhost:5116/api/mock/game/player?context=game-123&shape={"playerId":0,"level":0,"health":0,"score":0,"inventory":["string"]}
+
+###
+
+### ===========================================
+### SIGNALR WITH CONTEXT (via appsettings.json)
+### ===========================================
+###
+### Configure in appsettings.json:
+###
+### {
+###   "mostlylucid.mockllmapi": {
+###     "HubContexts": [
+###       {
+###         "Name": "stock-ticker",
+###         "Description": "Real-time stock prices with realistic variance",
+###         "ApiContextName": "stocks-session",
+###         "Shape": "{\"symbol\":\"string\",\"price\":0,\"change\":0,\"volume\":0}",
+###         "Method": "GET",
+###         "Path": "/stocks/realtime"
+###       }
+###     ]
+###   }
+### }
+###
+### The stock-ticker will now maintain context across pushes!
+### Prices will change gradually instead of being completely random.
+###
+
+###

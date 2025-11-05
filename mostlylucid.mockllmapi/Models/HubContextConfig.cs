@@ -46,6 +46,13 @@ public class HubContextConfig
     public bool? IsJsonSchema { get; set; }
 
     /// <summary>
+    /// Optional: API context name for maintaining consistency across related calls
+    /// When set, the data generation will reference previous calls in the same context
+    /// Useful for realistic data variance (e.g., stock prices changing gradually)
+    /// </summary>
+    public string? ApiContextName { get; set; }
+
+    /// <summary>
     /// Whether this context is actively generating data (default: true)
     /// </summary>
     public bool IsActive { get; set; } = true;

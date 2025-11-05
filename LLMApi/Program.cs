@@ -8,6 +8,9 @@ builder.Services.AddLLMockApi(builder.Configuration);
 // Add LLMock SignalR services
 builder.Services.AddLLMockSignalR(builder.Configuration);
 
+// Add LLMock OpenAPI services
+builder.Services.AddLLMockOpenApi(builder.Configuration);
+
 // Add Razor Pages
 builder.Services.AddRazorPages();
 
@@ -27,6 +30,12 @@ app.MapLLMockApi("/api/mock", includeStreaming: true);
 
 // Map LLMock SignalR hub and management endpoints
 app.MapLLMockSignalR("/hub/mock", "/api/mock");
+
+// Map LLMock OpenAPI endpoints
+app.MapLLMockOpenApi();
+
+// Map LLMock OpenAPI management endpoints (for dynamic spec loading)
+app.MapLLMockOpenApiManagement();
 
 app.Run();
 

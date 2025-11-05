@@ -14,6 +14,8 @@ public class StreamingRequestHandler
 {
     private readonly LLMockApiOptions _options;
     private readonly ShapeExtractor _shapeExtractor;
+    private readonly ContextExtractor _contextExtractor;
+    private readonly OpenApiContextManager _contextManager;
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
@@ -24,6 +26,8 @@ public class StreamingRequestHandler
     public StreamingRequestHandler(
         IOptions<LLMockApiOptions> options,
         ShapeExtractor shapeExtractor,
+        ContextExtractor contextExtractor,
+        OpenApiContextManager contextManager,
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         DelayHelper delayHelper,
@@ -31,6 +35,8 @@ public class StreamingRequestHandler
     {
         _options = options.Value;
         _shapeExtractor = shapeExtractor;
+        _contextExtractor = contextExtractor;
+        _contextManager = contextManager;
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _delayHelper = delayHelper;
@@ -54,8 +60,16 @@ public class StreamingRequestHandler
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
+        // Extract context name
+        var contextName = _contextExtractor.ExtractContextName(request, body);
+
+        // Get context history if context is specified
+        var contextHistory = !string.IsNullOrWhiteSpace(contextName)
+            ? _contextManager.GetContextForPrompt(contextName)
+            : null;
+
         // Build prompt
-        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: true);
+        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: true, contextHistory: contextHistory);
 
         // Set response headers for SSE
         context.Response.StatusCode = 200;
@@ -85,6 +99,13 @@ public class StreamingRequestHandler
                 if (payload == "[DONE]")
                 {
                     var finalJson = accumulated.ToString();
+
+                    // Store in context if context name was provided
+                    if (!string.IsNullOrWhiteSpace(contextName))
+                    {
+                        _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, finalJson);
+                    }
+
                     // Include schema in final event payload if enabled
                     object finalPayload;
                     if (ShouldIncludeSchema(request) && !string.IsNullOrWhiteSpace(shapeInfo.Shape))

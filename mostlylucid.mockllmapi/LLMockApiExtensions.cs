@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
 
@@ -17,8 +18,6 @@ namespace mostlylucid.mockllmapi;
 /// </summary>
 public static class LlMockApiExtensions
 {
-    #region Unified Registration (Backward Compatible)
-
     /// <summary>
     /// Adds ALL LLMock API services to the service collection (REST, Streaming, GraphQL)
     /// For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
@@ -56,10 +55,6 @@ public static class LlMockApiExtensions
         RegisterGraphQLServices(services);
         return services;
     }
-
-    #endregion
-
-    #region Modular Protocol Registration
 
     /// <summary>
     /// Adds LLMock REST API services (non-streaming)
@@ -171,9 +166,37 @@ public static class LlMockApiExtensions
         return services;
     }
 
-    #endregion
+    /// <summary>
+    /// Adds LLMock OpenAPI services for generating mock endpoints from OpenAPI/Swagger specs
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">Configuration containing MockLlmApi section with OpenApiSpecs</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddLLMockOpenApi(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<LLMockApiOptions>(configuration.GetSection(LLMockApiOptions.SectionName));
+        RegisterCoreServices(services);
+        RegisterOpenApiServices(services);
+        return services;
+    }
 
-    #region Service Registration Helpers
+    /// <summary>
+    /// Adds LLMock OpenAPI services with inline configuration
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configure">Action to configure options including OpenApiSpecs</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddLLMockOpenApi(
+        this IServiceCollection services,
+        Action<LLMockApiOptions> configure)
+    {
+        services.Configure(configure);
+        RegisterCoreServices(services);
+        RegisterOpenApiServices(services);
+        return services;
+    }
 
     private static void RegisterCoreServices(IServiceCollection services)
     {
@@ -182,6 +205,7 @@ public static class LlMockApiExtensions
         {
             services.AddHttpClient("LLMockApi");
             services.AddScoped<ShapeExtractor>();
+            services.AddScoped<ContextExtractor>();
             services.AddScoped<PromptBuilder>();
             services.AddScoped<LlmClient>();
             services.AddSingleton<CacheManager>();
@@ -224,9 +248,18 @@ public static class LlMockApiExtensions
         }
     }
 
-    #endregion
-
-    #region Unified Mapping (Backward Compatible)
+    private static void RegisterOpenApiServices(IServiceCollection services)
+    {
+        if (services.All(x => x.ServiceType != typeof(OpenApiSpecLoader)))
+        {
+            services.AddScoped<OpenApiSpecLoader>();
+            services.AddScoped<OpenApiSchemaConverter>();
+            services.AddScoped<OpenApiRequestHandler>();
+            services.AddSingleton<DynamicOpenApiManager>();
+            services.AddSingleton<OpenApiContextManager>();
+            services.AddSignalR(); // Ensure SignalR is registered for OpenApiHub
+        }
+    }
 
     /// <summary>
     /// Maps ALL LLMock API endpoints to the application (REST + optionally Streaming + optionally GraphQL)
@@ -253,10 +286,6 @@ public static class LlMockApiExtensions
 
         return app;
     }
-
-    #endregion
-
-    #region Modular Protocol Mapping
 
     /// <summary>
     /// Maps LLMock REST API endpoints (non-streaming)
@@ -332,10 +361,6 @@ public static class LlMockApiExtensions
         return app;
     }
 
-    #endregion
-
-    #region SignalR Mapping
-
     /// <summary>
     /// Maps LLMock SignalR hub and management endpoints to the application
     /// </summary>
@@ -360,23 +385,245 @@ public static class LlMockApiExtensions
         // Add dynamic context management endpoints
         var contextPattern = $"{managementPattern.TrimEnd('/')}/contexts";
 
-        routeBuilder.MapPost(contextPattern, HandleCreateDynamicContext)
+        routeBuilder.MapPost(contextPattern, SignalRManagementEndpoints.HandleCreateDynamicContext)
             .WithName("LLMockApi-CreateContext");
 
-        routeBuilder.MapGet(contextPattern, HandleListContexts)
+        routeBuilder.MapGet(contextPattern, (DynamicHubContextManager manager, IConfiguration config) => SignalRManagementEndpoints.HandleListContexts(manager, config))
             .WithName("LLMockApi-ListContexts");
 
-        routeBuilder.MapGet($"{contextPattern}/{{contextName}}", HandleGetContext)
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}", (string contextName, DynamicHubContextManager manager, IConfiguration config) => SignalRManagementEndpoints.HandleGetContext(contextName, manager, config))
             .WithName("LLMockApi-GetContext");
 
-        routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", HandleDeleteContext)
+        routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", SignalRManagementEndpoints.HandleDeleteContext)
             .WithName("LLMockApi-DeleteContext");
 
-        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/start", HandleStartContext)
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/start", SignalRManagementEndpoints.HandleStartContext)
             .WithName("LLMockApi-StartContext");
 
-        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/stop", HandleStopContext)
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/stop", SignalRManagementEndpoints.HandleStopContext)
             .WithName("LLMockApi-StopContext");
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps LLMock OpenAPI endpoints based on configured OpenAPI specs
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockOpenApi(this IApplicationBuilder app)
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockOpenApi requires endpoint routing. Call UseRouting() before MapLLMockOpenApi().");
+        }
+
+        // Get the options to read configured OpenAPI specs
+        var services = app.ApplicationServices;
+        var options = services.GetRequiredService<IOptions<LLMockApiOptions>>().Value;
+
+        // Load and map each configured OpenAPI spec
+        foreach (var specConfig in options.OpenApiSpecs)
+        {
+            // Create a scope to resolve scoped services during startup
+            using var scope = services.CreateScope();
+            var loader = scope.ServiceProvider.GetRequiredService<OpenApiSpecLoader>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<OpenApiSpecLoader>>();
+
+            try
+            {
+                // Load the spec synchronously during startup (this is acceptable for initialization)
+                var document = loader.LoadSpecAsync(specConfig.Source).GetAwaiter().GetResult();
+
+                // Determine base path
+                var basePath = specConfig.BasePath ??
+                              document.Servers?.FirstOrDefault()?.Url ??
+                              "/api";
+
+                logger.LogInformation("Mapping OpenAPI spec '{Name}' at base path: {BasePath}",
+                    specConfig.Name, basePath);
+
+                // Get all operations from the spec
+                var operations = loader.GetOperations(document);
+
+                // Capture contextName for closures
+                var contextName = specConfig.ContextName;
+
+                foreach (var (path, method, operation) in operations)
+                {
+                    // Apply filtering if configured
+                    if (ShouldSkipOperation(operation, path, specConfig))
+                        continue;
+
+                    // Build full route path
+                    var routePath = $"{basePath.TrimEnd('/')}{path}";
+
+                    // Map the endpoint
+                    var methodName = method.ToString().ToUpperInvariant();
+                    routeBuilder.MapMethods(routePath, new[] { methodName },
+                        async (HttpContext ctx) =>
+                        {
+                            var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
+                            var response = await handler.HandleRequestAsync(
+                                ctx, document, path, method, operation, contextName, ctx.RequestAborted);
+
+                            ctx.Response.ContentType = "application/json";
+                            await ctx.Response.WriteAsync(response);
+                        })
+                        .WithName($"LLMockApi-OpenApi-{specConfig.Name}-{methodName}-{path.Replace("/", "-")}");
+
+                    logger.LogDebug("Mapped {Method} {Path} from OpenAPI spec '{Name}'",
+                        methodName, routePath, specConfig.Name);
+
+                    // Optionally map streaming endpoint
+                    if (specConfig.EnableStreaming)
+                    {
+                        var streamPath = $"{routePath}/stream";
+                        routeBuilder.MapMethods(streamPath, new[] { methodName },
+                            async (HttpContext ctx) =>
+                            {
+                                ctx.Response.ContentType = "text/event-stream";
+                                ctx.Response.Headers["Cache-Control"] = "no-cache";
+                                ctx.Response.Headers["Connection"] = "keep-alive";
+
+                                var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
+                                await foreach (var chunk in handler.HandleStreamingRequestAsync(
+                                    ctx, document, path, method, operation, ctx.RequestAborted))
+                                {
+                                    await ctx.Response.WriteAsync($"data: {chunk}\n\n");
+                                    await ctx.Response.Body.FlushAsync();
+                                }
+                            })
+                            .WithName($"LLMockApi-OpenApi-{specConfig.Name}-{methodName}-{path.Replace("/", "-")}-Stream");
+
+                        logger.LogDebug("Mapped streaming {Method} {Path} from OpenAPI spec '{Name}'",
+                            methodName, streamPath, specConfig.Name);
+                    }
+                }
+
+                logger.LogInformation("Successfully mapped OpenAPI spec '{Name}' with {Count} operations",
+                    specConfig.Name, operations.Count());
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to map OpenAPI spec '{Name}' from source: {Source}",
+                    specConfig.Name, specConfig.Source);
+            }
+        }
+
+        return app;
+    }
+
+    private static bool ShouldSkipOperation(OpenApiOperation operation, string path, OpenApiSpecConfig config)
+    {
+        // Check tag filtering
+        if (config.IncludeTags?.Count > 0)
+        {
+            if (operation.Tags == null || !operation.Tags.Any(t => config.IncludeTags.Contains(t.Name)))
+                return true;
+        }
+
+        if (config.ExcludeTags?.Count > 0)
+        {
+            if (operation.Tags?.Any(t => config.ExcludeTags.Contains(t.Name)) == true)
+                return true;
+        }
+
+        // Check path filtering (simple wildcard support)
+        if (config.IncludePaths?.Count > 0)
+        {
+            if (!config.IncludePaths.Any(pattern => PathMatchesPattern(path, pattern)))
+                return true;
+        }
+
+        if (config.ExcludePaths?.Count > 0)
+        {
+            if (config.ExcludePaths.Any(pattern => PathMatchesPattern(path, pattern)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool PathMatchesPattern(string path, string pattern)
+    {
+        // Simple wildcard matching: "/users/*" matches "/users/anything"
+        if (pattern.EndsWith("/*"))
+        {
+            var prefix = pattern[..^2]; // Remove "/*"
+            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Exact match
+        return path.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Maps OpenAPI management endpoints for dynamic spec loading
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">The route pattern for management endpoints (default: "/api/openapi")</param>
+    /// <param name="hubPattern">The route pattern for SignalR hub (default: "/hub/openapi")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockOpenApiManagement(
+        this IApplicationBuilder app,
+        string pattern = "/api/openapi",
+        string hubPattern = "/hub/openapi")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockOpenApiManagement requires endpoint routing. Call UseRouting() before MapLLMockOpenApiManagement().");
+        }
+
+        // Map SignalR hub for real-time updates
+        routeBuilder.MapHub<Hubs.OpenApiHub>(hubPattern);
+
+        var specsPattern = $"{pattern.TrimEnd('/')}/specs";
+
+        // List all loaded specs
+        routeBuilder.MapGet(specsPattern, OpenApiManagementEndpoints.HandleListSpecs)
+            .WithName("LLMockApi-OpenApi-ListSpecs");
+
+        // Load a new spec
+        routeBuilder.MapPost(specsPattern, OpenApiManagementEndpoints.HandleLoadSpec)
+            .WithName("LLMockApi-OpenApi-LoadSpec");
+
+        // Get specific spec details
+        routeBuilder.MapGet($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleGetSpec)
+            .WithName("LLMockApi-OpenApi-GetSpec");
+
+        // Delete a spec
+        routeBuilder.MapDelete($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleDeleteSpec)
+            .WithName("LLMockApi-OpenApi-DeleteSpec");
+
+        // Reload a spec
+        routeBuilder.MapPost($"{specsPattern}/{{specName}}/reload", OpenApiManagementEndpoints.HandleReloadSpec)
+            .WithName("LLMockApi-OpenApi-ReloadSpec");
+
+        // Test an endpoint
+        routeBuilder.MapPost($"{pattern.TrimEnd('/')}/test", OpenApiManagementEndpoints.HandleTestEndpoint)
+            .WithName("LLMockApi-OpenApi-TestEndpoint");
+
+        // Context management endpoints
+        var contextsPattern = $"{pattern.TrimEnd('/')}/contexts";
+
+        // List all contexts
+        routeBuilder.MapGet(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleListApiContexts(manager))
+            .WithName("LLMockApi-OpenApi-ListContexts");
+
+        // Get specific context details
+        routeBuilder.MapGet($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleGetApiContext(contextName, manager))
+            .WithName("LLMockApi-OpenApi-GetContext");
+
+        // Clear a specific context
+        routeBuilder.MapDelete($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearApiContext(contextName, manager))
+            .WithName("LLMockApi-OpenApi-ClearContext");
+
+        // Clear all contexts
+        routeBuilder.MapDelete(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearAllApiContexts(manager))
+            .WithName("LLMockApi-OpenApi-ClearAllContexts");
 
         return app;
     }
@@ -497,224 +744,6 @@ public static class LlMockApiExtensions
         }
     }
 
-    private static async Task<IResult> HandleCreateDynamicContext(
-        HttpContext ctx,
-        DynamicHubContextManager contextManager,
-        LlmClient llmClient,
-        ILogger<DynamicHubContextManager> logger)
-    {
-        try
-        {
-            Models.HubContextConfig? config;
-
-            // Check Content-Type to determine how to parse the body
-            var contentType = ctx.Request.ContentType?.ToLowerInvariant() ?? "";
-
-            if (contentType.Contains("application/x-www-form-urlencoded"))
-            {
-                // Parse form-encoded data
-                var form = await ctx.Request.ReadFormAsync();
-                config = new Models.HubContextConfig
-                {
-                    Name = form.ContainsKey("name") ? form["name"].ToString() : string.Empty,
-                    Description = form.ContainsKey("description") ? form["description"].ToString() : string.Empty,
-                    Method = form.ContainsKey("method") && !string.IsNullOrWhiteSpace(form["method"]) ? form["method"].ToString() : "GET",
-                    Path = form.ContainsKey("path") && !string.IsNullOrWhiteSpace(form["path"]) ? form["path"].ToString() : "/data",
-                    Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"]) ? form["body"].ToString() : null,
-                    Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"]) ? form["shape"].ToString() : null
-                };
-            }
-            else
-            {
-                // Parse JSON data
-                using var reader = new StreamReader(ctx.Request.Body);
-                var json = await reader.ReadToEndAsync();
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, options);
-            }
-
-            if (config == null || string.IsNullOrWhiteSpace(config.Name))
-            {
-                return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
-            }
-
-            // If description is provided but no shape, use LLM to generate shape
-            if (!string.IsNullOrWhiteSpace(config.Description) && string.IsNullOrWhiteSpace(config.Shape))
-            {
-                var shapePrompt = $@"Based on this description, generate a JSON schema that defines the data structure.
-Description: {config.Description}
-
-Return ONLY valid JSON schema with no additional text. Include:
-- type, properties, required fields
-- Appropriate data types (string, number, boolean, object, array)
-- Clear descriptions for each property
-
-Example format:
-{{
-  ""type"": ""object"",
-  ""properties"": {{
-    ""fieldName"": {{
-      ""type"": ""string"",
-      ""description"": ""Description of field""
-    }}
-  }},
-  ""required"": [""fieldName""]
-}}";
-
-                try
-                {
-                    var shape = await llmClient.GetCompletionAsync(shapePrompt, ctx.RequestAborted);
-                    config.Shape = shape;
-                    config.IsJsonSchema = true;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to generate shape from description, using description as-is");
-                    config.Shape = config.Description;
-                }
-            }
-
-            var success = contextManager.RegisterContext(config);
-
-            if (success)
-            {
-                logger.LogInformation("Context registered successfully: {Name}, IsActive={IsActive}, ConnectionCount={Count}",
-                    config.Name, config.IsActive, config.ConnectionCount);
-
-                return Results.Ok(new
-                {
-                    message = $"Context '{config.Name}' registered successfully",
-                    context = config
-                });
-            }
-            else
-            {
-                logger.LogWarning("Context registration failed - already exists: {Name}", config.Name);
-                return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error creating dynamic context");
-            return Results.Problem(ex.Message);
-        }
-    }
-
-    private static IResult HandleListContexts(
-        DynamicHubContextManager contextManager,
-        IConfiguration configuration)
-    {
-        // Get dynamic contexts registered at runtime
-        var dynamicContexts = contextManager.GetAllContexts();
-
-        // Also read configured contexts directly from appsettings to ensure they are always present
-        var configured = configuration
-            .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
-            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>() ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
-
-        // Merge configured + dynamic, with dynamic taking precedence on name collisions
-        var merged = new Dictionary<string, mostlylucid.mockllmapi.Models.HubContextConfig>(StringComparer.OrdinalIgnoreCase);
-        foreach (var c in configured)
-        {
-            if (!string.IsNullOrWhiteSpace(c.Name))
-            {
-                merged[c.Name] = c;
-            }
-        }
-        foreach (var c in dynamicContexts)
-        {
-            if (!string.IsNullOrWhiteSpace(c.Name))
-            {
-                merged[c.Name] = c; // override configured with dynamic instance
-            }
-        }
-
-        var contexts = merged.Values.ToList();
-        return Results.Ok(new { contexts, count = contexts.Count });
-    }
-
-    private static IResult HandleGetContext(
-        string contextName,
-        DynamicHubContextManager contextManager,
-        IConfiguration configuration)
-    {
-        // First try dynamic runtime contexts
-        var context = contextManager.GetContext(contextName);
-        if (context != null)
-        {
-            return Results.Ok(context);
-        }
-
-        // Fallback to configured contexts from appsettings.json to ensure visibility even if not dynamically registered
-        var configured = configuration
-            .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
-            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>()
-            ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
-
-        var match = configured.Find(c => !string.IsNullOrWhiteSpace(c.Name) && string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (match != null)
-        {
-            return Results.Ok(match);
-        }
-
-        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-    }
-
-    private static IResult HandleDeleteContext(
-        string contextName,
-        DynamicHubContextManager contextManager)
-    {
-        var success = contextManager.UnregisterContext(contextName);
-
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
-    }
-
-    private static IResult HandleStartContext(
-        string contextName,
-        DynamicHubContextManager contextManager)
-    {
-        var success = contextManager.StartContext(contextName);
-
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
-    }
-
-    private static IResult HandleStopContext(
-        string contextName,
-        DynamicHubContextManager contextManager)
-    {
-        var success = contextManager.StopContext(contextName);
-
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
-    }
-
-    #endregion
-
-    #region Backward Compatibility (Deprecated Method Names)
-
     /// <summary>
     /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
     /// Adds LLMock API services to the service collection using appsettings configuration
@@ -754,6 +783,4 @@ Example format:
     {
         return app.MapLLMockApi(pattern, includeStreaming);
     }
-
-    #endregion
 }
