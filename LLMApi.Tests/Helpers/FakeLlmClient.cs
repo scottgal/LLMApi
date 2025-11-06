@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
+using mostlylucid.mockllmapi.Services.Providers;
 
 namespace LLMApi.Tests.Helpers;
 
@@ -12,12 +14,12 @@ public class FakeLlmClient : LlmClient
 {
     private static int _counter = 0;
 
-    public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
-        : base(options, httpClientFactory, logger)
+    public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger, LlmBackendSelector backendSelector, LlmProviderFactory providerFactory)
+        : base(options, httpClientFactory, logger, backendSelector, providerFactory)
     {
     }
 
-    public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
+    public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, HttpRequest? request = null)
     {
         // Return fake JSON data
         var id = Interlocked.Increment(ref _counter);
@@ -32,7 +34,7 @@ public class FakeLlmClient : LlmClient
         return Task.FromResult(json);
     }
 
-    public new Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default)
+    public new Task<List<string>> GetNCompletionsAsync(string prompt, int count, CancellationToken cancellationToken = default, HttpRequest? request = null)
     {
         var results = new List<string>();
         for (int i = 0; i < count; i++)

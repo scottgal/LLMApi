@@ -399,9 +399,13 @@ public class ChunkingCoordinator
             }
             catch (JsonException ex)
             {
-                _logger.LogWarning(ex, "Failed to parse chunk {ChunkNum} as JSON, including as-is", chunkNum);
+                var preview = chunkResult.Length > 500 ? chunkResult.Substring(0, 500) + "..." : chunkResult;
+                _logger.LogError(ex,
+                    "Failed to parse chunk {ChunkNum} as JSON. Response preview: {Preview}",
+                    chunkNum, preview);
                 // If we can't parse it, we can't combine - just return what we have
-                throw new InvalidOperationException($"Chunk {chunkNum} returned invalid JSON", ex);
+                throw new InvalidOperationException(
+                    $"Chunk {chunkNum} returned invalid JSON. Response: {preview}", ex);
             }
         }
 

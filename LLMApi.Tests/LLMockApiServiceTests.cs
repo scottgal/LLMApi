@@ -266,7 +266,9 @@ public class LLMockApiServiceTests
         var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts, contextStore);
         var promptBuilder = new PromptBuilder(opts);
-        var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance);
+        var backendSelector = new LlmBackendSelector(opts, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
+        var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(opts);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, opts);

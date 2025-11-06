@@ -416,7 +416,9 @@ public class ErrorHandlingTests
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
+        var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var cacheManager = new CacheManager(options, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
@@ -452,7 +454,9 @@ public class ErrorHandlingTests
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
+        var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var handler = new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
@@ -490,7 +494,9 @@ public class ErrorHandlingTests
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
+        var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var handler = new StreamingRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
@@ -530,11 +536,13 @@ public class ErrorHandlingTests
     private class FakeLlmClient : LlmClient
     {
         public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory,
-            Microsoft.Extensions.Logging.ILogger<LlmClient> logger) : base(options, httpClientFactory, logger)
+            Microsoft.Extensions.Logging.ILogger<LlmClient> logger, LlmBackendSelector backendSelector,
+            mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory providerFactory)
+            : base(options, httpClientFactory, logger, backendSelector, providerFactory)
         {
         }
 
-        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
+        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, Microsoft.AspNetCore.Http.HttpRequest? request = null)
         {
             return Task.FromResult("""{"id": 1, "name": "Test"}""");
         }

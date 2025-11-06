@@ -8,8 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
+using mostlylucid.mockllmapi.Services.Providers;
 
 namespace mostlylucid.mockllmapi;
 
@@ -211,6 +213,8 @@ public static class LlMockApiExtensions
             services.AddScoped<ContextExtractor>();
             services.AddScoped<PromptBuilder>();
             services.AddScoped<LlmClient>();
+            services.AddSingleton<LlmBackendSelector>();
+            services.AddSingleton<LlmProviderFactory>();
             services.AddSingleton<CacheManager>();
             services.AddScoped<DelayHelper>();
             services.AddScoped<LLMockApiService>();

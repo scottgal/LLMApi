@@ -48,6 +48,14 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 - **Sliding Window**: Context lifetime refreshes on each use
 - **Case-Insensitive**: Context names work regardless of casing
 
+### Multiple LLM Backend Support (NEW!)
+- **Multi-Provider Architecture**: Connect to Ollama, OpenAI, LM Studio simultaneously
+- **Per-Request Selection**: Route requests to specific backends via headers or query params
+- **Zero Breaking Changes**: Legacy single-backend configs work unchanged
+- **Provider Abstraction**: Unified interface across different LLM services
+- **Future-Ready**: Foundation for round-robin, load balancing, and failover
+- **[Complete Guide](./docs/MULTIPLE_LLM_BACKENDS.md)** with examples for all providers
+
 ### Previous Updates (v1.7.1)
 
 **NO BREAKING CHANGES** - All existing code continues to work!
@@ -142,6 +150,12 @@ This package provides **six independent features** - use any combination you nee
 ## Feature Documentation
 
 For detailed guides with architecture diagrams, use cases, and implementation details:
+
+- **[Multiple LLM Backends Guide](./docs/MULTIPLE_LLM_BACKENDS.md)** - NEW in v1.8.0!
+  - Connect to Ollama, OpenAI, and LM Studio simultaneously
+  - Per-request backend selection via headers/query params
+  - Complete backward compatibility with legacy configs
+  - Provider-specific examples and best practices
 
 - **[API Contexts Guide](./docs/API-CONTEXTS.md)** - NEW!
   - Shared memory across requests for consistent multi-step workflows

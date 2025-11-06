@@ -6,6 +6,58 @@
 
 ### Major Features
 
+#### Multiple LLM Backend Support
+- **Multi-Provider Architecture**: Connect to multiple LLM providers simultaneously (Ollama, OpenAI, LM Studio)
+- **Per-Request Selection**: Route requests to specific backends via `X-LLM-Backend` header or `?backend=` query param
+- **Per-Backend Token Limits**: Configure `MaxTokens` for each backend to match model capabilities
+- **Zero Breaking Changes**: Legacy single-backend configs work unchanged—automatically converted to new format
+- **Provider Abstraction**: Unified `ILlmProvider` interface across different LLM services
+- **Provider Factory**: `LlmProviderFactory` manages provider instances and routing
+- **Resilience Integration**: Retry and circuit breaker policies work across all providers
+- **Future-Ready**: Foundation for round-robin load balancing, health checks, and automatic failover
+
+**Configuration:**
+```json
+{
+  "LLMockApi": {
+    "Backends": [
+      {
+        "Name": "ollama-llama3",
+        "Provider": "ollama",
+        "BaseUrl": "http://localhost:11434/v1/",
+        "ModelName": "llama3",
+        "MaxTokens": 8192,
+        "Enabled": true
+      },
+      {
+        "Name": "openai-gpt4",
+        "Provider": "openai",
+        "BaseUrl": "https://api.openai.com/v1/",
+        "ModelName": "gpt-4",
+        "ApiKey": "sk-...",
+        "MaxTokens": 8192,
+        "Enabled": true
+      }
+    ]
+  }
+}
+```
+
+**Per-Request Selection:**
+```http
+GET /api/mock/users?count=5
+X-LLM-Backend: openai-gpt4
+```
+
+**Backward Compatibility:**
+```json
+{
+  "BaseUrl": "http://localhost:11434/v1/",
+  "ModelName": "llama3"
+}
+```
+Still works! Automatically creates default Ollama backend.
+
 #### Automatic Request Chunking
 - **Intelligent Token Management**: Automatically breaks large requests into optimal chunks that fit within LLM token limits
 - **Transparent Operation**: Works behind the scenes—no API changes required, enabled by default
@@ -74,12 +126,13 @@ GET /api/mock/users?count=100&autoChunk=false
 ```
 
 ### Documentation
+- **[MULTIPLE_LLM_BACKENDS.md](./docs/MULTIPLE_LLM_BACKENDS.md)** - Complete guide to multi-provider configuration
 - **[CHUNKING_AND_CACHING.md](./CHUNKING_AND_CACHING.md)** - Complete guide to chunking and caching systems
 - **[ChunkingAndCaching.http](./ChunkingAndCaching.http)** - Ready-to-run HTTP examples (27 examples)
 - **[README.md](./README.md)** - Updated with v1.8.0 features
 
 ### Testing
-- All 196 tests passing
+- All 191 tests passing (5 gRPC tests skipped)
 - Build succeeded with zero errors
 - Backward compatible with all previous versions
 

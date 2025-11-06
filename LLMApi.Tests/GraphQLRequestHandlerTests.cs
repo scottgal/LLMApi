@@ -42,7 +42,12 @@ public class GraphQLRequestHandlerTests
         var contextStore = new MemoryCacheContextStore(memoryCache, contextStoreLogger);
         var contextManager = new OpenApiContextManager(contextManagerLogger, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
-        llmClient ??= new FakeGraphQLLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
+        if (llmClient == null)
+        {
+            var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+            var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
+            llmClient = new FakeGraphQLLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
+        }
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var logger = NullLogger<GraphQLRequestHandler>.Instance;
@@ -356,10 +361,15 @@ public class GraphQLRequestHandlerTests
     public async Task HandleGraphQLRequest_BadLLMResponse_RetriesAndSucceeds()
     {
         // Arrange
+        var options = CreateOptions();
+        var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new RetryTestLlmClient(
-            CreateOptions(),
+            options,
             new MockHttpClientFactory(),
             NullLogger<LlmClient>.Instance,
+            backendSelector,
+            providerFactory,
             failFirstAttempt: true
         );
 
@@ -399,10 +409,15 @@ public class GraphQLRequestHandlerTests
     public async Task HandleGraphQLRequest_InvalidJsonFromLLM_ReturnsError()
     {
         // Arrange
+        var options = CreateOptions();
+        var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new BadJsonLlmClient(
-            CreateOptions(),
+            options,
             new MockHttpClientFactory(),
-            NullLogger<LlmClient>.Instance
+            NullLogger<LlmClient>.Instance,
+            backendSelector,
+            providerFactory
         );
 
         var handler = CreateHandler(llmClient);
@@ -438,12 +453,12 @@ public class GraphQLRequestHandlerTests
     /// </summary>
     private class FakeGraphQLLlmClient : LlmClient
     {
-        public FakeGraphQLLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
-            : base(options, httpClientFactory, logger)
+        public FakeGraphQLLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger, LlmBackendSelector backendSelector, mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory providerFactory)
+            : base(options, httpClientFactory, logger, backendSelector, providerFactory)
         {
         }
 
-        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
+        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, Microsoft.AspNetCore.Http.HttpRequest? request = null)
         {
             // Parse prompt to detect what GraphQL query is being requested
             // Check for multiple top-level fields first (most specific)
@@ -522,13 +537,13 @@ public class GraphQLRequestHandlerTests
         public int AttemptCount { get; private set; }
 
         public RetryTestLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory,
-            ILogger<LlmClient> logger, bool failFirstAttempt)
-            : base(options, httpClientFactory, logger)
+            ILogger<LlmClient> logger, LlmBackendSelector backendSelector, mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory providerFactory, bool failFirstAttempt)
+            : base(options, httpClientFactory, logger, backendSelector, providerFactory)
         {
             _failFirstAttempt = failFirstAttempt;
         }
 
-        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
+        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, Microsoft.AspNetCore.Http.HttpRequest? request = null)
         {
             AttemptCount++;
 
@@ -561,12 +576,12 @@ public class GraphQLRequestHandlerTests
     {
         public int AttemptCount { get; private set; }
 
-        public BadJsonLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger)
-            : base(options, httpClientFactory, logger)
+        public BadJsonLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory, ILogger<LlmClient> logger, LlmBackendSelector backendSelector, mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory providerFactory)
+            : base(options, httpClientFactory, logger, backendSelector, providerFactory)
         {
         }
 
-        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null)
+        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, Microsoft.AspNetCore.Http.HttpRequest? request = null)
         {
             AttemptCount++;
             // Return severely malformed JSON that can't be parsed or cleaned up

@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The repository contains three projects:
 - **mostlylucid.mockllmapi**: The NuGet package library (main deliverable)
 - **LLMApi**: Demo application showing usage
-- **LLMApi.Tests**: Comprehensive test suite (196 tests)
+- **LLMApi.Tests**: Comprehensive test suite (191 tests passing, 5 gRPC tests skipped)
 
 ## Core Architecture
 
@@ -54,6 +54,64 @@ The repository contains three projects:
 - **Streaming format**: `{"chunk":"...","done":false}` per token, final `{"content":"...","done":true}`
 - **HttpClientFactory**: Proper disposal and timeout management
 - **Error handling**: All endpoints catch exceptions and return JSON errors
+
+### LLM Provider Architecture (v1.8.0+)
+
+**Services/Providers/ILlmProvider.cs**
+- Provider abstraction interface
+- Methods: `GetCompletionAsync()`, `GetStreamingCompletionAsync()`, `GetNCompletionsAsync()`, `ConfigureClient()`
+- Property: `Name` (provider identifier)
+
+**Services/Providers/OllamaProvider.cs**
+- Default provider for local Ollama instances
+- Optional API key support
+- OpenAI-compatible API format
+
+**Services/Providers/OpenAIProvider.cs**
+- Official OpenAI API provider
+- Required API key (throws if missing)
+- Full streaming and n-completions support
+
+**Services/Providers/LMStudioProvider.cs**
+- Local LM Studio provider
+- OpenAI-compatible format
+- Optional API key
+
+**Services/Providers/LlmProviderFactory.cs**
+- Factory pattern for provider management
+- Registry: `ollama`, `openai`, `lmstudio`
+- Fallback to Ollama for unknown providers
+
+**Services/LlmBackendSelector.cs**
+- Selects backend from configuration
+- Per-request selection via `X-LLM-Backend` header or `?backend=` query param
+- Falls back to first enabled backend
+
+**Services/LlmClient.cs** (Updated)
+- Now uses `LlmProviderFactory` for API calls
+- Methods accept optional `HttpRequest?` parameter for per-request backend selection
+- Resilience pipeline works across all providers
+
+**Configuration (LLMockApiOptions.cs)**
+- `Backends` array: List of `LlmBackendConfig`
+- Legacy `BaseUrl`/`ModelName` still supported (creates default Ollama backend)
+- Backward compatible - no breaking changes
+
+**LlmBackendConfig Properties:**
+- `Name`: Unique identifier for backend selection
+- `Provider`: "ollama", "openai", or "lmstudio"
+- `BaseUrl`: Full endpoint URL
+- `ModelName`: Model identifier
+- `ApiKey`: Optional API key (required for OpenAI)
+- `Enabled`: Active/inactive flag
+- `Weight`: Reserved for future load balancing
+- `MaxTokens`: Optional max output tokens (overrides global `MaxOutputTokens`)
+
+**Provider Selection Flow:**
+1. Check for `X-LLM-Backend` header
+2. Check for `?backend=` query parameter
+3. Fall back to first enabled backend in `Backends` array
+4. If no backends configured, use legacy `BaseUrl`/`ModelName`
 
 ## Development Commands
 

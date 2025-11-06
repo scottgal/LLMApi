@@ -21,6 +21,12 @@ public static class JsonExtractor
         // Clean up common LLM artifacts that break JSON parsing
         trimmed = CleanupLlmArtifacts(trimmed);
 
+        // Fix comma-separated objects (should be array)
+        if (trimmed.StartsWith("{") && !trimmed.StartsWith("["))
+        {
+            trimmed = WrapCommaSeparatedObjectsInArray(trimmed);
+        }
+
         // Check if it's already valid JSON
         if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
             (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
@@ -90,6 +96,45 @@ public static class JsonExtractor
         // Remove empty array/object elements created by cleanup
         json = Regex.Replace(json, @"\[\s*,\s*", "[");  // [, -> [
         json = Regex.Replace(json, @",\s*,\s*", ",");   // ,, -> ,
+
+        return json;
+    }
+
+    /// <summary>
+    /// Wraps comma-separated JSON objects in an array
+    /// Handles cases where LLM returns: {...}, {...}, {...} instead of [{...}, {...}, {...}]
+    /// </summary>
+    private static string WrapCommaSeparatedObjectsInArray(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return json;
+
+        // Check if this looks like comma-separated objects
+        // Pattern: starts with {, contains }, { pattern
+        if (json.StartsWith("{") && json.Contains("}, {"))
+        {
+            // Try to parse as-is first
+            try
+            {
+                JsonDocument.Parse(json);
+                return json; // Already valid
+            }
+            catch (JsonException)
+            {
+                // Not valid, try wrapping in array
+                var wrapped = $"[{json}]";
+                try
+                {
+                    JsonDocument.Parse(wrapped);
+                    return wrapped; // Wrapping fixed it
+                }
+                catch
+                {
+                    // Still invalid, return original
+                    return json;
+                }
+            }
+        }
 
         return json;
     }
