@@ -192,6 +192,138 @@ app.Run();
 
 ---
 
+### gRPC Only
+
+Perfect for testing gRPC clients with dynamic proto definitions:
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register services (gRPC included in AddLLMockApi)
+builder.Services.AddLLMockApi(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map ONLY gRPC endpoints
+app.MapLLMockGrpcManagement("/api/grpc-protos");  // Proto file management
+app.MapLLMockGrpc("/api/grpc");                   // gRPC service calls
+
+app.Run();
+```
+
+**This creates:**
+- `/api/grpc-protos` - Upload/manage .proto files (POST, GET, DELETE)
+- `/api/grpc/{serviceName}/{methodName}` - Invoke mock gRPC methods
+
+**Benefits:**
+- Dynamic proto upload without recompilation
+- Perfect for gRPC client testing
+- LLM generates realistic protobuf responses
+
+**Usage example:**
+```bash
+# 1. Upload a proto definition
+curl -X POST http://localhost:5116/api/grpc-protos \
+  -H "Content-Type: text/plain" \
+  --data 'syntax = "proto3"; service UserService { rpc GetUser(GetUserRequest) returns (User); }'
+
+# 2. Call the gRPC method
+curl -X POST http://localhost:5116/api/grpc/UserService/GetUser \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 123}'
+```
+
+---
+
+### OpenAPI Only
+
+Perfect for mocking existing OpenAPI/Swagger specs:
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register ONLY OpenAPI services
+builder.Services.AddLLMockOpenApi(options =>
+{
+    options.BaseUrl = "http://localhost:11434/v1/";
+    options.ModelName = "llama3";
+    options.OpenApiSpecs = new List<OpenApiSpecConfig>
+    {
+        new OpenApiSpecConfig
+        {
+            Name = "PetStore",
+            Source = "https://petstore3.swagger.io/api/v3/openapi.json",
+            BasePath = "/api/petstore"
+        }
+    };
+});
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map ONLY OpenAPI endpoints
+app.MapLLMockOpenApi();                      // Loads configured specs
+app.MapLLMockOpenApiManagement("/api/specs"); // Dynamic spec management
+
+app.Run();
+```
+
+**This creates:**
+- All endpoints defined in your OpenAPI spec (e.g., `/api/petstore/pet/{petId}`)
+- `/api/specs` - Upload/manage OpenAPI specs dynamically (POST, GET, DELETE)
+
+**Benefits:**
+- Automatically mock entire OpenAPI specs
+- No manual endpoint mapping required
+- Supports both static (configured) and dynamic (uploaded) specs
+- Perfect for API contract testing
+
+---
+
+### Context Management API
+
+Add context history viewing and modification:
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register REST services
+builder.Services.AddLLMockRest(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map REST endpoints
+app.MapLLMockRest("/api/mock");
+
+// Add context management API
+app.MapLLMockApiContextManagement("/api/contexts");
+
+app.Run();
+```
+
+**This creates:**
+- `/api/mock/**` - REST endpoints
+- `/api/contexts/{contextId}` - View/modify conversation history
+
+**Benefits:**
+- View LLM conversation history for debugging
+- Modify context to steer responses
+- Clear context to reset state
+- Perfect for testing stateful scenarios
+
+---
+
 ### Mix and Match
 
 Combine protocols as needed for your use case:
@@ -287,6 +419,133 @@ app.Run();
 - `/api/graphql/graphql` - GraphQL endpoint
 - `/hub/live` - SignalR hub
 - `/api/hub/contexts` - SignalR management
+
+---
+
+#### Example 4: REST + OpenAPI + Context Management
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register REST and OpenAPI services
+builder.Services.AddLLMockRest(builder.Configuration);
+builder.Services.AddLLMockOpenApi(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map all three capabilities
+app.MapLLMockRest("/api/mock");
+app.MapLLMockOpenApi();
+app.MapLLMockApiContextManagement("/api/contexts");
+
+app.Run();
+```
+
+**This creates:**
+- `/api/mock/**` - REST endpoints
+- OpenAPI spec endpoints (from configured specs)
+- `/api/contexts/{contextId}` - Context management
+- No streaming, GraphQL, SignalR, or gRPC
+
+---
+
+#### Example 5: gRPC + OpenAPI (Protocol Bridge Testing)
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register services for both protocols
+builder.Services.AddLLMockApi(builder.Configuration);  // Includes gRPC
+builder.Services.AddLLMockOpenApi(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map both protocols
+app.MapLLMockGrpcManagement("/api/grpc-protos");
+app.MapLLMockGrpc("/api/grpc");
+app.MapLLMockOpenApi();
+
+app.Run();
+```
+
+**This creates:**
+- `/api/grpc-protos` - gRPC proto management
+- `/api/grpc/{service}/{method}` - gRPC calls
+- OpenAPI spec endpoints
+- Perfect for testing protocol bridges/gateways
+
+---
+
+#### Example 6: Everything Modular (Full Stack Testing)
+
+```csharp
+using mostlylucid.mockllmapi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register everything modularly
+builder.Services.AddLLMockRest(builder.Configuration);
+builder.Services.AddLLMockStreaming(builder.Configuration);
+builder.Services.AddLLMockGraphQL(builder.Configuration);
+builder.Services.AddLLMockSignalR(builder.Configuration);
+builder.Services.AddLLMockOpenApi(options =>
+{
+    options.BaseUrl = "http://localhost:11434/v1/";
+    options.ModelName = "llama3";
+    options.OpenApiSpecs = new List<OpenApiSpecConfig>
+    {
+        new OpenApiSpecConfig
+        {
+            Name = "External API",
+            Source = "https://api.example.com/openapi.json",
+            BasePath = "/api/external"
+        }
+    };
+});
+
+var app = builder.Build();
+
+app.UseRouting();
+
+// Map everything at different paths
+app.MapLLMockRest("/api/rest");
+app.MapLLMockStreaming("/api/stream");
+app.MapLLMockGraphQL("/api/graphql");
+app.MapLLMockSignalR("/hub/realtime", "/api/hub");
+app.MapLLMockOpenApi();
+app.MapLLMockOpenApiManagement("/api/specs");
+app.MapLLMockGrpcManagement("/api/grpc-protos");
+app.MapLLMockGrpc("/api/grpc");
+app.MapLLMockApiContextManagement("/api/contexts");
+
+app.Run();
+```
+
+**This creates:**
+- `/api/rest/**` - REST endpoints
+- `/api/stream/stream/**` - SSE streaming
+- `/api/graphql/graphql` - GraphQL endpoint
+- `/hub/realtime` - SignalR hub
+- `/api/hub/contexts` - SignalR management
+- `/api/external/**` - OpenAPI spec endpoints
+- `/api/specs` - OpenAPI management
+- `/api/grpc-protos` - gRPC proto management
+- `/api/grpc/{service}/{method}` - gRPC calls
+- `/api/contexts/{contextId}` - Context management
+
+**Perfect for:**
+- Comprehensive integration testing
+- Testing microservice architectures
+- Multi-protocol API gateways
+- Full-stack development with various client types
 
 ---
 
@@ -406,12 +665,30 @@ Both approaches work identically, but the modular approach is more explicit and 
 
 ## Summary
 
+### Core Protocol Services
+
 | Approach | Add Method | Map Method | Use Case |
 |----------|------------|------------|----------|
-| **Unified** | `AddLLMockApi()` | `MapLLMockApi()` | Everything, backward compatible |
+| **Unified** | `AddLLMockApi()` | `MapLLMockApi()` | Everything (REST+Streaming+GraphQL+gRPC), backward compatible |
 | **REST** | `AddLLMockRest()` | `MapLLMockRest()` | Simple REST mocking |
 | **GraphQL** | `AddLLMockGraphQL()` | `MapLLMockGraphQL()` | GraphQL-only apps |
 | **Streaming** | `AddLLMockStreaming()` | `MapLLMockStreaming()` | SSE streaming only |
 | **SignalR** | `AddLLMockSignalR()` | `MapLLMockSignalR()` | Real-time WebSocket data |
+| **OpenAPI** | `AddLLMockOpenApi()` | `MapLLMockOpenApi()` | Mock from OpenAPI/Swagger specs |
+
+### Additional Features (No Add Method Required)
+
+| Feature | Map Method | Use Case |
+|---------|------------|----------|
+| **gRPC Management** | `MapLLMockGrpcManagement()` | Upload/manage .proto files |
+| **gRPC Calls** | `MapLLMockGrpc()` | Invoke mock gRPC methods |
+| **OpenAPI Management** | `MapLLMockOpenApiManagement()` | Dynamically load OpenAPI specs |
+| **Context Management** | `MapLLMockApiContextManagement()` | View/modify LLM conversation history |
+
+**Notes:**
+- gRPC services are included in `AddLLMockApi()` but map separately
+- OpenAPI management allows dynamic spec loading at runtime
+- Context management works with any protocol that maintains conversation state
+- All features can be mixed and matched as needed
 
 **Choose the approach that best fits your needs!**
