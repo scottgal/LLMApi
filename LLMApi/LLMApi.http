@@ -445,3 +445,402 @@ GET {{LLMApi_HostAddress}}/api/mock/users?error=422&errorMessage=Validation%20fa
 Accept: application/json
 
 ###
+
+###############################################################################
+# OPENAPI MANAGEMENT ENDPOINTS
+# Load, manage, and use OpenAPI specifications dynamically
+###############################################################################
+
+### OPENAPI: List all loaded specs
+GET {{LLMApi_HostAddress}}/api/openapi/specs
+Accept: application/json
+
+###
+
+### OPENAPI: Load a new spec (Petstore example)
+POST {{LLMApi_HostAddress}}/api/openapi/specs
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "petstore",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/petstore"
+}
+
+###
+
+### OPENAPI: Get details of loaded spec
+GET {{LLMApi_HostAddress}}/api/openapi/specs/petstore
+Accept: application/json
+
+###
+
+### OPENAPI: List all endpoints from loaded spec
+GET {{LLMApi_HostAddress}}/api/openapi/specs/petstore/endpoints
+Accept: application/json
+
+###
+
+### OPENAPI: Describe a specific endpoint
+GET {{LLMApi_HostAddress}}/api/openapi/specs/petstore/endpoints/get:/pet/{petId}
+Accept: application/json
+
+###
+
+### OPENAPI: Call a loaded endpoint (Petstore get pet)
+GET {{LLMApi_HostAddress}}/petstore/pet/42
+Accept: application/json
+
+###
+
+### OPENAPI: Unload a spec
+DELETE {{LLMApi_HostAddress}}/api/openapi/specs/petstore
+Accept: application/json
+
+###
+
+###############################################################################
+# API CONTEXTS MANAGEMENT
+# Create and manage named API contexts with history and descriptions
+###############################################################################
+
+### CONTEXTS: List all contexts
+GET {{LLMApi_HostAddress}}/api/contexts
+Accept: application/json
+
+###
+
+### CONTEXTS: Create a new context
+POST {{LLMApi_HostAddress}}/api/contexts
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "shopping-api",
+  "description": "Mock e-commerce API for product catalog and cart operations",
+  "initialHistory": "This API serves a marketplace with electronics, books, and home goods."
+}
+
+###
+
+### CONTEXTS: Get context details
+GET {{LLMApi_HostAddress}}/api/contexts/shopping-api
+Accept: application/json
+
+###
+
+### CONTEXTS: Update context description
+PATCH {{LLMApi_HostAddress}}/api/contexts/shopping-api
+Content-Type: application/json
+Accept: application/json
+
+{
+  "description": "Enhanced e-commerce API with payment processing",
+  "additionalHistory": "Now supports credit cards, PayPal, and cryptocurrency payments."
+}
+
+###
+
+### CONTEXTS: Make a request with context (uses history)
+GET {{LLMApi_HostAddress}}/api/mock/shopping-api/products?category=electronics&limit=5
+X-Context-Name: shopping-api
+Accept: application/json
+
+###
+
+### CONTEXTS: Load context from OpenAPI spec
+POST {{LLMApi_HostAddress}}/api/contexts/from-spec
+Content-Type: application/json
+Accept: application/json
+
+{
+  "specName": "petstore",
+  "contextName": "petstore-context",
+  "description": "Context loaded from Petstore OpenAPI spec"
+}
+
+###
+
+### CONTEXTS: Pause a context
+POST {{LLMApi_HostAddress}}/api/contexts/shopping-api/pause
+Accept: application/json
+
+###
+
+### CONTEXTS: Resume a context
+POST {{LLMApi_HostAddress}}/api/contexts/shopping-api/resume
+Accept: application/json
+
+###
+
+### CONTEXTS: Delete a context
+DELETE {{LLMApi_HostAddress}}/api/contexts/shopping-api
+Accept: application/json
+
+###
+
+###############################################################################
+# GRPC PROTO MANAGEMENT
+# Upload and manage .proto files for gRPC mocking
+###############################################################################
+
+### GRPC: Upload a proto file (text/plain)
+POST {{LLMApi_HostAddress}}/api/grpc/protos
+Content-Type: text/plain
+Accept: application/json
+
+syntax = "proto3";
+
+package greet;
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc SayHelloStream (HelloRequest) returns (stream HelloReply);
+}
+
+message HelloRequest {
+  string name = 1;
+  int32 age = 2;
+}
+
+message HelloReply {
+  string message = 1;
+  int64 timestamp = 2;
+}
+
+###
+
+### GRPC: List all uploaded protos
+GET {{LLMApi_HostAddress}}/api/grpc/protos
+Accept: application/json
+
+###
+
+### GRPC: Get specific proto details
+GET {{LLMApi_HostAddress}}/api/grpc/protos/Greeter
+Accept: application/json
+
+###
+
+### GRPC: List services in a proto
+GET {{LLMApi_HostAddress}}/api/grpc/protos/Greeter/services
+Accept: application/json
+
+###
+
+### GRPC: Call unary RPC method
+POST {{LLMApi_HostAddress}}/api/grpc/call/unary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "serviceName": "greet.Greeter",
+  "methodName": "SayHello",
+  "request": {
+    "name": "Alice",
+    "age": 30
+  }
+}
+
+###
+
+### GRPC: Call server streaming RPC method
+POST {{LLMApi_HostAddress}}/api/grpc/call/stream
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "serviceName": "greet.Greeter",
+  "methodName": "SayHelloStream",
+  "request": {
+    "name": "Bob",
+    "age": 25
+  }
+}
+
+###
+
+### GRPC: Delete a proto file
+DELETE {{LLMApi_HostAddress}}/api/grpc/protos/Greeter
+Accept: application/json
+
+###
+
+###############################################################################
+# CONTINUOUS SSE STREAMING
+# Long-lived Server-Sent Events connections (SignalR-style streaming)
+###############################################################################
+
+### SSE: Start a continuous stream (runs indefinitely until client disconnects)
+GET {{LLMApi_HostAddress}}/api/mock/stream/live/stock-prices?symbol=AAPL&interval=5
+Accept: text/event-stream
+
+###
+
+### SSE: Continuous stream with shape and context
+GET {{LLMApi_HostAddress}}/api/mock/stream/live/sensors?sensorId=temp-01
+X-Response-Shape: {"sensorId":"string","temperature":0.0,"humidity":0.0,"timestamp":"string"}
+X-Context-Name: iot-sensors
+Accept: text/event-stream
+
+###
+
+###############################################################################
+# CHUNKING AND LARGE RESPONSES
+# Test automatic chunking when responses exceed token limits
+###############################################################################
+
+### CHUNKING: Request large array (triggers multi-chunk processing)
+GET {{LLMApi_HostAddress}}/api/mock/users?count=100&shape=%5B%7B%22id%22%3A0%2C%22name%22%3A%22string%22%2C%22email%22%3A%22string%22%2C%22department%22%3A%22string%22%2C%22role%22%3A%22string%22%2C%22joinDate%22%3A%22string%22%7D%5D
+Accept: application/json
+
+###
+
+### CHUNKING: Large nested objects with complex structure
+# Decoded shape: [{"orderId":"string","customer":{"id":"string","name":"string","address":{"street":"string","city":"string","state":"string","zip":"string"}},"items":[{"sku":"string","name":"string","price":0.0,"quantity":0}],"total":0.0}]
+GET {{LLMApi_HostAddress}}/api/mock/orders/bulk?count=50&shape=%5B%7B%22orderId%22%3A%22string%22%2C%22customer%22%3A%7B%22id%22%3A%22string%22%2C%22name%22%3A%22string%22%2C%22address%22%3A%7B%22street%22%3A%22string%22%2C%22city%22%3A%22string%22%2C%22state%22%3A%22string%22%2C%22zip%22%3A%22string%22%7D%7D%2C%22items%22%3A%5B%7B%22sku%22%3A%22string%22%2C%22name%22%3A%22string%22%2C%22price%22%3A0.0%2C%22quantity%22%3A0%7D%5D%2C%22total%22%3A0.0%7D%5D
+Accept: application/json
+
+###
+
+###############################################################################
+# CONTEXT HISTORY AND CUSTOM DESCRIPTIONS
+# Use context history and custom endpoint descriptions for better responses
+###############################################################################
+
+### DESCRIPTION: Custom endpoint description via header
+GET {{LLMApi_HostAddress}}/api/mock/products/recommendations?userId=123
+X-Description: Generate personalized product recommendations based on user purchase history and browsing behavior
+X-Response-Shape: {"recommendations":[{"productId":"string","name":"string","score":0.0,"reason":"string"}]}
+Accept: application/json
+
+###
+
+### CONTEXT + DESCRIPTION: Combined context and description
+POST {{LLMApi_HostAddress}}/api/mock/shopping-api/checkout
+X-Context-Name: shopping-api
+X-Description: Process checkout with payment validation, inventory check, and order confirmation
+Content-Type: application/json
+Accept: application/json
+
+{
+  "cartId": "cart-789",
+  "paymentMethod": "credit_card",
+  "shippingAddress": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zip": "94102"
+  }
+}
+
+###
+
+###############################################################################
+# BACKEND SELECTION
+# Select different LLM backends per request (v1.8.0+)
+###############################################################################
+
+### BACKEND: Use specific backend via header
+GET {{LLMApi_HostAddress}}/api/mock/products?category=electronics
+X-LLM-Backend: ollama
+Accept: application/json
+
+###
+
+### BACKEND: Use specific backend via query param
+GET {{LLMApi_HostAddress}}/api/mock/users?backend=openai&limit=5
+Accept: application/json
+
+###
+
+###############################################################################
+# SCHEMA VALIDATION
+# Request response schema in headers for validation
+###############################################################################
+
+### SCHEMA: Get schema in X-Response-Schema header
+GET {{LLMApi_HostAddress}}/api/mock/products/featured?includeSchema=true
+X-Response-Shape: {"products":[{"id":"string","name":"string","price":0.0}],"total":0}
+Accept: application/json
+
+###
+
+### SCHEMA: Verify schema matches shape with complex nested structure
+POST {{LLMApi_HostAddress}}/api/mock/orders?includeSchema=true
+X-Response-Shape: {"orderId":"string","items":[{"sku":"string","qty":0}],"total":0.0,"shipping":{"method":"string","cost":0.0}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "customerId": "cus_999"
+}
+
+###
+
+###############################################################################
+# COMPREHENSIVE VALIDATION TESTS
+# Test multiple features together to validate end-to-end functionality
+###############################################################################
+
+### VALIDATION: All features combined (shape + cache + schema + context + description)
+GET {{LLMApi_HostAddress}}/api/mock/analytics/dashboard?period=30days&includeSchema=true&shape=%7B%22%24cache%22%3A3%2C%22summary%22%3A%7B%22totalRevenue%22%3A0.0%2C%22orderCount%22%3A0%2C%22avgOrderValue%22%3A0.0%7D%2C%22topProducts%22%3A%5B%7B%22sku%22%3A%22string%22%2C%22name%22%3A%22string%22%2C%22revenue%22%3A0.0%7D%5D%7D
+X-Context-Name: shopping-api
+X-Description: Generate comprehensive analytics dashboard with revenue trends and top-selling products
+Accept: application/json
+
+###
+
+### VALIDATION: Streaming with all features (shape + context + backend)
+GET {{LLMApi_HostAddress}}/api/mock/stream/real-time/metrics?interval=10
+X-Response-Shape: {"timestamp":"string","cpu":0.0,"memory":0.0,"requests":0,"errors":0}
+X-Context-Name: monitoring
+X-Description: Real-time system metrics with CPU, memory, and request statistics
+X-LLM-Backend: ollama
+Accept: text/event-stream
+
+###
+
+### VALIDATION: Error handling with context
+GET {{LLMApi_HostAddress}}/api/mock/shopping-api/orders/invalid?error=404&errorMessage=Order%20not%20found&errorDetails=No%20order%20exists%20with%20the%20specified%20ID
+X-Context-Name: shopping-api
+Accept: application/json
+
+###
+
+### VALIDATION: GraphQL with shape and error simulation
+POST {{LLMApi_HostAddress}}/api/mock/graphql
+X-Response-Shape: {"data":{"products":[{"id":"string","name":"string","price":0.0}]}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "query": "{ products(category: \"electronics\", limit: 10) { id name price inStock tags } }"
+}
+
+###
+
+###############################################################################
+# END OF VALIDATION SUITE
+# This file covers:
+# ✅ Basic REST endpoints (GET, POST, PUT, DELETE)
+# ✅ Shape control (query param, header, body field)
+# ✅ Streaming endpoints (SSE)
+# ✅ Continuous SSE streaming (SignalR-style)
+# ✅ GraphQL endpoint
+# ✅ Error simulation (comprehensive)
+# ✅ Response caching ($cache)
+# ✅ OpenAPI management
+# ✅ API context management
+# ✅ gRPC proto management (text-based)
+# ✅ gRPC service calls (unary and streaming)
+# ✅ Chunking and large responses
+# ✅ Context history and custom descriptions
+# ✅ Backend selection (X-LLM-Backend)
+# ✅ Schema validation (includeSchema + X-Response-Schema)
+# ✅ Combined feature validation
+#
+# ⚠️  Not included: Binary protobuf (as requested)
+# ⚠️  SignalR WebSocket testing (requires WebSocket client)
+###############################################################################

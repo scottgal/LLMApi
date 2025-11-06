@@ -72,15 +72,26 @@ public class PromptBuilder(IOptions<LLMockApiOptions> options)
             : "TASK: Generate a varied mock API response.\n";
 
         return $@"{baseInstr}
-RULES: Output ONLY one valid JSON object/array. No markdown, no comments, no extra text.{context}
+RULES: Output ONLY valid JSON (object or array). Arrays MUST start with [ and end with ]. No markdown, no comments, no extra text.{context}
 RandomSeed: {randomSeed}, Time: {timestamp}
 {desc}Method: {method}
 Path: {fullPathWithQuery}
 Body: {body ?? "none"}";
     }
 
-    private string BuildShapeConstraint(string shape) =>
-        $"\nSHAPE: Strictly match this JSON shape. Keep property names/types consistent.\n{shape}\n";
+    private string BuildShapeConstraint(string shape)
+    {
+        // Check if shape is an array to provide explicit array instructions
+        var trimmedShape = shape.TrimStart();
+        var isArrayShape = trimmedShape.StartsWith("[");
+
+        if (isArrayShape)
+        {
+            return $"\nSHAPE: Strictly match this JSON array shape.\n{shape}\n\nCRITICAL FORMATTING RULES FOR ARRAYS:\n- Your FIRST character MUST be: [\n- Your LAST character MUST be: ]\n- Separate objects with commas INSIDE the array: [{{...}},{{...}},{{...}}]\n- NEVER output: {{...}},{{...}} (this is WRONG)\n- ALWAYS output: [{{...}},{{...}}] (this is CORRECT)\n";
+        }
+
+        return $"\nSHAPE: Strictly match this JSON shape. Keep property names/types consistent.\n{shape}\n";
+    }
 
     private string BuildJsonSchemaConstraint(string jsonSchema) =>
         $"\nSCHEMA: Output must validate against this JSON Schema.\n{jsonSchema}\n";

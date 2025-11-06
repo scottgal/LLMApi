@@ -444,6 +444,7 @@ public class ChunkingCoordinator
 
         context += "\nEnsure consistency with the above data (IDs, names, relationships, style).\n";
         context += "Continue numbering, IDs, and patterns logically from where the previous part left off.\n";
+        context += "\nCRITICAL: Output MUST be a valid JSON array starting with [ and ending with ]. Do NOT output comma-separated objects.\n";
 
         return context;
     }
