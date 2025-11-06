@@ -156,13 +156,15 @@ public class MockDataBackgroundService(
             var queue = _contextCaches.GetOrAdd(contextConfig.Name, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
             if (queue.IsEmpty)
             {
-                await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
+                await PrefillContextCacheAsync(contextConfig.Name, contextConfig.BackendName, contextConfig.BackendNames, llmClient, prompt, cancellationToken);
             }
 
             if (!queue.TryDequeue(out var cleanJson) || string.IsNullOrWhiteSpace(cleanJson))
             {
                 // Fallback to single fetch if still empty
-                var single = await llmClient.GetCompletionAsync(prompt, cancellationToken);
+                var single = contextConfig.BackendNames != null && contextConfig.BackendNames.Length > 0
+                    ? await llmClient.GetCompletionAsync(prompt, contextConfig.BackendNames, cancellationToken)
+                    : await llmClient.GetCompletionAsync(prompt, contextConfig.BackendName, cancellationToken);
                 cleanJson = ExtractJson(single);
             }
             else
@@ -171,7 +173,7 @@ public class MockDataBackgroundService(
                 int optimalBatch = GetOptimalBatchSize(contextConfig.Name);
                 if (queue.Count < Math.Max(1, optimalBatch / 2))
                 {
-                    _ = Task.Run(() => PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken));
+                    _ = Task.Run(() => PrefillContextCacheAsync(contextConfig.Name, contextConfig.BackendName, contextConfig.BackendNames, llmClient, prompt, cancellationToken));
                 }
             }
 
@@ -271,7 +273,7 @@ public class MockDataBackgroundService(
                         description: contextConfig.Description,
                         contextHistory: contextHistory);
 
-                    await PrefillContextCacheAsync(contextConfig.Name, llmClient, prompt, cancellationToken);
+                    await PrefillContextCacheAsync(contextConfig.Name, contextConfig.BackendName, contextConfig.BackendNames, llmClient, prompt, cancellationToken);
                     _initialPrefillComplete.TryAdd(contextConfig.Name, true);
                     logger.LogInformation("Pre-filled cache for context: {Context}", contextConfig.Name);
                 }
@@ -289,18 +291,26 @@ public class MockDataBackgroundService(
     /// <summary>
     /// Extracts clean JSON from LLM response that might include markdown or explanatory text
     /// Measures generation time on first call to calculate optimal batch size
+    /// Supports both single backend and multi-backend load balancing
     /// </summary>
-    private async Task PrefillContextCacheAsync(string contextName, LlmClient llmClient, string prompt, CancellationToken cancellationToken)
+    private async Task PrefillContextCacheAsync(string contextName, string? backendName, string[]? backendNames, LlmClient llmClient, string prompt, CancellationToken cancellationToken)
     {
         try
         {
+            var backendDesc = backendNames != null && backendNames.Length > 0
+                ? $"[{string.Join(", ", backendNames)}]"
+                : backendName ?? "default";
+
             // If this is the first time, measure generation time with a single response
             if (!_optimalBatchSizes.ContainsKey(contextName))
             {
-                logger.LogDebug("Measuring generation time for context: {Context}", contextName);
+                logger.LogDebug("Measuring generation time for context: {Context} using backend: {Backend}",
+                    contextName, backendDesc);
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                var singleResult = await llmClient.GetCompletionAsync(prompt, cancellationToken);
+                var singleResult = backendNames != null && backendNames.Length > 0
+                    ? await llmClient.GetCompletionAsync(prompt, backendNames, cancellationToken)
+                    : await llmClient.GetCompletionAsync(prompt, backendName, cancellationToken);
                 var cleanJson = ExtractJson(singleResult);
 
                 stopwatch.Stop();
@@ -315,8 +325,8 @@ public class MockDataBackgroundService(
                 _optimalBatchSizes.TryAdd(contextName, optimalBatch);
 
                 logger.LogInformation(
-                    "Context {Context}: generation time={GenerationMs}ms, push interval={PushMs}ms, optimal batch size={BatchSize}",
-                    contextName, generationTimeMs, pushIntervalMs, optimalBatch);
+                    "Context {Context}: generation time={GenerationMs}ms, push interval={PushMs}ms, optimal batch size={BatchSize}, backend={Backend}",
+                    contextName, generationTimeMs, pushIntervalMs, optimalBatch, backendDesc);
 
                 // Add the first generated response to cache
                 var queue = _contextCaches.GetOrAdd(contextName, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
@@ -328,7 +338,9 @@ public class MockDataBackgroundService(
                 // Now generate the rest of the batch
                 if (optimalBatch > 1)
                 {
-                    var results = await llmClient.GetNCompletionsAsync(prompt, optimalBatch - 1, cancellationToken);
+                    var results = backendNames != null && backendNames.Length > 0
+                        ? await llmClient.GetNCompletionsAsync(prompt, optimalBatch - 1, backendNames, cancellationToken)
+                        : await llmClient.GetNCompletionsAsync(prompt, optimalBatch - 1, backendName, cancellationToken);
                     foreach (var r in results)
                     {
                         var json = ExtractJson(r);
@@ -343,7 +355,9 @@ public class MockDataBackgroundService(
             {
                 // Use the previously calculated optimal batch size
                 int batch = GetOptimalBatchSize(contextName);
-                var results = await llmClient.GetNCompletionsAsync(prompt, batch, cancellationToken);
+                var results = backendNames != null && backendNames.Length > 0
+                    ? await llmClient.GetNCompletionsAsync(prompt, batch, backendNames, cancellationToken)
+                    : await llmClient.GetNCompletionsAsync(prompt, batch, backendName, cancellationToken);
                 var queue = _contextCaches.GetOrAdd(contextName, _ => new System.Collections.Concurrent.ConcurrentQueue<string>());
                 foreach (var r in results)
                 {
@@ -357,7 +371,11 @@ public class MockDataBackgroundService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to prefill cache for context {Context}", contextName);
+            var backendDesc = backendNames != null && backendNames.Length > 0
+                ? $"[{string.Join(", ", backendNames)}]"
+                : backendName ?? "default";
+            logger.LogWarning(ex, "Failed to prefill cache for context {Context} with backend {Backend}",
+                contextName, backendDesc);
         }
     }
 

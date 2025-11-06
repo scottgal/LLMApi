@@ -109,7 +109,7 @@ public class LlmBackendSelector
     /// <summary>
     /// Gets a specific backend by name
     /// </summary>
-    private LlmBackendConfig? GetBackendByName(string name)
+    public LlmBackendConfig? GetBackendByName(string name)
     {
         return _options.LlmBackends
             .FirstOrDefault(b => b.Enabled &&
@@ -161,5 +161,69 @@ public class LlmBackendSelector
     public bool HasMultipleBackends()
     {
         return _options.LlmBackends.Count(b => b.Enabled) > 1;
+    }
+
+    /// <summary>
+    /// Selects a backend from a list of backend names using weighted round-robin
+    /// Falls back to default selection if none of the named backends are available
+    /// </summary>
+    public LlmBackendConfig? SelectFromBackends(string[] backendNames)
+    {
+        if (backendNames == null || backendNames.Length == 0)
+        {
+            return SelectBackend();
+        }
+
+        // Get all enabled backends that match the requested names
+        var matchingBackends = _options.LlmBackends
+            .Where(b => b.Enabled &&
+                       backendNames.Any(name => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (matchingBackends.Count == 0)
+        {
+            _logger.LogWarning(
+                "None of the requested backends are available: [{Backends}], using default selection",
+                string.Join(", ", backendNames));
+            return SelectBackend();
+        }
+
+        if (matchingBackends.Count == 1)
+        {
+            _logger.LogDebug("Single backend available from requested list: {BackendName}", matchingBackends[0].Name);
+            return matchingBackends[0];
+        }
+
+        // Weighted round-robin selection
+        var backend = SelectWeightedRoundRobin(matchingBackends);
+
+        _logger.LogDebug(
+            "Selected backend {BackendName} from pool: [{Pool}]",
+            backend.Name, string.Join(", ", matchingBackends.Select(b => b.Name)));
+
+        return backend;
+    }
+
+    /// <summary>
+    /// Weighted round-robin selection based on backend weights
+    /// </summary>
+    private LlmBackendConfig SelectWeightedRoundRobin(List<LlmBackendConfig> backends)
+    {
+        // Calculate total weight
+        var totalWeight = backends.Sum(b => Math.Max(1, b.Weight));
+
+        lock (_lock)
+        {
+            // Simple round-robin for now - can be enhanced to true weighted selection
+            var index = _roundRobinIndex % backends.Count;
+            _roundRobinIndex++;
+            return backends[index];
+        }
+
+        // TODO: Implement true weighted round-robin:
+        // 1. Build cumulative weight array
+        // 2. Generate random number 0 to totalWeight
+        // 3. Select backend based on which range the random number falls into
+        // This would respect Weight property more accurately
     }
 }

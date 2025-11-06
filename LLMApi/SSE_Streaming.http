@@ -1,0 +1,200 @@
+@host = http://localhost:5116
+
+### ====================================================================================
+### SSE STREAMING MODES - Server-Sent Events Examples
+### ====================================================================================
+###
+### Three SSE streaming modes are available:
+###
+### 1. LlmTokens (default) - Token-by-token streaming for AI chat interfaces
+###    Format: data: {"chunk":"text","accumulated":"fulltext","done":false}
+###
+### 2. CompleteObjects - Complete JSON objects as separate events (realistic REST API)
+###    Format: data: {"data":{object},"index":0,"total":10,"done":false}
+###
+### 3. ArrayItems - Array items individually with metadata (paginated results)
+###    Format: data: {"item":{object},"index":0,"total":100,"arrayName":"users","hasMore":true,"done":false}
+###
+### ====================================================================================
+
+### ----------------------------------------------------------------------------
+### 1. LLM TOKENS MODE (Default) - AI Chat Interface Testing
+### ----------------------------------------------------------------------------
+### Streams LLM generation token-by-token, showing progressive text building
+### Use case: Testing chatbot UIs, LLM streaming interfaces
+
+### Basic LLM tokens streaming (default mode)
+GET {{host}}/api/mock/stream/chat?shape={"message":"Hello, how are you today?"}
+
+### Explicit LLM tokens mode
+GET {{host}}/api/mock/stream/users?sseMode=LlmTokens&shape={"users":[{"id":1,"name":"John"}]}
+
+### ----------------------------------------------------------------------------
+### 2. COMPLETE OBJECTS MODE - Realistic REST API Streaming
+### ----------------------------------------------------------------------------
+### Streams complete JSON objects as separate SSE events
+### Use case: Twitter/X API, stock tickers, real-time feeds, news streams
+
+### Stream user objects (realistic API mode)
+GET {{host}}/api/mock/stream/users?sseMode=CompleteObjects&shape={"users":[{"id":1,"name":"string","email":"string","active":true}]}
+
+### Stream product catalog
+GET {{host}}/api/mock/stream/products?sseMode=CompleteObjects&shape={"products":[{"sku":"string","name":"string","price":0.0,"inStock":true}]}
+
+### Stream stock prices (Twitter API style)
+GET {{host}}/api/mock/stream/stocks?sseMode=CompleteObjects&shape={"ticker":"AAPL","price":150.25,"change":2.5,"timestamp":1234567890}
+
+### Stream real-time events
+GET {{host}}/api/mock/stream/events?sseMode=CompleteObjects&shape={"eventId":"string","type":"order_created","userId":"string","timestamp":1234567890}
+
+### Stream IoT sensor readings
+GET {{host}}/api/mock/stream/sensors?sseMode=CompleteObjects&shape={"deviceId":"sensor-001","temperature":23.5,"humidity":60,"timestamp":1234567890}
+
+### Stream social media posts
+GET {{host}}/api/mock/stream/posts?sseMode=CompleteObjects&shape={"postId":"string","user":{"id":"string","name":"string"},"content":"string","likes":0,"timestamp":1234567890}
+
+### ----------------------------------------------------------------------------
+### 3. ARRAY ITEMS MODE - Paginated Results Streaming
+### ----------------------------------------------------------------------------
+### Streams array items individually with rich metadata
+### Use case: Large result sets, bulk exports, paginated API responses
+
+### Stream user list with pagination metadata
+GET {{host}}/api/mock/stream/users?sseMode=ArrayItems&shape={"users":[{"id":1,"name":"string","email":"string"}]}
+
+### Stream search results
+GET {{host}}/api/mock/stream/search?sseMode=ArrayItems&shape={"results":[{"id":"string","title":"string","snippet":"string","score":0.95}]}
+
+### Stream orders with detailed tracking
+GET {{host}}/api/mock/stream/orders?sseMode=ArrayItems&shape={"orders":[{"orderId":"string","customer":"string","items":[{"sku":"string","qty":1}],"total":99.99}]}
+
+### Stream large dataset (documents)
+GET {{host}}/api/mock/stream/documents?sseMode=ArrayItems&shape={"documents":[{"docId":"string","title":"string","author":"string","pages":100,"published":"2024-01-01"}]}
+
+### ----------------------------------------------------------------------------
+### COMBINED WITH OTHER FEATURES
+### ----------------------------------------------------------------------------
+
+### Complete Objects + Streaming delay (simulate network latency)
+GET {{host}}/api/mock/stream/users?sseMode=CompleteObjects&shape={"users":[{"id":1,"name":"string"}]}
+# Note: Configure StreamingChunkDelayMinMs/MaxMs in appsettings.json
+
+### Array Items + Context (maintain consistency across streams)
+GET {{host}}/api/mock/stream/users?sseMode=ArrayItems&shape={"users":[{"id":1,"name":"string"}]}&contextName=user-session
+
+### Complete Objects + Backend selection (use specific LLM)
+GET {{host}}/api/mock/stream/products?sseMode=CompleteObjects&shape={"products":[{"id":1}]}&backend=ollama-llama3
+
+### Array Items + Large dataset (Mistral-Nemo 128k context)
+GET {{host}}/api/mock/stream/bulk-data?sseMode=ArrayItems&shape={"items":[{"id":1,"data":"string"}]}&backend=ollama-mistral-nemo
+
+### ----------------------------------------------------------------------------
+### ERROR SIMULATION IN SSE STREAMS
+### ----------------------------------------------------------------------------
+
+### Error via query parameter
+GET {{host}}/api/mock/stream/users?sseMode=CompleteObjects&error=503&errorMessage=Service%20temporarily%20unavailable
+
+### Error via header
+GET {{host}}/api/mock/stream/orders?sseMode=ArrayItems
+X-Error-Code: 429
+X-Error-Message: Rate limit exceeded
+
+### Error via shape (CompleteObjects mode)
+GET {{host}}/api/mock/stream/data?sseMode=CompleteObjects&shape={"$error":{"code":500,"message":"Database connection failed"}}
+
+### ----------------------------------------------------------------------------
+### COMPARING MODES SIDE-BY-SIDE
+### ----------------------------------------------------------------------------
+
+### Same data, different modes - LLM Tokens (shows incremental building)
+GET {{host}}/api/mock/stream/comparison?sseMode=LlmTokens&shape={"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}
+
+### Same data, different modes - Complete Objects (one event per user)
+GET {{host}}/api/mock/stream/comparison?sseMode=CompleteObjects&shape={"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}
+
+### Same data, different modes - Array Items (one event per user with metadata)
+GET {{host}}/api/mock/stream/comparison?sseMode=ArrayItems&shape={"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}
+
+### ----------------------------------------------------------------------------
+### PRACTICAL USE CASES
+### ----------------------------------------------------------------------------
+
+### Real-time Dashboard - Stock Market Feed (Complete Objects)
+GET {{host}}/api/mock/stream/market-feed?sseMode=CompleteObjects&shape={"ticker":"string","price":0.0,"change":0.0,"volume":0,"timestamp":0}
+
+### Bulk Data Export - Customer Records (Array Items)
+GET {{host}}/api/mock/stream/export-customers?sseMode=ArrayItems&shape={"customers":[{"id":"string","name":"string","email":"string","joinDate":"2024-01-01"}]}
+
+### Live Log Streaming - Application Logs (Complete Objects)
+GET {{host}}/api/mock/stream/logs?sseMode=CompleteObjects&shape={"timestamp":0,"level":"INFO","message":"string","service":"api-gateway"}
+
+### Progressive Search Results - Search API (Array Items)
+GET {{host}}/api/mock/stream/search-results?sseMode=ArrayItems&shape={"results":[{"id":"string","title":"string","url":"string","relevance":0.95}]}
+
+### Real-time Notifications - Push Notifications (Complete Objects)
+GET {{host}}/api/mock/stream/notifications?sseMode=CompleteObjects&shape={"notificationId":"string","userId":"string","type":"message","content":"string","timestamp":0}
+
+### ----------------------------------------------------------------------------
+### CLIENT CODE EXAMPLES
+### ----------------------------------------------------------------------------
+
+### JavaScript EventSource Example for CompleteObjects Mode:
+###
+### const eventSource = new EventSource('/api/mock/stream/users?sseMode=CompleteObjects');
+###
+### eventSource.onmessage = (event) => {
+###     const data = JSON.parse(event.data);
+###
+###     if (data.done) {
+###         console.log('Stream complete!');
+###         eventSource.close();
+###     } else {
+###         console.log(`User ${data.index + 1}/${data.total}:`, data.data);
+###         // data.data contains the complete user object
+###     }
+### };
+###
+### eventSource.onerror = (error) => {
+###     console.error('SSE Error:', error);
+###     eventSource.close();
+### };
+
+### JavaScript EventSource Example for ArrayItems Mode:
+###
+### const eventSource = new EventSource('/api/mock/stream/users?sseMode=ArrayItems');
+###
+### eventSource.onmessage = (event) => {
+###     const data = JSON.parse(event.data);
+###
+###     if (data.done) {
+###         console.log(`Received all ${data.total} ${data.arrayName}`);
+###         eventSource.close();
+###     } else {
+###         console.log(`Item ${data.index + 1}/${data.total}:`, data.item);
+###         if (data.hasMore) {
+###             console.log('More items coming...');
+###         }
+###     }
+### };
+
+### ----------------------------------------------------------------------------
+### CONFIGURATION
+### ----------------------------------------------------------------------------
+
+### Set default SSE mode in appsettings.json:
+###
+### {
+###   "MockLlmApi": {
+###     "SseMode": "CompleteObjects",  // LlmTokens | CompleteObjects | ArrayItems
+###     "StreamingChunkDelayMinMs": 100,  // Delay between events
+###     "StreamingChunkDelayMaxMs": 500
+###   }
+### }
+
+### Override per-request with query parameter:
+### ?sseMode=LlmTokens
+### ?sseMode=CompleteObjects
+### ?sseMode=ArrayItems
+###
+### Case-insensitive: ?sseMode=completeobjects works too!

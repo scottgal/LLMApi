@@ -132,6 +132,72 @@ public class LlmClient
             throw new InvalidOperationException("No LLM backend available");
         }
 
+        return await GetCompletionWithBackendAsync(backend, prompt, cancellationToken, maxTokens);
+    }
+
+    /// <summary>
+    /// Sends a non-streaming chat completion request with specific backend
+    /// </summary>
+    public virtual async Task<string> GetCompletionAsync(
+        string prompt,
+        string? backendName,
+        CancellationToken cancellationToken = default,
+        int? maxTokens = null)
+    {
+        LlmBackendConfig? backend = null;
+
+        if (!string.IsNullOrWhiteSpace(backendName))
+        {
+            backend = _backendSelector.GetBackendByName(backendName);
+            if (backend == null)
+            {
+                _logger.LogWarning("Backend '{BackendName}' not found or disabled, using default selection", backendName);
+                backend = _backendSelector.SelectBackend();
+            }
+        }
+        else
+        {
+            backend = _backendSelector.SelectBackend();
+        }
+
+        if (backend == null)
+        {
+            throw new InvalidOperationException("No LLM backend available");
+        }
+
+        return await GetCompletionWithBackendAsync(backend, prompt, cancellationToken, maxTokens);
+    }
+
+    /// <summary>
+    /// Sends a non-streaming chat completion request with load balancing across multiple backends
+    /// </summary>
+    public virtual async Task<string> GetCompletionAsync(
+        string prompt,
+        string[]? backendNames,
+        CancellationToken cancellationToken = default,
+        int? maxTokens = null)
+    {
+        var backend = backendNames != null && backendNames.Length > 0
+            ? _backendSelector.SelectFromBackends(backendNames)
+            : _backendSelector.SelectBackend();
+
+        if (backend == null)
+        {
+            throw new InvalidOperationException("No LLM backend available");
+        }
+
+        return await GetCompletionWithBackendAsync(backend, prompt, cancellationToken, maxTokens);
+    }
+
+    /// <summary>
+    /// Internal method to execute completion with a specific backend configuration
+    /// </summary>
+    private async Task<string> GetCompletionWithBackendAsync(
+        LlmBackendConfig backend,
+        string prompt,
+        CancellationToken cancellationToken,
+        int? maxTokens)
+    {
         var provider = _providerFactory.GetProvider(backend.Provider);
         using var client = CreateHttpClient(backend.BaseUrl);
         provider.ConfigureClient(client, backend.ApiKey);
@@ -214,6 +280,72 @@ public class LlmClient
             throw new InvalidOperationException("No LLM backend available");
         }
 
+        return await GetNCompletionsWithBackendAsync(backend, prompt, n, cancellationToken);
+    }
+
+    /// <summary>
+    /// Requests multiple completions with specific backend
+    /// </summary>
+    public async Task<List<string>> GetNCompletionsAsync(
+        string prompt,
+        int n,
+        string? backendName,
+        CancellationToken cancellationToken = default)
+    {
+        LlmBackendConfig? backend = null;
+
+        if (!string.IsNullOrWhiteSpace(backendName))
+        {
+            backend = _backendSelector.GetBackendByName(backendName);
+            if (backend == null)
+            {
+                _logger.LogWarning("Backend '{BackendName}' not found or disabled, using default selection", backendName);
+                backend = _backendSelector.SelectBackend();
+            }
+        }
+        else
+        {
+            backend = _backendSelector.SelectBackend();
+        }
+
+        if (backend == null)
+        {
+            throw new InvalidOperationException("No LLM backend available");
+        }
+
+        return await GetNCompletionsWithBackendAsync(backend, prompt, n, cancellationToken);
+    }
+
+    /// <summary>
+    /// Requests multiple completions with load balancing across multiple backends
+    /// </summary>
+    public async Task<List<string>> GetNCompletionsAsync(
+        string prompt,
+        int n,
+        string[]? backendNames,
+        CancellationToken cancellationToken = default)
+    {
+        var backend = backendNames != null && backendNames.Length > 0
+            ? _backendSelector.SelectFromBackends(backendNames)
+            : _backendSelector.SelectBackend();
+
+        if (backend == null)
+        {
+            throw new InvalidOperationException("No LLM backend available");
+        }
+
+        return await GetNCompletionsWithBackendAsync(backend, prompt, n, cancellationToken);
+    }
+
+    /// <summary>
+    /// Internal method to execute N completions with a specific backend configuration
+    /// </summary>
+    private async Task<List<string>> GetNCompletionsWithBackendAsync(
+        LlmBackendConfig backend,
+        string prompt,
+        int n,
+        CancellationToken cancellationToken)
+    {
         var provider = _providerFactory.GetProvider(backend.Provider);
         using var client = CreateHttpClient(backend.BaseUrl);
         provider.ConfigureClient(client, backend.ApiKey);

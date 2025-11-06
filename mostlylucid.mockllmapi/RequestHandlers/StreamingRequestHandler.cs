@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
@@ -47,6 +48,21 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
+    /// Extracts SSE mode from request query parameter or uses configured default
+    /// </summary>
+    private SseMode GetSseMode(HttpRequest request)
+    {
+        if (request.Query.TryGetValue("sseMode", out var modeParam) && !string.IsNullOrWhiteSpace(modeParam))
+        {
+            if (Enum.TryParse<SseMode>(modeParam, ignoreCase: true, out var parsedMode))
+            {
+                return parsedMode;
+            }
+        }
+        return _options.SseMode;
+    }
+
+    /// <summary>
     /// Handles a streaming request
     /// </summary>
     public async Task HandleStreamingRequestAsync(
@@ -62,6 +78,9 @@ public class StreamingRequestHandler
 
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
+
+        // Determine SSE mode
+        var sseMode = GetSseMode(request);
 
         // Check if error simulation is requested
         if (shapeInfo.ErrorConfig != null)
@@ -100,6 +119,36 @@ public class StreamingRequestHandler
         // Optionally include schema in header before any writes
         TryAddSchemaHeader(context, request, shapeInfo.Shape);
 
+        // Route to appropriate streaming mode
+        switch (sseMode)
+        {
+            case SseMode.CompleteObjects:
+                await StreamCompleteObjectsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                break;
+            case SseMode.ArrayItems:
+                await StreamArrayItemsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                break;
+            case SseMode.LlmTokens:
+            default:
+                await StreamLlmTokensAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Stream LLM generation token-by-token (original behavior)
+    /// </summary>
+    private async Task StreamLlmTokensAsync(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        ShapeInfo shapeInfo,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        CancellationToken cancellationToken)
+    {
         // Get streaming response from LLM
         using var httpRes = await _llmClient.GetStreamingCompletionAsync(prompt, cancellationToken);
         await using var stream = await httpRes.Content.ReadAsStreamAsync(cancellationToken);
@@ -184,6 +233,205 @@ public class StreamingRequestHandler
                     // Skip malformed chunks
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Stream complete JSON objects as separate SSE events (realistic REST API mode)
+    /// </summary>
+    private async Task StreamCompleteObjectsAsync(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        ShapeInfo shapeInfo,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        CancellationToken cancellationToken)
+    {
+        // Get non-streaming completion to generate full JSON
+        var completion = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
+        var cleanJson = JsonExtractor.ExtractJson(completion);
+
+        // Store in context if context name was provided
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
+        }
+
+        // Parse JSON to extract objects
+        JsonDocument? doc = null;
+        try
+        {
+            doc = JsonDocument.Parse(cleanJson);
+            var root = doc.RootElement;
+
+            // Determine what to stream
+            JsonElement[] items;
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                // Direct array: stream each element
+                items = root.EnumerateArray().ToArray();
+            }
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                // Try to find array property (users, items, results, data, etc.)
+                var arrayProp = root.EnumerateObject()
+                    .FirstOrDefault(p => p.Value.ValueKind == JsonValueKind.Array);
+
+                if (arrayProp.Value.ValueKind == JsonValueKind.Array)
+                {
+                    items = arrayProp.Value.EnumerateArray().ToArray();
+                }
+                else
+                {
+                    // Single object: stream as one event
+                    items = new[] { root };
+                }
+            }
+            else
+            {
+                // Primitive value: wrap and stream
+                items = new[] { root };
+            }
+
+            // Stream each complete object as a separate SSE event
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                // Apply streaming delay between objects
+                if (i > 0)
+                {
+                    await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
+                }
+
+                var itemJson = JsonSerializer.Serialize(items[i]);
+                var eventData = new
+                {
+                    data = items[i],
+                    index = i,
+                    total = items.Length,
+                    done = i == items.Length - 1
+                };
+
+                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON for CompleteObjects streaming mode");
+            // Send error event
+            var errorData = new { error = "Failed to parse generated JSON", done = true };
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorData)}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            doc?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Stream array items individually with metadata (paginated results mode)
+    /// </summary>
+    private async Task StreamArrayItemsAsync(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        ShapeInfo shapeInfo,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        CancellationToken cancellationToken)
+    {
+        // Get non-streaming completion to generate full JSON
+        var completion = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
+        var cleanJson = JsonExtractor.ExtractJson(completion);
+
+        // Store in context if context name was provided
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
+        }
+
+        // Parse JSON to extract array items
+        JsonDocument? doc = null;
+        try
+        {
+            doc = JsonDocument.Parse(cleanJson);
+            var root = doc.RootElement;
+
+            // Extract array items
+            JsonElement[] items;
+            string? arrayName = null;
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                items = root.EnumerateArray().ToArray();
+            }
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                // Find first array property
+                var arrayProp = root.EnumerateObject()
+                    .FirstOrDefault(p => p.Value.ValueKind == JsonValueKind.Array);
+
+                if (arrayProp.Value.ValueKind == JsonValueKind.Array)
+                {
+                    arrayName = arrayProp.Name;
+                    items = arrayProp.Value.EnumerateArray().ToArray();
+                }
+                else
+                {
+                    // No array found, treat as single item
+                    items = new[] { root };
+                }
+            }
+            else
+            {
+                items = new[] { root };
+            }
+
+            // Stream each item with rich metadata
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                // Apply streaming delay between items
+                if (i > 0)
+                {
+                    await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
+                }
+
+                var eventData = new
+                {
+                    item = items[i],
+                    index = i,
+                    total = items.Length,
+                    arrayName,
+                    hasMore = i < items.Length - 1,
+                    done = i == items.Length - 1
+                };
+
+                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON for ArrayItems streaming mode");
+            // Send error event
+            var errorData = new { error = "Failed to parse generated JSON", done = true };
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorData)}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            doc?.Dispose();
         }
     }
 

@@ -14,7 +14,35 @@ builder.Services.AddLLMockOpenApi(builder.Configuration);
 // Add Razor Pages
 builder.Services.AddRazorPages();
 
+// Add Swagger/OpenAPI documentation for the demo API itself
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "LLMock API Demo",
+        Version = "v1.8.0",
+        Description = "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, and gRPC support.",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "GitHub Repository",
+            Url = new Uri("https://github.com/scottgallant/mostlylucid.mockllmapi")
+        }
+    });
+});
+
 var app = builder.Build();
+
+// Enable Swagger middleware
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "LLMock API Demo v1.8.0");
+    options.RoutePrefix = "swagger"; // Access at /swagger
+    options.DocumentTitle = "LLMock API Documentation";
+    options.EnableDeepLinking();
+    options.DisplayRequestDuration();
+});
 
 // Use static files
 app.UseStaticFiles();

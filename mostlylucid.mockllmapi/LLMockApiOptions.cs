@@ -147,6 +147,15 @@ public class LLMockApiOptions
     public bool EnableCacheCompression { get; set; } = false;
 
     /// <summary>
+    /// Server-Sent Events (SSE) streaming mode (default: LlmTokens for backward compatibility)
+    /// - LlmTokens: Stream LLM generation token-by-token (AI chat interface testing)
+    /// - CompleteObjects: Stream complete JSON objects as separate events (realistic REST API)
+    /// - ArrayItems: Stream array items individually with metadata (paginated results)
+    /// Can be overridden per-request with ?sseMode=CompleteObjects query parameter
+    /// </summary>
+    public SseMode SseMode { get; set; } = SseMode.LlmTokens;
+
+    /// <summary>
     /// Minimum delay in milliseconds between streaming chunks (default: 0 = no delay)
     /// </summary>
     public int StreamingChunkDelayMinMs { get; set; } = 0;

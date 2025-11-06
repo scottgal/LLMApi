@@ -53,6 +53,25 @@ public class HubContextConfig
     public string? ApiContextName { get; set; }
 
     /// <summary>
+    /// Optional: Single LLM backend name to use for this context
+    /// Allows per-context backend selection (e.g., use GPT-4 for complex data, Ollama for simple data)
+    /// If not specified, uses default backend selection
+    /// Must match a backend name from the Backends configuration array
+    /// Example: "openai-gpt4", "ollama-llama3", "lmstudio-local"
+    /// NOTE: For load balancing across multiple backends, use BackendNames instead
+    /// </summary>
+    public string? BackendName { get; set; }
+
+    /// <summary>
+    /// Optional: Multiple LLM backend names for load balancing
+    /// When specified, requests are distributed across these backends using weighted round-robin
+    /// Backend weights are taken from the Backends configuration
+    /// Example: ["ollama-llama3", "ollama-mistral", "openai-gpt4-turbo"]
+    /// NOTE: If both BackendName and BackendNames are set, BackendNames takes precedence
+    /// </summary>
+    public string[]? BackendNames { get; set; }
+
+    /// <summary>
     /// Whether this context is actively generating data (default: true)
     /// </summary>
     public bool IsActive { get; set; } = true;

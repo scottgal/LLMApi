@@ -1,15 +1,18 @@
-# mostlylucid.mockllmapi
+# mostlylucid.mockllmapi v2.0 🚀
 
-A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Add intelligent mock endpoints to any project with just 2 lines of code!
+A comprehensive, production-ready ASP.NET Core mocking platform for generating realistic mock API responses using multiple LLM backends. Add intelligent mock endpoints to any project with just 2 lines of code!
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+
+**Version 2.0** - Production-ready mocking platform with multi-backend support, realistic SSE streaming, and comprehensive documentation.
 
 ---
 
 ## Table of Contents
 
-- [What's New in v1.8.0](#whats-new-in-v180)
+- [What's New in v2.0](#whats-new-in-v20)
 - [Features Overview](#features)
 - [Quick Start](#quick-start)
 - [Feature Documentation](#feature-documentation)
@@ -22,77 +25,57 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ---
 
-## What's New in v1.8.0
+## What's New in v2.0
 
-**NO BREAKING CHANGES** - All existing code continues to work!
+**NO BREAKING CHANGES** - Despite the major version bump, all existing code continues to work!
 
-### Automatic Request Chunking (NEW!)
-- **Intelligent Token Management**: Automatically breaks large requests into optimal chunks
+### 1. Realistic SSE Streaming Modes ✨ NEW
+Three distinct streaming modes for testing different real-world APIs:
+- **LlmTokens** (default): Token-by-token for AI chat interfaces
+- **CompleteObjects**: Full JSON objects per event (Twitter API, stock tickers)
+- **ArrayItems**: Paginated results with metadata (bulk exports, search results)
+- **Per-Request Override**: `?sseMode=CompleteObjects`
+- **[Complete Guide](./docs/SSE_STREAMING_MODES.md)** | **[HTTP Examples](./LLMApi/SSE_Streaming.http)**
+
+### 2. Multi-Backend Load Balancing ✨ NEW
+Distribute requests across multiple LLM instances:
+- **Weighted Round-Robin**: Smart load distribution based on backend capabilities
+- **SignalR Support**: Load balance across backends for high-throughput streams
+- **Automatic Failover**: Falls back to default if backends unavailable
+- **Per-Context Selection**: Different backends for different SignalR hubs
+- **[Complete Guide](./docs/MULTIPLE_LLM_BACKENDS.md)**
+
+### 3. Comprehensive Backend Selection
+Multiple ways to route requests to specific LLM backends:
+- **Per-Request**: `?backend=openai-gpt4` or `X-LLM-Backend` header
+- **SignalR Hubs**: Configure `BackendName` or `BackendNames` per hub
+- **Multiple Providers**: Ollama, OpenAI, LM Studio simultaneously
+- **Mistral-Nemo 128k**: Support for massive context windows
+- **[Configuration Examples](./LLMApi/appsettings.Full.json)**
+
+### 4. Swagger/OpenAPI UI ✨ NEW
+Interactive API documentation:
+- **Swagger UI** at `/swagger`
+- **Auto-Generated Specs**: Complete endpoint documentation
+- **Interactive Testing**: Try endpoints directly in browser
+- **Navigation**: Linked from demo page header
+
+### 5. Automatic Request Chunking
+Intelligent token management for large requests:
 - **Transparent Operation**: Works behind the scenes—no API changes required
-- **Context Preservation**: Maintains consistency across chunks (IDs, names, relationships)
-- **Configurable Limits**: Set `MaxOutputTokens` and `MaxItems` for your LLM
-- **Comprehensive Logging**: Detailed visibility into chunking decisions and execution
-- **Opt-Out Available**: Use `?autoChunk=false` to disable per-request
-- **[Complete Guide](./CHUNKING_AND_CACHING.md)** | **[HTTP Examples](./ChunkingAndCaching.http)**
+- **Context Preservation**: Maintains consistency across chunks
+- **Configurable**: Set `MaxOutputTokens` and `MaxItems` for your LLM
+- **Opt-Out**: Use `?autoChunk=false` to disable
+- **[Complete Guide](./CHUNKING_AND_CACHING.md)**
 
-### Enhanced Cache Configuration (NEW!)
-- **Sliding Expiration**: Cache entries expire after 15 minutes of inactivity
-- **Size Limits**: `MaxItems` caps both response sizes and cache totals
-- **Flexible Options**: Absolute expiration, cache priority, compression support
-- **Statistics Tracking**: Optional cache hit/miss monitoring
-- **[Complete Guide](./CHUNKING_AND_CACHING.md)** | **[HTTP Examples](./ChunkingAndCaching.http)**
+### 6. Enhanced Configuration
+Production-ready configuration with extensive options:
+- **Environment Variables**: Full support with comprehensive documentation
+- **Cache Configuration**: Sliding expiration, size limits, statistics
+- **Context Storage**: Automatic expiration and memory safety
+- **[Configuration Reference](./docs/CONFIGURATION_REFERENCE.md)**
 
-### Context Storage Improvements
-- **Automatic Expiration**: API contexts expire after 15 minutes of inactivity
-- **Memory Safety**: Prevents memory leaks with automatic cleanup
-- **Sliding Window**: Context lifetime refreshes on each use
-- **Case-Insensitive**: Context names work regardless of casing
-
-### Multiple LLM Backend Support (NEW!)
-- **Multi-Provider Architecture**: Connect to Ollama, OpenAI, LM Studio simultaneously
-- **Per-Request Selection**: Route requests to specific backends via headers or query params
-- **Zero Breaking Changes**: Legacy single-backend configs work unchanged
-- **Provider Abstraction**: Unified interface across different LLM services
-- **Future-Ready**: Foundation for round-robin, load balancing, and failover
-- **[Complete Guide](./docs/MULTIPLE_LLM_BACKENDS.md)** with examples for all providers
-
-### Previous Updates (v1.7.1)
-
-**NO BREAKING CHANGES** - All existing code continues to work!
-
-### gRPC Demo Page (NEW!)
-- **Interactive Demo at `/grpc`**: Comprehensive 4-panel interface for testing gRPC functionality
-- **Proto Management**: Upload and manage .proto files with visual feedback
-- **Dual Testing**: Test both JSON and binary Protobuf endpoints in the browser
-- **Reflection View**: Inspect uploaded proto definitions and service metadata
-
-### Bug Fixes
-- Fixed HTTP 415 errors on gRPC binary endpoint
-- Fixed test compatibility with new API response format
-
-### Previous Updates (v1.7.0)
-
-### gRPC Service Mocking
-- **Upload .proto Files**: Automatic gRPC service generation from Protocol Buffer definitions
-- **Dual Support**: Both JSON over HTTP (for testing) and binary Protobuf (production-grade)
-- **LLM-Powered Responses**: Realistic data generation matching your proto message schemas
-- **Dynamic Protobuf Serialization**: Runtime binary encoding/decoding without code generation
-- **[Complete Guide: gRPC Support](./docs/GRPC_SUPPORT.md)**
-
-### SSE Streaming Improvements
-- **Progressive JSON Building**: Streaming now sends accumulated content along with each chunk
-- **Better Client Experience**: See partial JSON structure as it builds instead of raw text fragments
-
-### Previous Updates (v1.5.0)
-- **API Contexts** - Shared memory across requests for consistent multi-step workflows
-- **Native GraphQL Support** - POST to `/graphql` with standard GraphQL queries
-- **Fully Modular Architecture** - Use only the protocols you need (REST, GraphQL, SSE, SignalR)
-- **Polly Resilience Policies** - Built-in exponential backoff retry and circuit breaker patterns
-
-### Migration from v1.1.0 or earlier
-- Old method names (`Addmostlylucid_mockllmapi`, `Mapmostlylucid_mockllmapi`) still work but are deprecated
-- Recommended: Use new names (`AddLLMockApi`, `MapLLMockApi`) - or use modular methods like `AddLLMockRest()`
-- All examples below use the new recommended method names
+**📚 [See RELEASE_NOTES.md for complete v2.0 details and full version history](./RELEASE_NOTES.md)**
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
 
 ---
@@ -308,6 +291,9 @@ app.Run();
 That's it! Now all requests to `/api/mock/**` return intelligent mock data.
 
 ## Configuration Options
+
+> **📘 Complete Configuration Reference:** See [Configuration Reference Guide](./docs/CONFIGURATION_REFERENCE.md) for all options
+> **📄 Full Example:** See [appsettings.Full.json](./LLMApi/appsettings.Full.json) - demonstrates **every** configuration option
 
 ### Via appsettings.json (Recommended)
 
