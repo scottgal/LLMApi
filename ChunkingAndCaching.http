@@ -1,0 +1,525 @@
+@LLMApi_HostAddress = http://localhost:5116
+
+###############################################################################
+# CHUNKING AND CACHING EXAMPLES (v1.8.0)
+#
+# This file demonstrates the automatic request chunking and enhanced caching
+# features introduced in version 1.8.0.
+#
+# Prerequisites:
+# - Ollama running on http://localhost:11434
+# - LLM model configured in appsettings.json (e.g., llama3)
+# - Application running on http://localhost:5116
+###############################################################################
+
+###############################################################################
+# AUTOMATIC CHUNKING EXAMPLES
+###############################################################################
+
+### Example 1: Basic Auto-Chunking (100 items)
+# Request 100 users - should automatically chunk into multiple requests
+# Watch the console logs to see chunking in action
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "email@example.com"
+  }
+}
+
+###
+
+### Example 2: Complex Shape Auto-Chunking (50 items)
+# Complex nested shape will trigger chunking with fewer items
+# System estimates higher tokens per item due to nesting
+POST {{LLMApi_HostAddress}}/api/mock/orders?count=50
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 1,
+    "customer": {
+      "id": 1,
+      "name": "string",
+      "email": "email@example.com",
+      "address": {
+        "street": "string",
+        "city": "string",
+        "country": "string",
+        "zipCode": "string"
+      }
+    },
+    "items": [
+      {
+        "productId": 1,
+        "name": "string",
+        "quantity": 1,
+        "price": 9.99
+      }
+    ],
+    "shipping": {
+      "method": "string",
+      "trackingNumber": "string",
+      "estimatedDelivery": "string"
+    },
+    "payment": {
+      "method": "string",
+      "status": "string",
+      "transactionId": "string"
+    }
+  }
+}
+
+###
+
+### Example 3: Disable Chunking (opt-out)
+# Use autoChunk=false to disable automatic chunking
+# Useful for testing LLM limits or debugging
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100&autoChunk=false
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "email@example.com"
+  }
+}
+
+###
+
+### Example 4: MaxItems Limit
+# Request exceeding MaxItems (default: 1000) will be capped
+# Should log: "AUTO-LIMIT: Request for 2000 items exceeds MaxItems limit (1000)"
+GET {{LLMApi_HostAddress}}/api/mock/products?count=2000
+
+###
+
+### Example 5: Small Request (no chunking needed)
+# Request small enough to fit in single LLM call
+# Should log: "No chunking needed for this request"
+POST {{LLMApi_HostAddress}}/api/mock/users?count=10
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string"
+  }
+}
+
+###
+
+### Example 6: Very Complex Nested Structure
+# Deep nesting with multiple arrays will trigger aggressive chunking
+POST {{LLMApi_HostAddress}}/api/mock/organizations?count=20
+Content-Type: application/json
+
+{
+  "shape": {
+    "orgId": 1,
+    "name": "string",
+    "departments": [
+      {
+        "deptId": 1,
+        "name": "string",
+        "employees": [
+          {
+            "empId": 1,
+            "name": "string",
+            "email": "string",
+            "roles": ["string"],
+            "projects": [
+              {
+                "projectId": 1,
+                "name": "string",
+                "status": "string"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "string",
+      "updated": "string",
+      "tags": ["string"]
+    }
+  }
+}
+
+###
+
+###############################################################################
+# CACHING EXAMPLES
+###############################################################################
+
+### Example 7: Enable Caching with Header
+# Request will generate 5 variants and cache them
+# Run this 5 times to see different responses from cache
+GET {{LLMApi_HostAddress}}/api/mock/users?count=10
+X-Cache-Count: 5
+Accept: application/json
+
+###
+
+### Example 8: Enable Caching with Shape Property
+# $cache in shape enables caching with 3 variants
+POST {{LLMApi_HostAddress}}/api/mock/products
+Content-Type: application/json
+
+{
+  "shape": {
+    "$cache": 3,
+    "id": 1,
+    "name": "string",
+    "price": 9.99,
+    "category": "string"
+  }
+}
+
+###
+
+### Example 9: Cache Miss (first request - slow)
+# First request generates all variants (slow)
+# Subsequent requests will be instant
+GET {{LLMApi_HostAddress}}/api/mock/categories?count=5
+X-Cache-Count: 5
+
+###
+
+### Example 10: Cache Hit (subsequent request - instant)
+# Run after Example 9 - should be instant
+# Will serve from cache
+GET {{LLMApi_HostAddress}}/api/mock/categories?count=5
+X-Cache-Count: 5
+
+###
+
+### Example 11: No Caching (fresh response every time)
+# No X-Cache-Count or $cache means fresh LLM call each time
+GET {{LLMApi_HostAddress}}/api/mock/random-data?count=10
+
+###
+
+###############################################################################
+# CONTEXT STORAGE EXAMPLES (15-minute sliding expiration)
+###############################################################################
+
+### Example 12: Create Context
+# First request creates context "user-session-1"
+# Context expires after 15 minutes of inactivity
+GET {{LLMApi_HostAddress}}/api/mock/users/123?context=user-session-1
+Accept: application/json
+
+###
+
+### Example 13: Use Existing Context (extends expiration)
+# Uses same context, resets 15-minute expiration timer
+# LLM will have memory of previous request
+GET {{LLMApi_HostAddress}}/api/mock/orders?context=user-session-1
+Accept: application/json
+
+###
+
+### Example 14: Case-Insensitive Context Names
+# "User-Session-1" and "user-session-1" refer to same context
+GET {{LLMApi_HostAddress}}/api/mock/profile?context=User-Session-1
+Accept: application/json
+
+###
+
+###############################################################################
+# COMBINED EXAMPLES (Chunking + Caching + Context)
+###############################################################################
+
+### Example 15: Chunking with Context
+# Large request with context preservation across chunks
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100&context=bulk-import-1
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "department": "string",
+    "role": "string"
+  }
+}
+
+###
+
+### Example 16: Cache Bypass with Chunking
+# When chunking is needed, caching is automatically bypassed
+# This prevents cache pollution with chunked responses
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100
+Content-Type: application/json
+X-Cache-Count: 5
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string"
+  }
+}
+
+###
+
+###############################################################################
+# STREAMING ENDPOINT EXAMPLES (with auto-chunking)
+###############################################################################
+
+### Example 17: Streaming with Auto-Chunking
+# Streaming endpoint also supports auto-chunking
+# Response streamed via Server-Sent Events (SSE)
+POST {{LLMApi_HostAddress}}/api/mock/stream/users?count=50
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "string"
+  }
+}
+
+###
+
+### Example 18: Streaming with Chunking Disabled
+# Disable chunking on streaming endpoint
+POST {{LLMApi_HostAddress}}/api/mock/stream/users?count=50&autoChunk=false
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string"
+  }
+}
+
+###
+
+###############################################################################
+# GRAPHQL EXAMPLES (with auto-chunking)
+###############################################################################
+
+### Example 19: GraphQL with Auto-Chunking
+# GraphQL queries also support automatic chunking
+POST {{LLMApi_HostAddress}}/api/graphql
+Content-Type: application/json
+
+{
+  "query": "query GetUsers { users(count: 100) { id name email } }"
+}
+
+###
+
+### Example 20: GraphQL with Context
+# GraphQL with conversation context
+POST {{LLMApi_HostAddress}}/api/graphql?context=graphql-session
+Content-Type: application/json
+
+{
+  "query": "query GetOrders { orders(count: 50) { orderId total items { name quantity } } }"
+}
+
+###
+
+###############################################################################
+# CONFIGURATION TESTING
+###############################################################################
+
+### Example 21: Test Token Estimation (simple shape)
+# Simple shape (~50 tokens/item estimate)
+# Should chunk at ~30 items per chunk (with 2048 MaxOutputTokens)
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string"
+  }
+}
+
+###
+
+### Example 22: Test Token Estimation (complex shape)
+# Complex shape (~300 tokens/item estimate)
+# Should chunk at ~5 items per chunk (with 2048 MaxOutputTokens)
+POST {{LLMApi_HostAddress}}/api/mock/orders?count=50
+Content-Type: application/json
+
+{
+  "shape": {
+    "orderId": 1,
+    "customer": {
+      "id": 1,
+      "profile": {
+        "name": "string",
+        "email": "string",
+        "phone": "string",
+        "address": {
+          "street": "string",
+          "city": "string",
+          "state": "string",
+          "country": "string",
+          "zipCode": "string"
+        }
+      }
+    },
+    "items": [
+      {
+        "productId": 1,
+        "name": "string",
+        "sku": "string",
+        "quantity": 1,
+        "price": 9.99,
+        "tax": 0.99,
+        "total": 10.98
+      }
+    ],
+    "shipping": {
+      "method": "string",
+      "carrier": "string",
+      "trackingNumber": "string",
+      "estimatedDelivery": "string",
+      "actualDelivery": "string"
+    },
+    "payment": {
+      "method": "string",
+      "cardLastFour": "string",
+      "transactionId": "string",
+      "status": "string",
+      "processedAt": "string"
+    },
+    "metadata": {
+      "createdAt": "string",
+      "updatedAt": "string",
+      "source": "string",
+      "tags": ["string"]
+    }
+  }
+}
+
+###
+
+###############################################################################
+# ERROR SCENARIOS
+###############################################################################
+
+### Example 23: Request with Error Simulation
+# Test error handling with chunking
+GET {{LLMApi_HostAddress}}/api/mock/users?count=100&error=500&errorMessage=Simulated%20server%20error
+
+###
+
+### Example 24: Invalid Count Parameter
+# Negative count should be handled gracefully
+GET {{LLMApi_HostAddress}}/api/mock/users?count=-10
+
+###
+
+###############################################################################
+# PERFORMANCE COMPARISON
+###############################################################################
+
+### Example 25: Without Chunking (may truncate)
+# Request 100 items without chunking - may hit token limits
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100&autoChunk=false
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "string",
+    "department": "string",
+    "role": "string",
+    "phone": "string",
+    "address": {
+      "city": "string",
+      "country": "string"
+    }
+  }
+}
+
+###
+
+### Example 26: With Chunking (complete results)
+# Same request with chunking enabled - should return all 100 items
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "string",
+    "department": "string",
+    "role": "string",
+    "phone": "string",
+    "address": {
+      "city": "string",
+      "country": "string"
+    }
+  }
+}
+
+###
+
+###############################################################################
+# MONITORING AND DEBUGGING
+###############################################################################
+
+### Example 27: Enable Verbose Logging
+# Check appsettings.json and set "EnableVerboseLogging": true
+# Then run this to see detailed chunking logs:
+POST {{LLMApi_HostAddress}}/api/mock/users?count=100
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": 1,
+    "name": "string",
+    "email": "string"
+  }
+}
+
+###
+
+###############################################################################
+# NOTES
+###############################################################################
+#
+# Logs to Watch For:
+# - [INFO] Request needs chunking: 100 items × 150 tokens = 15000 tokens > 1536 available
+# - [INFO] AUTO-CHUNKING ENABLED: Breaking request into 4 chunks (25 items/chunk)
+# - [INFO] AUTO-CHUNKING: Executing chunk 1/4 (items 1-25 of 100)
+# - [INFO] AUTO-CHUNKING COMPLETE: Combined 4 chunks into 100 items
+# - [WARN] AUTO-LIMIT: Request for 2000 items exceeds MaxItems limit (1000)
+#
+# Configuration (appsettings.json):
+# {
+#   "MockLlmApi": {
+#     "MaxOutputTokens": 2048,           // LLM output limit
+#     "EnableAutoChunking": true,        // Enable chunking (default)
+#     "MaxItems": 1000,                  // Max items per response
+#     "MaxInputTokens": 2048,            // LLM input limit
+#     "CacheSlidingExpirationMinutes": 15,
+#     "CacheAbsoluteExpirationMinutes": 60,
+#     "CacheRefreshThresholdPercent": 50,
+#     "CachePriority": 1,
+#     "EnableCacheStatistics": false,
+#     "EnableCacheCompression": false
+#   }
+# }
+#
+# See CHUNKING_AND_CACHING.md for complete documentation.
+#
+###############################################################################

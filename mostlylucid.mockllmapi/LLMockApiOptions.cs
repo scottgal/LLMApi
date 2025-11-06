@@ -34,6 +34,22 @@ public class LLMockApiOptions
     public int MaxInputTokens { get; set; } = 2048;
 
     /// <summary>
+    /// Maximum output tokens the LLM can generate (default: 2048)
+    /// Used for automatic chunking calculations when EnableAutoChunking is true.
+    /// If a request would exceed this limit, it's automatically split into chunks.
+    /// Common values: 512 (small models), 2048 (Llama3), 4096 (larger models)
+    /// </summary>
+    public int MaxOutputTokens { get; set; } = 2048;
+
+    /// <summary>
+    /// Enable automatic request chunking for large responses (default: true)
+    /// When enabled, requests that would exceed MaxOutputTokens are automatically
+    /// split into multiple chunks, maintaining consistency across chunks.
+    /// Disable per-request with ?autoChunk=false query parameter.
+    /// </summary>
+    public bool EnableAutoChunking { get; set; } = true;
+
+    /// <summary>
     /// Custom prompt template for non-streaming requests (optional)
     /// Available placeholders: {method}, {path}, {body}, {randomSeed}, {timestamp}
     /// </summary>
@@ -65,6 +81,59 @@ public class LLMockApiOptions
     /// Can be capped lower by the $cache value in shape; defaults to 5.
     /// </summary>
     public int MaxCachePerKey { get; set; } = 5;
+
+    /// <summary>
+    /// Sliding expiration in minutes for cached responses (default: 15 minutes)
+    /// Cache entries are automatically removed after this period of inactivity.
+    /// Each cache hit refreshes the expiration timer.
+    /// </summary>
+    public int CacheSlidingExpirationMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Cache refresh threshold as a percentage (0-100, default: 50)
+    /// When cache utilization drops below this percentage, background pre-fetch can be triggered.
+    /// For example, 50 means cache will consider refreshing when < 50% full.
+    /// Note: Automatic pre-fetch is not yet implemented, this is for future use.
+    /// </summary>
+    public int CacheRefreshThresholdPercent { get; set; } = 50;
+
+    /// <summary>
+    /// Maximum items per response AND maximum cache size (default: 1000)
+    /// This is a dual-purpose setting:
+    /// 1. Response Limit: Maximum number of items that can be returned in a single API response
+    /// 2. Cache Size: Maximum number of cached response variants across all keys
+    /// Requests exceeding this will be automatically chunked (if EnableAutoChunking is true).
+    /// </summary>
+    public int MaxItems { get; set; } = 1000;
+
+    /// <summary>
+    /// Absolute expiration in minutes for cached responses (default: 60 minutes, null = no absolute expiration)
+    /// Cached entries will be removed after this time regardless of access.
+    /// Works in conjunction with CacheSlidingExpirationMinutes.
+    /// </summary>
+    public int? CacheAbsoluteExpirationMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// Cache priority for memory management (default: Normal)
+    /// Options: Low (0), Normal (1), High (2), NeverRemove (3)
+    /// Higher priority items are retained longer under memory pressure.
+    /// </summary>
+    public int CachePriority { get; set; } = 1; // Normal
+
+    /// <summary>
+    /// Enable cache statistics tracking (default: false)
+    /// When enabled, tracks cache hits, misses, and utilization.
+    /// Accessible via management endpoints. Minimal performance overhead.
+    /// </summary>
+    public bool EnableCacheStatistics { get; set; } = false;
+
+    /// <summary>
+    /// Enable cache compression for responses (default: false)
+    /// When enabled, compresses cached responses to save memory.
+    /// Trade-off: saves memory but adds CPU overhead for compression/decompression.
+    /// Recommended for large responses or memory-constrained environments.
+    /// </summary>
+    public bool EnableCacheCompression { get; set; } = false;
 
     /// <summary>
     /// Minimum delay in milliseconds between streaming chunks (default: 0 = no delay)

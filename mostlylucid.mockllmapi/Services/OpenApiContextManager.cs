@@ -7,24 +7,26 @@ using System.Text.Json;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages shared contexts for OpenAPI endpoints to maintain consistency across related requests
+/// Manages shared contexts for OpenAPI endpoints to maintain consistency across related requests.
+/// Uses IContextStore for storage with automatic expiration (default: 15 minutes of inactivity).
 /// </summary>
 public class OpenApiContextManager
 {
     private readonly ILogger<OpenApiContextManager> _logger;
     private readonly LLMockApiOptions _options;
-    private readonly ConcurrentDictionary<string, ApiContext> _contexts;
+    private readonly IContextStore _contextStore;
     private const int MaxRecentCalls = 15;
     private const int SummarizeThreshold = 20;
     private const int EstimatedTokensPerChar = 4; // Rough estimate: 1 token ≈ 4 characters
 
     public OpenApiContextManager(
         ILogger<OpenApiContextManager> logger,
-        IOptions<LLMockApiOptions> options)
+        IOptions<LLMockApiOptions> options,
+        IContextStore contextStore)
     {
         _logger = logger;
         _options = options.Value;
-        _contexts = new ConcurrentDictionary<string, ApiContext>(StringComparer.OrdinalIgnoreCase);
+        _contextStore = contextStore;
     }
 
     /// <summary>
@@ -35,7 +37,7 @@ public class OpenApiContextManager
         if (string.IsNullOrWhiteSpace(contextName))
             return;
 
-        var context = _contexts.GetOrAdd(contextName, _ => new ApiContext
+        var context = _contextStore.GetOrAdd(contextName, _ => new ApiContext
         {
             Name = contextName,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -47,6 +49,7 @@ public class OpenApiContextManager
         });
 
         context.LastUsedAt = DateTimeOffset.UtcNow;
+        _contextStore.TouchContext(contextName); // Update sliding expiration
         context.TotalCalls++;
 
         // Add the call
@@ -81,8 +84,10 @@ public class OpenApiContextManager
     /// </summary>
     public string? GetContextForPrompt(string contextName)
     {
-        if (string.IsNullOrWhiteSpace(contextName) || !_contexts.TryGetValue(contextName, out var context))
+        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) || context == null)
             return null;
+
+        _contextStore.TouchContext(contextName); // Refresh sliding expiration
 
         var sb = new StringBuilder();
         sb.AppendLine($"API Context: {contextName}");
@@ -184,11 +189,11 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Gets a specific context
+    /// Gets a specific context (read-only - does not update timestamps)
     /// </summary>
     public ApiContext? GetContext(string contextName)
     {
-        _contexts.TryGetValue(contextName, out var context);
+        _contextStore.TryGetValue(contextName, out var context);
         return context;
     }
 
@@ -197,7 +202,7 @@ public class OpenApiContextManager
     /// </summary>
     public List<ApiContextSummary> GetAllContexts()
     {
-        return _contexts.Values.Select(ctx => new ApiContextSummary
+        return _contextStore.GetAllContexts().Select(ctx => new ApiContextSummary
         {
             Name = ctx.Name,
             TotalCalls = ctx.TotalCalls,
@@ -214,7 +219,7 @@ public class OpenApiContextManager
     /// </summary>
     public bool ClearContext(string contextName)
     {
-        var removed = _contexts.TryRemove(contextName, out _);
+        var removed = _contextStore.TryRemove(contextName, out _);
         if (removed)
         {
             _logger.LogInformation("Cleared context: {Context}", contextName);
@@ -227,8 +232,8 @@ public class OpenApiContextManager
     /// </summary>
     public void ClearAllContexts()
     {
-        var count = _contexts.Count;
-        _contexts.Clear();
+        var count = _contextStore.Count;
+        _contextStore.Clear();
         _logger.LogInformation("Cleared all contexts ({Count})", count);
     }
 

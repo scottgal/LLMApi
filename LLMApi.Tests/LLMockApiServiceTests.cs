@@ -261,19 +261,23 @@ public class LLMockApiServiceTests
 
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts);
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts, contextStore);
         var promptBuilder = new PromptBuilder(opts);
         var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance);
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(opts);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, opts);
 
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, cacheManager, delayHelper,
-            NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
+            chunkingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,
-            NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
+            chunkingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
 
         return new LLMockApiService(regularHandler, streamingHandler);
     }

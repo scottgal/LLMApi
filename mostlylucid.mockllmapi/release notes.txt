@@ -1,5 +1,20 @@
 mostlylucid.mockllmapi — Release Notes
 
+Release 1.8.0
+
+Automatic Request Chunking & Enhanced Performance
+
+Major Features:
+- Automatic request chunking for large responses (transparent, enabled by default)
+- Enhanced cache configuration with sliding expiration and size limits
+- Context storage with 15-minute sliding expiration prevents memory leaks
+- MaxItems configuration caps both response sizes and cache totals
+- Comprehensive logging for chunking decisions and execution
+
+No Breaking Changes - All existing code continues to work!
+
+See CHUNKING_AND_CACHING.md for complete documentation.
+
 v1.7.1 — 2025-01-05
 - gRPC Demo Page and Bug Fixes
   - Added comprehensive gRPC demo page at /grpc with 4-panel interface
@@ -58,10 +73,6 @@ v1.2.0 — 2024-12-25
 v1.1.0 — 2024-12-20
 - Custom prompt templates
 - Temperature and timeout configuration
-- Enhanced documentation
 
 v1.0.0 — 2024-12-15
 - Initial release
-- LLM-powered mock API responses via Ollama
-- Flexible shape-based response generation
-- Easy ASP.NET Core integration

@@ -1,5 +1,90 @@
 # Release Notes
 
+## v1.8.0 (2025-01-06)nk 
+
+**NO BREAKING CHANGES** - All existing code continues to work!
+
+### Major Features
+
+#### Automatic Request Chunking
+- **Intelligent Token Management**: Automatically breaks large requests into optimal chunks that fit within LLM token limits
+- **Transparent Operation**: Works behind the scenes—no API changes required, enabled by default
+- **Context Preservation**: Maintains consistency across chunks (IDs, names, relationships, data patterns)
+- **Configurable**: Set `MaxOutputTokens` and `MaxItems` to match your LLM capabilities
+- **Comprehensive Logging**: Detailed visibility into chunking decisions, strategy, and execution
+- **Opt-Out**: Use `?autoChunk=false` query parameter to disable per-request
+- **Token Estimation**: Smart analysis of shape complexity (nesting, arrays, properties) for accurate chunk sizing
+
+#### Enhanced Cache Configuration
+- **Sliding Expiration**: `CacheSlidingExpirationMinutes` (default: 15) - cache entries expire after inactivity
+- **Absolute Expiration**: `CacheAbsoluteExpirationMinutes` (default: 60) - maximum cache lifetime
+- **Size Limits**: `MaxItems` (default: 1000) - caps both response sizes AND total cache items
+- **Cache Priority**: `CachePriority` (0-3) for memory management under pressure
+- **Statistics Tracking**: `EnableCacheStatistics` for cache hit/miss monitoring
+- **Compression**: `EnableCacheCompression` for memory-constrained environments
+- **Refresh Threshold**: `CacheRefreshThresholdPercent` for future background pre-fetch
+
+#### Context Storage Improvements
+- **15-Minute Sliding Expiration**: API contexts automatically expire after inactivity
+- **Memory Safety**: Prevents memory leaks with automatic cleanup and eviction callbacks
+- **Sliding Window**: Context lifetime refreshes on each use
+- **Case-Insensitive**: Context names work regardless of casing ("User-Session" = "user-session")
+- **IMemoryCache Backend**: Consistent implementation with context store
+
+### Configuration Examples
+
+```json
+{
+  "MockLlmApi": {
+    // Auto-Chunking (NEW)
+    "MaxOutputTokens": 2048,
+    "EnableAutoChunking": true,
+    "MaxItems": 1000,
+
+    // Enhanced Cache (NEW)
+    "CacheSlidingExpirationMinutes": 15,
+    "CacheAbsoluteExpirationMinutes": 60,
+    "CacheRefreshThresholdPercent": 50,
+    "CachePriority": 1,
+    "EnableCacheStatistics": false,
+    "EnableCacheCompression": false
+  }
+}
+```
+
+### Usage Examples
+
+**Request 100 Items (Auto-Chunks):**
+```http
+GET /api/mock/users?count=100
+```
+Automatically splits into chunks, returns combined result.
+
+**Disable Chunking:**
+```http
+GET /api/mock/users?count=100&autoChunk=false
+```
+
+**Logs:**
+```
+[INFO] Request needs chunking: 100 items × 150 tokens = 15000 tokens > 1536 available
+[INFO] AUTO-CHUNKING ENABLED: Breaking request into 4 chunks (25 items/chunk)
+[INFO] AUTO-CHUNKING: Executing chunk 1/4 (items 1-25 of 100)
+[INFO] AUTO-CHUNKING COMPLETE: Combined 4 chunks into 100 items
+```
+
+### Documentation
+- **[CHUNKING_AND_CACHING.md](./CHUNKING_AND_CACHING.md)** - Complete guide to chunking and caching systems
+- **[ChunkingAndCaching.http](./ChunkingAndCaching.http)** - Ready-to-run HTTP examples (27 examples)
+- **[README.md](./README.md)** - Updated with v1.8.0 features
+
+### Testing
+- All 196 tests passing
+- Build succeeded with zero errors
+- Backward compatible with all previous versions
+
+---
+
 ## v1.7.1 (2025-01-05)
 
 **NO BREAKING CHANGES** - All existing code continues to work!

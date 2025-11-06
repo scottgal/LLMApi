@@ -12,6 +12,13 @@ namespace LLMApi.Tests;
 
 public class ErrorHandlingTests
 {
+    private static IContextStore CreateContextStore()
+    {
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        return new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
+    }
+
     #region ErrorConfig Model Tests
 
     [Fact]
@@ -406,13 +413,15 @@ public class ErrorHandlingTests
         });
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options);
+        var contextStore = CreateContextStore();
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var cacheManager = new CacheManager(options, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(options);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, cacheManager, delayHelper, NullLogger<RegularRequestHandler>.Instance);
+            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");
@@ -440,12 +449,14 @@ public class ErrorHandlingTests
         });
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options);
+        var contextStore = CreateContextStore();
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var delayHelper = new DelayHelper(options);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var handler = new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, NullLogger<GraphQLRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, NullLogger<GraphQLRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=401&errorMessage=Token%20expired");
@@ -476,12 +487,14 @@ public class ErrorHandlingTests
         });
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options);
+        var contextStore = CreateContextStore();
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var delayHelper = new DelayHelper(options);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var handler = new StreamingRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, NullLogger<StreamingRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, NullLogger<StreamingRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=429&errorMessage=Rate%20limit%20exceeded");

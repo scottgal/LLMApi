@@ -9,7 +9,7 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ## Table of Contents
 
-- [What's New in v1.5.0](#whats-new-in-v150)
+- [What's New in v1.8.0](#whats-new-in-v180)
 - [Features Overview](#features)
 - [Quick Start](#quick-start)
 - [Feature Documentation](#feature-documentation)
@@ -22,7 +22,33 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ---
 
-## What's New in v1.7.1
+## What's New in v1.8.0
+
+**NO BREAKING CHANGES** - All existing code continues to work!
+
+### Automatic Request Chunking (NEW!)
+- **Intelligent Token Management**: Automatically breaks large requests into optimal chunks
+- **Transparent Operation**: Works behind the scenes—no API changes required
+- **Context Preservation**: Maintains consistency across chunks (IDs, names, relationships)
+- **Configurable Limits**: Set `MaxOutputTokens` and `MaxItems` for your LLM
+- **Comprehensive Logging**: Detailed visibility into chunking decisions and execution
+- **Opt-Out Available**: Use `?autoChunk=false` to disable per-request
+- **[Complete Guide](./CHUNKING_AND_CACHING.md)** | **[HTTP Examples](./ChunkingAndCaching.http)**
+
+### Enhanced Cache Configuration (NEW!)
+- **Sliding Expiration**: Cache entries expire after 15 minutes of inactivity
+- **Size Limits**: `MaxItems` caps both response sizes and cache totals
+- **Flexible Options**: Absolute expiration, cache priority, compression support
+- **Statistics Tracking**: Optional cache hit/miss monitoring
+- **[Complete Guide](./CHUNKING_AND_CACHING.md)** | **[HTTP Examples](./ChunkingAndCaching.http)**
+
+### Context Storage Improvements
+- **Automatic Expiration**: API contexts expire after 15 minutes of inactivity
+- **Memory Safety**: Prevents memory leaks with automatic cleanup
+- **Sliding Window**: Context lifetime refreshes on each use
+- **Case-Insensitive**: Context names work regardless of casing
+
+### Previous Updates (v1.7.1)
 
 **NO BREAKING CHANGES** - All existing code continues to work!
 

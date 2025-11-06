@@ -1,6 +1,6 @@
 # Modular Architecture Examples
 
-**New in v1.2.0:** Complete modularity! Each protocol (REST, Streaming, GraphQL, SignalR) can now be added and mapped independently.
+**New in v1.2.0+:** Complete modularity! Each protocol (REST, Streaming, GraphQL, SignalR, gRPC, OpenAPI) can now be added and mapped independently. Plus dynamic spec loading, context management, and more!
 
 ## Table of Contents
 - [Backward Compatible (Unified Approach)](#backward-compatible-unified-approach)
@@ -9,9 +9,14 @@
   - [GraphQL Only](#graphql-only)
   - [Streaming Only](#streaming-only)
   - [SignalR Only](#signalr-only)
+  - [gRPC Only](#grpc-only)
+  - [OpenAPI Only](#openapi-only)
+  - [Context Management API](#context-management-api)
   - [Mix and Match](#mix-and-match)
 - [Multiple Instances](#multiple-instances)
 - [Benefits of Modular Approach](#benefits-of-modular-approach)
+- [Migration Guide](#migration-guide)
+- [Summary](#summary)
 
 ---
 

@@ -19,6 +19,7 @@ public class StreamingRequestHandler
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
+    private readonly ChunkingCoordinator _chunkingCoordinator;
     private readonly ILogger<StreamingRequestHandler> _logger;
 
     private const int MaxSchemaHeaderLength = 4000;
@@ -31,6 +32,7 @@ public class StreamingRequestHandler
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         DelayHelper delayHelper,
+        ChunkingCoordinator chunkingCoordinator,
         ILogger<StreamingRequestHandler> logger)
     {
         _options = options.Value;
@@ -40,6 +42,7 @@ public class StreamingRequestHandler
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _delayHelper = delayHelper;
+        _chunkingCoordinator = chunkingCoordinator;
         _logger = logger;
     }
 

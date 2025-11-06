@@ -8,7 +8,7 @@ using System.Text.Json;
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles GraphQL mock API requests
+/// Handles GraphQL mock API requests with automatic chunking support
 /// </summary>
 public class GraphQLRequestHandler
 {
@@ -19,6 +19,7 @@ public class GraphQLRequestHandler
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
+    private readonly ChunkingCoordinator _chunkingCoordinator;
     private readonly ILogger<GraphQLRequestHandler> _logger;
 
     public GraphQLRequestHandler(
@@ -29,6 +30,7 @@ public class GraphQLRequestHandler
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         DelayHelper delayHelper,
+        ChunkingCoordinator chunkingCoordinator,
         ILogger<GraphQLRequestHandler> logger)
     {
         _options = options.Value;
@@ -38,6 +40,7 @@ public class GraphQLRequestHandler
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _delayHelper = delayHelper;
+        _chunkingCoordinator = chunkingCoordinator;
         _logger = logger;
     }
 

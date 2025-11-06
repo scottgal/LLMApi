@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
@@ -15,7 +16,13 @@ public class OpenApiContextManagerTests
         {
             MaxInputTokens = 2048
         });
-        return new OpenApiContextManager(logger, options);
+
+        // Create real IMemoryCache and IContextStore for testing
+        var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var contextStoreLogger = loggerFactory.CreateLogger<MemoryCacheContextStore>();
+        var contextStore = new MemoryCacheContextStore(memoryCache, contextStoreLogger);
+
+        return new OpenApiContextManager(logger, options, contextStore);
     }
 
     [Fact]

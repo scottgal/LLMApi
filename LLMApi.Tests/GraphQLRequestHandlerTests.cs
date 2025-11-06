@@ -37,13 +37,17 @@ public class GraphQLRequestHandlerTests
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
         var contextManagerLogger = NullLogger<OpenApiContextManager>.Instance;
-        var contextManager = new OpenApiContextManager(contextManagerLogger, options);
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var contextStoreLogger = NullLogger<MemoryCacheContextStore>.Instance;
+        var contextStore = new MemoryCacheContextStore(memoryCache, contextStoreLogger);
+        var contextManager = new OpenApiContextManager(contextManagerLogger, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
         llmClient ??= new FakeGraphQLLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance);
         var delayHelper = new DelayHelper(options);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var logger = NullLogger<GraphQLRequestHandler>.Instance;
 
-        return new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, logger);
+        return new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, chunkingCoordinator, logger);
     }
 
     private DefaultHttpContext CreateHttpContext(string? body = null)

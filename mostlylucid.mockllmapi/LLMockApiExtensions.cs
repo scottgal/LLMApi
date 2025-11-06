@@ -206,6 +206,7 @@ public static class LlMockApiExtensions
         if (services.All(x => x.ServiceType != typeof(LlmClient)))
         {
             services.AddHttpClient("LLMockApi");
+            services.AddMemoryCache(); // Required for IContextStore
             services.AddScoped<ShapeExtractor>();
             services.AddScoped<ContextExtractor>();
             services.AddScoped<PromptBuilder>();
@@ -213,6 +214,10 @@ public static class LlMockApiExtensions
             services.AddSingleton<CacheManager>();
             services.AddScoped<DelayHelper>();
             services.AddScoped<LLMockApiService>();
+            services.AddScoped<ChunkingCoordinator>(); // Automatic request chunking
+
+            // Register context store with automatic 15-minute expiration
+            services.AddSingleton<IContextStore, MemoryCacheContextStore>();
         }
     }
 
