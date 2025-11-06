@@ -1,12 +1,96 @@
 # Release Notes
 
+## v2.1.0 (2025-01-06) - Quality & Validation Release
+
+**Focus**: Enhanced reliability, comprehensive testing, and improved developer experience
+
+This release focuses on improving chunking reliability, providing comprehensive validation tooling, and streamlining configuration management. All features from v2.0 remain fully compatible.
+
+### Major Improvements
+
+#### 1. Comprehensive HTTP Validation Suite
+- **70+ Test Cases**: Complete validation coverage in `LLMApi.http`
+  - OpenAPI management (load, list, get, unload, describe)
+  - API context management (create, update, pause, resume, delete)
+  - gRPC proto management (upload, list, get, services, call)
+  - Continuous SSE streaming validation
+  - Chunking tests with large arrays
+  - Context history and custom descriptions
+  - Backend selection (X-LLM-Backend header)
+  - Schema validation (includeSchema + X-Response-Schema)
+  - Combined feature validation
+  - Error simulation (comprehensive HTTP error codes)
+
+#### 2. Enhanced Chunking Reliability
+- **Explicit Array Formatting**: Enhanced prompts with ultra-explicit instructions for JSON array generation
+  - Added critical formatting rules in `PromptBuilder.cs`: "Your FIRST character MUST be: ["
+  - Reinforced array formatting in `ChunkingCoordinator.cs` chunk context
+  - Prevents comma-separated object output (e.g., `{...},{...}` instead of `[{...},{...}]`)
+- **Improved Instruction Following**: Better guidance for LLMs during multi-chunk requests
+- **Known Limitations**: Documented model/temperature recommendations for optimal chunking (see `docs/OLLAMA_MODELS.md`)
+
+#### 3. Configuration Streamlining
+- **Clean `appsettings.json`**: Removed verbose model comments, cleaner structure
+- **`docs/OLLAMA_MODELS.md`**: New comprehensive reference guide (285 lines)
+  - 10+ model configurations with hardware requirements
+  - Temperature guidelines for different use cases
+  - Context window sizing recommendations
+  - Multi-backend configuration examples
+  - Chunking troubleshooting guide
+  - Model installation instructions
+
+#### 4. Documentation Improvements
+- **Full Swagger Documentation**: All 25+ management endpoints now have complete Swagger docs
+  - Tags organization (OpenAPI Management, API Contexts, gRPC, etc.)
+  - Summaries and detailed descriptions
+  - Request/response examples
+- **Backend API Reference**: New `docs/BACKEND_API_REFERENCE.md` (600+ lines)
+  - Complete endpoint documentation
+  - Query parameters and headers reference
+  - Error response formats
+  - SignalR hub documentation
+
+### Bug Fixes
+- Fixed URL encoding issue in HTTP test for OpenAPI endpoint descriptions (`:`, `/`, `{`, `}` characters)
+
+### Files Modified
+**Code Changes:**
+- `mostlylucid.mockllmapi/Services/PromptBuilder.cs`: Enhanced array formatting instructions (lines 82-94)
+- `mostlylucid.mockllmapi/Services/ChunkingCoordinator.cs`: Added array formatting to chunk context (line 447)
+- `LLMApi/appsettings.json`: Streamlined configuration
+
+**New Documentation:**
+- `docs/OLLAMA_MODELS.md`: Comprehensive model configuration guide
+- `docs/BACKEND_API_REFERENCE.md`: Complete management API reference
+
+**Updated Files:**
+- `LLMApi/LLMApi.http`: Expanded from 448 to 847 lines (70+ new validation tests)
+
+### Known Limitations
+**Chunking at High Temperature**:
+- LLMs may generate comma-separated objects instead of arrays at temperature 1.2+
+- **Workarounds**:
+  1. Lower temperature to 0.8-1.0 for chunked requests
+  2. Use llama3.2:3b or mistral-nemo (better instruction following)
+  3. Reduce item count to avoid chunking
+  4. Disable auto-chunking with `?autoChunk=false`
+
+See `docs/OLLAMA_MODELS.md` for detailed troubleshooting.
+
+### Compatibility
+- **Fully backward compatible** with v2.0.0
+- All existing features continue to work
+- No breaking changes
+
+---
+
 ## v2.0.0 (2025-01-06) - MAJOR RELEASE
 
 **NO BREAKING CHANGES** - Despite the major version bump, all existing code continues to work!
 
 This is a major milestone release that transforms LLMock API into a comprehensive, production-ready mocking platform. Version 2.0 adds realistic SSE streaming modes, multi-backend load balancing, comprehensive backend selection, and extensive documentation.
 
-### 🎯 Major Features
+### Major Features
 
 #### 1. Realistic SSE Streaming Modes (MAJOR)
 
@@ -17,12 +101,12 @@ Three distinct SSE streaming modes for testing different real-world API patterns
 - Format: `{"chunk":"text","accumulated":"fulltext","done":false}`
 - Use case: Testing chatbot UIs, LLM applications
 
-**CompleteObjects Mode** ✨ NEW
+**CompleteObjects Mode** (NEW)
 - Complete JSON objects as separate SSE events
 - Format: `{"data":{object},"index":0,"total":10,"done":false}`
 - Use case: Twitter/X API, stock tickers, real-time feeds, IoT sensors
 
-**ArrayItems Mode** ✨ NEW
+**ArrayItems Mode** (NEW)
 - Array items with rich metadata
 - Format: `{"item":{object},"index":0,"total":100,"arrayName":"users","hasMore":true,"done":false}`
 - Use case: Paginated results, bulk exports, search results
@@ -195,7 +279,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 ```
 
-### 📚 Documentation Overhaul
+### Documentation Overhaul
 
 #### New Documentation Files
 - **`docs/SSE_STREAMING_MODES.md`** (2,500+ lines) - Complete SSE guide
@@ -375,7 +459,7 @@ GET /api/mock/stream/chat?sseMode=LlmTokens&shape={"message":"Hello!"}
 GET /api/mock/stream/bulk-data?sseMode=ArrayItems&backend=ollama-mistral-nemo
 ```
 
-### 🚀 Migration from v1.x
+### Migration from v1.x
 
 **No Code Changes Required!**
 
@@ -402,9 +486,9 @@ app.MapLLMockApi("/api/mock", includeStreaming: true);
 }
 ```
 
-### ⚙️ Breaking Changes
+### Breaking Changes
 
-**NONE!** 🎉
+**NONE!**
 
 Despite the major version bump to 2.0, there are zero breaking changes:
 - Default SSE mode is `LlmTokens` (original behavior)
@@ -420,7 +504,7 @@ Despite the major version bump to 2.0, there are zero breaking changes:
 - **Backend-Specific Token Limits**: Optimize for each model's capabilities
 - **CompleteObjects Mode**: Fewer SSE events = lower overhead than token-by-token
 
-### 🎯 Why Version 2.0?
+### Why Version 2.0?
 
 This release represents a fundamental transformation:
 
@@ -439,7 +523,7 @@ This release represents a fundamental transformation:
 
 Version 2.0 positions LLMock API as a comprehensive mocking platform capable of handling production-scale testing requirements across diverse use cases.
 
-### 📚 Complete Documentation
+### Complete Documentation
 
 - **[SSE Streaming Modes](./docs/SSE_STREAMING_MODES.md)** - Complete guide to SSE modes
 - **[Multiple LLM Backends](./docs/MULTIPLE_LLM_BACKENDS.md)** - Backend configuration guide

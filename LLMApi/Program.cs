@@ -21,8 +21,8 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "LLMock API Demo",
-        Version = "v2.0.0",
-        Description = "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, continuous SSE streaming, and simplified MaxContextWindow configuration.",
+        Version = "v2.1.0",
+        Description = "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, comprehensive validation suite, and enhanced chunking reliability.",
         Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
             Name = "GitHub Repository",
@@ -37,7 +37,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "LLMock API Demo v2.0.0");
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "LLMock API Demo v2.1.0");
     options.RoutePrefix = "swagger"; // Access at /swagger
     options.DocumentTitle = "LLMock API Documentation";
     options.EnableDeepLinking();

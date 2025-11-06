@@ -482,14 +482,20 @@ Accept: application/json
 
 ###
 
-### OPENAPI: Describe a specific endpoint
-GET {{LLMApi_HostAddress}}/api/openapi/specs/petstore/endpoints/get:/pet/{petId}
+### OPENAPI: Describe a specific endpoint (using actual path)
+GET {{LLMApi_HostAddress}}/api/openapi/specs/petstore/endpoints/get%3A%2Fpet%2F%7BpetId%7D
 Accept: application/json
 
 ###
 
-### OPENAPI: Call a loaded endpoint (Petstore get pet)
+### OPENAPI: Call loaded endpoint - Get pet by ID (petId=42)
 GET {{LLMApi_HostAddress}}/petstore/pet/42
+Accept: application/json
+
+###
+
+### OPENAPI: Call loaded endpoint - Get pet by ID (petId=123)
+GET {{LLMApi_HostAddress}}/petstore/pet/123
 Accept: application/json
 
 ###

@@ -1,4 +1,4 @@
-# mostlylucid.mockllmapi v2.0 🚀
+# mostlylucid.mockllmapi v2.1.0
 
 A comprehensive, production-ready ASP.NET Core mocking platform for generating realistic mock API responses using multiple LLM backends. Add intelligent mock endpoints to any project with just 2 lines of code!
 
@@ -6,13 +6,13 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
-**Version 2.0** - Production-ready mocking platform with multi-backend support, realistic SSE streaming, and comprehensive documentation.
+**Version 2.1.0** - Enhanced reliability, comprehensive validation, and streamlined configuration.
 
 ---
 
 ## Table of Contents
 
-- [What's New in v2.0](#whats-new-in-v20)
+- [What's New in v2.1.0](#whats-new-in-v210)
 - [Features Overview](#features)
 - [Quick Start](#quick-start)
 - [Feature Documentation](#feature-documentation)
@@ -25,57 +25,41 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 ---
 
-## What's New in v2.0
+## What's New in v2.1.0
 
-**NO BREAKING CHANGES** - Despite the major version bump, all existing code continues to work!
+**Focus**: Enhanced reliability, comprehensive testing, and improved developer experience. Fully backward compatible with v2.0.
 
-### 1. Realistic SSE Streaming Modes ✨ NEW
-Three distinct streaming modes for testing different real-world APIs:
-- **LlmTokens** (default): Token-by-token for AI chat interfaces
-- **CompleteObjects**: Full JSON objects per event (Twitter API, stock tickers)
-- **ArrayItems**: Paginated results with metadata (bulk exports, search results)
-- **Per-Request Override**: `?sseMode=CompleteObjects`
-- **[Complete Guide](./docs/SSE_STREAMING_MODES.md)** | **[HTTP Examples](./LLMApi/SSE_Streaming.http)**
+### 1. Comprehensive HTTP Validation Suite
+Complete validation coverage with 70+ ready-to-run test cases:
+- **Complete Coverage**: OpenAPI, contexts, gRPC, SSE, chunking, errors
+- **Backend Selection**: Validation for X-LLM-Backend header
+- **Schema Validation**: includeSchema + X-Response-Schema testing
+- **[Ready-to-Run Tests](./LLMApi/LLMApi.http)**
 
-### 2. Multi-Backend Load Balancing ✨ NEW
-Distribute requests across multiple LLM instances:
-- **Weighted Round-Robin**: Smart load distribution based on backend capabilities
-- **SignalR Support**: Load balance across backends for high-throughput streams
-- **Automatic Failover**: Falls back to default if backends unavailable
-- **Per-Context Selection**: Different backends for different SignalR hubs
-- **[Complete Guide](./docs/MULTIPLE_LLM_BACKENDS.md)**
+### 2. Enhanced Chunking Reliability
+Improved instruction following for large array generation:
+- **Explicit Array Formatting**: Prevents comma-separated objects
+- **Better Prompts**: Ultra-clear instructions for LLMs
+- **Model Recommendations**: Documented temperature/model combinations
+- **[Chunking Guide](./CHUNKING_AND_CACHING.md)**
 
-### 3. Comprehensive Backend Selection
-Multiple ways to route requests to specific LLM backends:
-- **Per-Request**: `?backend=openai-gpt4` or `X-LLM-Backend` header
-- **SignalR Hubs**: Configure `BackendName` or `BackendNames` per hub
-- **Multiple Providers**: Ollama, OpenAI, LM Studio simultaneously
-- **Mistral-Nemo 128k**: Support for massive context windows
-- **[Configuration Examples](./LLMApi/appsettings.Full.json)**
+### 3. Streamlined Configuration
+Clean, reference-based configuration:
+- **Clean appsettings.json**: Removed verbose comments
+- **OLLAMA_MODELS.md**: Comprehensive 10+ model configurations
+- **Hardware Requirements**: GPU/RAM guidance for each model
+- **Temperature Guidelines**: Optimized settings per use case
+- **[Model Reference Guide](./docs/OLLAMA_MODELS.md)**
 
-### 4. Swagger/OpenAPI UI ✨ NEW
-Interactive API documentation:
-- **Swagger UI** at `/swagger`
-- **Auto-Generated Specs**: Complete endpoint documentation
-- **Interactive Testing**: Try endpoints directly in browser
-- **Navigation**: Linked from demo page header
+### 4. Complete Swagger Documentation
+All 25+ management endpoints fully documented:
+- **Tags Organization**: Logical endpoint grouping
+- **Request/Response Examples**: Complete samples
+- **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)**
 
-### 5. Automatic Request Chunking
-Intelligent token management for large requests:
-- **Transparent Operation**: Works behind the scenes—no API changes required
-- **Context Preservation**: Maintains consistency across chunks
-- **Configurable**: Set `MaxOutputTokens` and `MaxItems` for your LLM
-- **Opt-Out**: Use `?autoChunk=false` to disable
-- **[Complete Guide](./CHUNKING_AND_CACHING.md)**
+**Note**: v2.0.0 was skipped to refine these critical areas before stable release.
 
-### 6. Enhanced Configuration
-Production-ready configuration with extensive options:
-- **Environment Variables**: Full support with comprehensive documentation
-- **Cache Configuration**: Sliding expiration, size limits, statistics
-- **Context Storage**: Automatic expiration and memory safety
-- **[Configuration Reference](./docs/CONFIGURATION_REFERENCE.md)**
-
-**📚 [See RELEASE_NOTES.md for complete v2.0 details and full version history](./RELEASE_NOTES.md)**
+**[See RELEASE_NOTES.md for complete details and full version history](./RELEASE_NOTES.md)**
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
 
 ---
@@ -100,14 +84,14 @@ This package provides **six independent features** - use any combination you nee
 - **Progressive Streaming**: SSE support with progressive JSON generation
 - **Real-time Updates**: Stream data token-by-token to clients
 - **Works standalone**: No REST API setup required
-- **📖 [Complete SSE Guide](./docs/SSE_STREAMING_MODES.md)** | **[Continuous Streaming](./docs/CONTINUOUS_STREAMING.md)**
+- **[Complete SSE Guide](./docs/SSE_STREAMING_MODES.md)** | **[Continuous Streaming](./docs/CONTINUOUS_STREAMING.md)**
 
 ### 4. SignalR Real-Time Streaming
 - **WebSocket Streaming**: Continuous real-time mock data via SignalR
 - **Multiple Contexts**: Run multiple independent data streams simultaneously
 - **Lifecycle Management**: Start/stop contexts dynamically with management API
 - **Works standalone**: No REST API setup required
-- **📖 [SignalR Demo Guide](./SIGNALR_DEMO_GUIDE.md)**
+- **[SignalR Demo Guide](./SIGNALR_DEMO_GUIDE.md)**
 
 ### 5. OpenAPI / Swagger Mock Generation
 - **Automatic Endpoint Generation**: Point to any OpenAPI/Swagger spec (URL or file)
@@ -115,7 +99,7 @@ This package provides **six independent features** - use any combination you nee
 - **Schema-Driven Data**: LLM generates realistic data matching your schemas
 - **Multiple Specs**: Load and mount multiple API specs simultaneously
 - **Works standalone**: No REST API setup required
-- **📖 [OpenAPI Features Guide](./docs/OPENAPI-FEATURES.md)**
+- **[OpenAPI Features Guide](./docs/OPENAPI-FEATURES.md)**
 
 ### 6. gRPC Service Mocking (NEW in v1.7.0)
 - **Proto File Upload**: Upload .proto files to generate gRPC service mocks
@@ -123,7 +107,7 @@ This package provides **six independent features** - use any combination you nee
 - **Dynamic Serialization**: Runtime Protobuf encoding without code generation
 - **LLM-Powered Data**: Realistic responses matching your proto message definitions
 - **Works standalone**: No REST API setup required
-- **📖 [gRPC Support Guide](./docs/GRPC_SUPPORT.md)**
+- **[gRPC Support Guide](./docs/GRPC_SUPPORT.md)**
 
 ### Common Features
 - **Configurable**: appsettings.json or inline configuration
@@ -210,14 +194,14 @@ This package was **developed and tested with `llama3`** (8B parameters), which p
 
 | Model | Size | Speed | Quality | Context | Best For |
 |-------|------|-------|---------|---------|----------|
-| **gemma3:4b** 🚀 | 4B | ⚡⚡⚡ | ⭐⭐⭐ | 4K | **KILLER for lower-end machines!** |
-| **llama3** (default) | 8B | ⚡⚡ | ⭐⭐⭐⭐ | 8K | General use, production |
-| **mistral-nemo** 🎯 | 12B | ⚡ | ⭐⭐⭐⭐⭐ | 128K | **High quality, massive datasets** |
-| **mistral:7b** | 7B | ⚡⚡ | ⭐⭐⭐⭐ | 8K | Alternative to llama3 |
-| **phi3** | 3.8B | ⚡⚡⚡ | ⭐⭐⭐ | 4K | Quick prototyping |
-| **tinyllama** | 1.1B | ⚡⚡⚡ | ⭐⭐ | 2K | Ultra resource-constrained |
+| **gemma3:4b** | 4B | Fast | Good | 4K | **KILLER for lower-end machines!** |
+| **llama3** (default) | 8B | Medium | Very Good | 8K | General use, production |
+| **mistral-nemo** | 12B | Slower | Excellent | 128K | **High quality, massive datasets** |
+| **mistral:7b** | 7B | Medium | Very Good | 8K | Alternative to llama3 |
+| **phi3** | 3.8B | Fast | Good | 4K | Quick prototyping |
+| **tinyllama** | 1.1B | Very Fast | Basic | 2K | Ultra resource-constrained |
 
-#### 🚀 RECOMMENDED: Gemma3 (4B) - Perfect for Development!
+#### RECOMMENDED: Gemma3 (4B) - Perfect for Development!
 
 **Gemma 3 is KILLER for lower-end machines** - fast, lightweight, excellent quality:
 
@@ -236,13 +220,13 @@ ollama pull gemma3:4b
 ```
 
 **Why it's great:**
-- ✅ Runs smoothly on laptops and budget workstations (4-6GB RAM)
-- ✅ Fast generation even on CPU-only systems
-- ✅ Excellent JSON generation quality
-- ✅ 4K context window (sufficient for most mock data)
-- ✅ Perfect for CI/CD pipelines
+- Runs smoothly on laptops and budget workstations (4-6GB RAM)
+- Fast generation even on CPU-only systems
+- Excellent JSON generation quality
+- 4K context window (sufficient for most mock data)
+- Perfect for CI/CD pipelines
 
-#### 🎯 PRODUCTION: Mistral-Nemo - Best Quality & Massive Contexts
+#### PRODUCTION: Mistral-Nemo - Best Quality & Massive Contexts
 
 **For production-like testing with complex schemas:**
 
@@ -261,11 +245,11 @@ ollama pull mistral-nemo
 ```
 
 **Why it's great:**
-- ✅ Highest quality realistic data generation
-- ✅ **128K context window** (requires [Ollama configuration](./docs/MULTIPLE_LLM_BACKENDS.md#️-ollama-context-window-configuration))
-- ✅ Best for complex nested structures and large datasets
-- ✅ More creative variation in generated data
-- ⚠️ Requires more resources (12-16GB RAM)
+- Highest quality realistic data generation
+- **128K context window** (requires [Ollama configuration](./docs/MULTIPLE_LLM_BACKENDS.md#ollama-context-window-configuration))
+- Best for complex nested structures and large datasets
+- More creative variation in generated data
+- **Note**: Requires more resources (12-16GB RAM)
 
 #### Model-Specific Configuration
 
@@ -296,9 +280,9 @@ ollama pull mistral-nemo
   "TimeoutSeconds": 120      // Longer timeout for large contexts
 }
 ```
-**⚠️ Note:** Mistral-nemo requires [Ollama context configuration](./docs/MULTIPLE_LLM_BACKENDS.md#️-ollama-context-window-configuration) for 128K contexts.
+**Note:** Mistral-nemo requires [Ollama context configuration](./docs/MULTIPLE_LLM_BACKENDS.md#ollama-context-window-configuration) for 128K contexts.
 
-**🔍 Where to find MaxContextWindow:**
+**Where to find MaxContextWindow:**
 ```bash
 # Check model info
 ollama show {model-name}
@@ -327,7 +311,7 @@ ollama show {model-name}
 #### Installation
 
 ```bash
-# 🚀 RECOMMENDED for development (fast, lightweight)
+# RECOMMENDED for development (fast, lightweight)
 ollama pull gemma3:4b
 
 # Production options

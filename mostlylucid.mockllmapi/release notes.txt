@@ -1,199 +1,55 @@
 mostlylucid.mockllmapi — Release Notes
 
 ===============================================================================
-Release 2.0.0 — 2025-01-06
+Release 2.1.0 — 2025-01-06
 ===============================================================================
 
-MAJOR RELEASE - Production-Ready Mocking Platform
+NOTE: v2.0.0 was skipped to refine key areas before stable release:
+      - Chunking reliability (array formatting)
+      - Configuration clarity (streamlined appsettings + model reference)
+      - Comprehensive validation suite (70+ HTTP tests)
+      - Complete Swagger documentation for all management endpoints
 
-NO BREAKING CHANGES — Despite the major version bump, all existing code continues to work!
+Quality & Validation Release - Production Ready
 
-Major Features:
+1. HTTP Validation Suite (70+ Tests)
+   - Complete coverage in LLMApi.http: OpenAPI, contexts, gRPC, SSE, chunking
+   - Backend selection (X-LLM-Backend header)
+   - Schema validation (includeSchema + X-Response-Schema)
 
-1. Realistic SSE Streaming Modes
-   - LlmTokens (default): Token-by-token streaming for AI chat interfaces
-   - CompleteObjects: Full JSON objects per event (Twitter API, stock tickers)
-   - ArrayItems: Paginated results with metadata (bulk exports, search)
-   - Per-request override: ?sseMode=CompleteObjects
-   - Complete guide: docs/SSE_STREAMING_MODES.md
+2. Enhanced Chunking Reliability
+   - Explicit array formatting: prevents {...},{...} → ensures [{...},{...}]
+   - Updated PromptBuilder.cs and ChunkingCoordinator.cs
+   - Model/temperature recommendations documented
 
-2. Multi-Backend Load Balancing
-   - Distribute requests across multiple LLM instances
-   - Weighted round-robin distribution based on backend capabilities
-   - SignalR hub support with BackendNames array
-   - Automatic failover to default if backends unavailable
-   - Works with all protocols: REST, SSE, GraphQL, SignalR
+3. Streamlined Configuration
+   - Clean appsettings.json (removed verbose comments)
+   - NEW docs/OLLAMA_MODELS.md (10+ models, temp guidelines, troubleshooting)
 
-3. Comprehensive Backend Selection
-   - Per-request: ?backend=openai-gpt4 or X-LLM-Backend header
-   - SignalR hubs: BackendName (single) or BackendNames (load balanced)
-   - Multiple providers simultaneously: Ollama, OpenAI, LM Studio
-   - Mistral-Nemo 128k context window support
+4. Complete Documentation
+   - Full Swagger docs for 25+ management endpoints
+   - NEW docs/BACKEND_API_REFERENCE.md (600+ lines)
 
-4. Swagger/OpenAPI UI
-   - Interactive API documentation at /swagger
-   - Auto-generated specs from all endpoints
-   - Test endpoints directly in browser
-   - Linked from demo page navigation
+Chunking Note: At temperature 1.2+, LLMs may generate comma-separated objects.
+Workarounds: Lower temp to 0.8-1.0, use llama3.2:3b/mistral-nemo, reduce
+count, or set ?autoChunk=false
 
-5. Enhanced Documentation
-   - SSE_STREAMING_MODES.md (2,500+ lines): Complete SSE guide
-   - SSE_Streaming.http: 30+ ready-to-run HTTP examples
-   - CONFIGURATION_REFERENCE.md: All configuration options
-   - Environment variables: Full documentation with examples
-
-Configuration Example:
-
-{
-  "MockLlmApi": {
-    "SseMode": "CompleteObjects",  // LlmTokens | CompleteObjects | ArrayItems
-    "Backends": [
-      {
-        "Name": "ollama-llama3",
-        "Provider": "ollama",
-        "Weight": 3,
-        "Enabled": true
-      },
-      {
-        "Name": "openai-gpt4",
-        "Provider": "openai",
-        "ApiKey": "sk-...",
-        "Weight": 1,
-        "Enabled": true
-      }
-    ]
-  }
-}
-
-SignalR Load Balancing Example:
-
-{
-  "HubContexts": [
-    {
-      "Name": "high-throughput-data",
-      "BackendNames": ["ollama-llama3", "ollama-mistral", "lmstudio-default"]
-    }
-  ]
-}
-
-Testing:
-- 218 tests (213 passing, 5 gRPC tests skipped)
-- 22 new SSE mode tests
-- Zero compilation errors or warnings
-- Full backward compatibility verified
-
-Why Version 2.0?
-
-v1.x: Mock API with LLM-powered generation
-- Single LLM backend
-- One SSE streaming mode
-- Basic configuration
-
-v2.0: Production-Ready Mock Platform
-- Multiple LLM backends with load balancing
-- Three realistic SSE streaming modes
-- Comprehensive backend selection
-- Production-scale configuration (128k contexts)
-- Enterprise-ready documentation
-- Interactive API documentation (Swagger)
-
-Version 2.0 transforms LLMock API into a comprehensive mocking platform
-capable of handling production-scale testing requirements.
-
-Migration from v1.x:
-- Zero code changes required
-- Default SSE mode is LlmTokens (original behavior)
-- Legacy BaseUrl/ModelName config still works
-- All existing endpoints unchanged
-- All tests pass
-
-New Features Are Opt-In:
-- Set SseMode in appsettings.json to use new streaming modes
-- Configure Backends array to use multiple LLMs
-- Per-request backend selection via query params/headers
-
-Complete Documentation:
-- RELEASE_NOTES.md: Full v2.0 details
-- docs/SSE_STREAMING_MODES.md: SSE guide
-- docs/MULTIPLE_LLM_BACKENDS.md: Backend guide
-- docs/CONFIGURATION_REFERENCE.md: All options
-- LLMApi/SSE_Streaming.http: HTTP examples
-
-===============================================================================
-Release 1.8.0 — 2025-01-06
-===============================================================================
-
-Automatic Request Chunking & Enhanced Performance
-
-Major Features:
-- Automatic request chunking for large responses (transparent, enabled by default)
-- Multiple LLM backend support (Ollama, OpenAI, LM Studio)
-- Per-request backend selection via headers or query params
-- Enhanced cache configuration with sliding expiration and size limits
-- Context storage with 15-minute sliding expiration prevents memory leaks
-- MaxItems configuration caps both response sizes and cache totals
-- Comprehensive logging for chunking decisions and execution
-
-No Breaking Changes — All existing code continues to work!
-
-See CHUNKING_AND_CACHING.md and docs/MULTIPLE_LLM_BACKENDS.md for documentation.
-
-===============================================================================
-Release 1.7.1 — 2025-01-05
-===============================================================================
-
-gRPC Demo Page and Bug Fixes
-- Added comprehensive gRPC demo page at /grpc with 4-panel interface
-- Fixed HTTP 415 errors on gRPC binary endpoint
-- Fixed test compatibility (all 196 tests passing)
-
-===============================================================================
-Release 1.7.0 — 2025-01-05
-===============================================================================
-
-gRPC Service Mocking (MAJOR NEW FEATURE)
-- Upload .proto files to automatically generate gRPC service mocks
-- Dual protocol support: JSON over HTTP and binary Protobuf
-- LLM-powered realistic response generation matching proto schemas
-- Dynamic runtime Protobuf serialization without code generation
-- Management API: POST/GET/DELETE /api/grpc/proto
-- Service endpoints: /api/grpc/{service}/{method} (JSON)
-                     /api/grpc/proto/{service}/{method} (binary)
-
-SSE Streaming Improvements
-- Progressive JSON building with accumulated content in each event
-- Better client experience showing partial JSON structure as it builds
-
-===============================================================================
-Release 1.6.0 — 2025-01-04
-===============================================================================
-
-Comprehensive Error Simulation & Context Management
-- Configure realistic error scenarios (rate limits, timeouts, server errors)
-- Per-endpoint error configuration with customizable rates and messages
-- SignalR hub error simulation
-- Context Management API: GET/POST/PATCH/DELETE /api/contexts
-
-===============================================================================
-Release 1.5.0 — 2025-01-03
-===============================================================================
-
-API Contexts & Multi-Step Workflows
-- Shared memory across requests for consistent multi-step workflows
-- Native GraphQL support: POST to /graphql with standard queries
-- Fully modular architecture: Use only the protocols you need
-- Polly resilience policies: Exponential backoff retry and circuit breaker
+Fully backward compatible - no breaking changes
 
 ===============================================================================
 Previous Releases
 ===============================================================================
 
-v1.2.1: Critical bug fix for retry policy HTTP request reuse
-v1.2.0: Polly resilience policies, GraphQL support, modular architecture
-v1.1.0: SignalR real-time data streaming with dynamic context management
-v1.0.x: Initial releases with REST and SSE support
+v2.0.0 (RC only - production release skipped):
+- SSE streaming modes (LlmTokens/CompleteObjects/ArrayItems)
+- Multi-backend load balancing
+- Swagger/OpenAPI UI
+- Per-request backend selection (?backend= or X-LLM-Backend header)
 
-===============================================================================
+v1.8.0: Auto-chunking for large responses, multiple LLM backends
+v1.7.0: gRPC service mocking with .proto upload, JSON+binary Protobuf
+v1.6.0: Error simulation, API context management
+v1.5.0: API contexts, GraphQL support, Polly resilience
+v1.0-1.2: Initial releases, SignalR streaming, modular architecture
 
-Full release history and detailed documentation:
-https://github.com/ScottGalloway/mostlylucid.mockllmapi/blob/main/RELEASE_NOTES.md
+Full history: github.com/ScottGalloway/mostlylucid.mockllmapi/blob/main/RELEASE_NOTES.md
