@@ -1860,7 +1860,7 @@ flowchart TD
 **Projects:**
 - `mostlylucid.mockllmapi`: NuGet package library
 - `LLMApi`: Demo application
-- `LLMApi.Tests`: xUnit test suite (13 tests)
+- `LLMApi.Tests`: xUnit test suite (196 tests)
 
 ## Why Use mostlylucid.mockllmapi?
 

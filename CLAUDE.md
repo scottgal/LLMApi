@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The repository contains three projects:
 - **mostlylucid.mockllmapi**: The NuGet package library (main deliverable)
 - **LLMApi**: Demo application showing usage
-- **LLMApi.Tests**: Comprehensive test suite (13 tests)
+- **LLMApi.Tests**: Comprehensive test suite (196 tests)
 
 ## Core Architecture
 
