@@ -435,6 +435,120 @@ POST /api/openapi/specs/petstore/reload
 DELETE /api/openapi/specs/petstore
 ```
 
+### Example: Demo App Mocking Itself 🤯
+
+Here's a mind-bending example - the LLMock demo app can mock its own API using its own generated OpenAPI spec!
+
+**Step 1: Start the Demo App**
+
+```bash
+dotnet run --project LLMApi/LLMApi.csproj
+# Swagger UI available at: http://localhost:5116/swagger
+# OpenAPI JSON at: http://localhost:5116/swagger/v1/swagger.json
+```
+
+**Step 2: Configure Demo App to Mock Itself**
+
+Add to `appsettings.json`:
+
+```json
+{
+  "MockLlmApi": {
+    "OpenApiSpecs": [
+      {
+        "Name": "self",
+        "Source": "http://localhost:5116/swagger/v1/swagger.json",
+        "BasePath": "/mock-self",
+        "EnableStreaming": false,
+        "ContextName": "demo-app-self"
+      }
+    ]
+  }
+}
+```
+
+**Or load it dynamically:**
+
+```http
+POST /api/openapi/specs
+Content-Type: application/json
+
+{
+  "name": "self",
+  "source": "http://localhost:5116/swagger/v1/swagger.json",
+  "basePath": "/mock-self",
+  "contextName": "demo-app-self"
+}
+```
+
+**Step 3: Use the Self-Mocked Endpoints**
+
+The demo app now mocks its own API! All endpoints from the Swagger spec become available:
+
+```http
+### Original endpoint: Call the real context API
+GET http://localhost:5116/api/contexts
+
+### Self-mocked endpoint: LLM generates realistic mock data
+GET http://localhost:5116/mock-self/api/contexts
+```
+
+**Example Response (LLM-generated):**
+
+```json
+[
+  {
+    "name": "user-session-123",
+    "totalCalls": 15,
+    "createdAt": "2025-01-06T10:30:00Z",
+    "lastUsedAt": "2025-01-06T14:22:00Z",
+    "sharedData": {
+      "lastUserId": "42",
+      "lastProductId": "789"
+    },
+    "recentCalls": [
+      {
+        "method": "GET",
+        "path": "/api/mock/users/42",
+        "timestamp": "2025-01-06T14:20:00Z"
+      }
+    ]
+  }
+]
+```
+
+**Why This Is Useful:**
+
+- **API Design Testing**: Test your API design before implementing handlers
+- **Frontend Development**: Build UIs against realistic mock data before backend is ready
+- **Documentation Validation**: Verify your OpenAPI spec generates sensible data
+- **Load Testing**: Generate unlimited realistic test data for performance tests
+- **Integration Testing**: Test API clients without hitting real endpoints
+
+**Step 4: Mix Real and Mock Endpoints**
+
+You can call both real and mocked versions side-by-side:
+
+```http
+### Real SignalR management endpoint
+GET http://localhost:5116/api/signalr/contexts
+
+### Mocked version with realistic data
+GET http://localhost:5116/mock-self/api/signalr/contexts
+
+### Real gRPC proto upload
+POST http://localhost:5116/api/grpc-protos
+
+### Mocked version for testing
+POST http://localhost:5116/mock-self/api/grpc-protos
+```
+
+This "dogfooding" approach is perfect for:
+- Testing the OpenAPI integration itself
+- Demonstrating the library's capabilities
+- Rapid prototyping with realistic data
+- Teaching API design best practices
+
 ### Multiple Specs Simultaneously
 
 You can load multiple specs at once, each with its own base path:

@@ -14,7 +14,7 @@ public class OpenApiContextManagerTests
         var logger = loggerFactory.CreateLogger<OpenApiContextManager>();
         var options = Microsoft.Extensions.Options.Options.Create(new LLMockApiOptions
         {
-            MaxInputTokens = 2048
+            MaxContextWindow = 2048  // Auto-calculates MaxInputTokens (75%) and MaxOutputTokens (25%)
         });
 
         // Create real IMemoryCache and IContextStore for testing

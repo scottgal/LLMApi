@@ -25,7 +25,7 @@ public class LLMockApiOptions
     public string ModelName { get; set; } = "llama3";
 
     /// <summary>
-    /// Multiple LLM backend configurations (NEW in v1.8.0)
+    /// Multiple LLM backend configurations (introduced in v1.8.0)
     /// Supports multiple LLM instances for load balancing and failover.
     /// If empty, falls back to BaseUrl and ModelName for backward compatibility.
     /// </summary>
@@ -38,19 +38,30 @@ public class LLMockApiOptions
     public double Temperature { get; set; } = 1.2;
 
     /// <summary>
-    /// Maximum input tokens/length for model prompts (default: 2048)
-    /// Used to automatically truncate context history to fit within model limits
-    /// Common values: 2048 (Llama2), 4096 (Llama3), 8192 (larger models)
+    /// Maximum context window size for the model (default: 4096)
+    /// Set this to match your model's total context window capacity.
+    /// The system automatically handles allocation between input (prompts/context history)
+    /// and output (generation), as well as chunking for large responses.
+    ///
+    /// Common values by model:
+    /// - gemma3:4b: 4096
+    /// - llama3: 8192
+    /// - mistral:7b: 8192
+    /// - mistral-nemo: 32768 (or up to 128000 if configured in Ollama)
+    ///
+    /// Where to find this value:
+    /// 1. Check model card on Ollama: https://ollama.com/library/{model}
+    /// 2. Run: ollama show {model}
+    /// 3. Look for "context_length" or "num_ctx" in model parameters
+    ///
+    /// For Ollama models with larger contexts (like mistral-nemo 128K):
+    /// See: https://github.com/ScottGalloway/mostlylucid.mockllmapi/blob/main/docs/MULTIPLE_LLM_BACKENDS.md#%EF%B8%8F-ollama-context-window-configuration
     /// </summary>
-    public int MaxInputTokens { get; set; } = 2048;
+    public int MaxContextWindow { get; set; } = 4096;
 
-    /// <summary>
-    /// Maximum output tokens the LLM can generate (default: 2048)
-    /// Used for automatic chunking calculations when EnableAutoChunking is true.
-    /// If a request would exceed this limit, it's automatically split into chunks.
-    /// Common values: 512 (small models), 2048 (Llama3), 4096 (larger models)
-    /// </summary>
-    public int MaxOutputTokens { get; set; } = 2048;
+    // Internal helpers for allocation (implementation detail - not exposed to users)
+    internal int MaxInputTokens => (int)(MaxContextWindow * 0.75);
+    internal int MaxOutputTokens => (int)(MaxContextWindow * 0.25);
 
     /// <summary>
     /// Enable automatic request chunking for large responses (default: true)
@@ -165,6 +176,28 @@ public class LLMockApiOptions
     /// If set with Min, a random delay between Min and Max will be used
     /// </summary>
     public int StreamingChunkDelayMaxMs { get; set; } = 0;
+
+    /// <summary>
+    /// Enable continuous SSE streaming mode (default: false)
+    /// When enabled, SSE connections stay open and continuously generate new data like SignalR.
+    /// Can be enabled per-request with ?continuous=true query parameter.
+    /// </summary>
+    public bool EnableContinuousStreaming { get; set; } = false;
+
+    /// <summary>
+    /// Interval in milliseconds between continuous SSE events (default: 2000 = 2 seconds)
+    /// Only applies when continuous streaming is enabled.
+    /// Can be overridden per-request with ?interval=3000 query parameter.
+    /// </summary>
+    public int ContinuousStreamingIntervalMs { get; set; } = 2000;
+
+    /// <summary>
+    /// Maximum duration in seconds for continuous SSE connections (default: 300 = 5 minutes)
+    /// Prevents infinite connections and resource leaks.
+    /// Set to 0 for unlimited duration (not recommended for production).
+    /// Can be overridden per-request with ?maxDuration=600 query parameter.
+    /// </summary>
+    public int ContinuousStreamingMaxDurationSeconds { get; set; } = 300;
 
     /// <summary>
     /// Minimum random delay in milliseconds before responding to any request (default: 0 = no delay)

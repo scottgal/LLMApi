@@ -63,6 +63,79 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
+    /// Checks if continuous streaming is enabled (global config or per-request)
+    /// </summary>
+    private bool IsContinuousMode(HttpRequest request)
+    {
+        // Check query parameter first
+        if (request.Query.TryGetValue("continuous", out var continuousParam))
+        {
+            if (bool.TryParse(continuousParam, out var isContinuous))
+            {
+                return isContinuous;
+            }
+        }
+
+        // Check header
+        if (request.Headers.TryGetValue("X-Continuous-Streaming", out var headerValue))
+        {
+            if (bool.TryParse(headerValue, out var isContinuous))
+            {
+                return isContinuous;
+            }
+        }
+
+        // Check shape JSON for $continuous property
+        if (request.Query.TryGetValue("shape", out var shapeParam))
+        {
+            try
+            {
+                var shapeDoc = JsonDocument.Parse(shapeParam.ToString());
+                if (shapeDoc.RootElement.TryGetProperty("$continuous", out var continuousProp))
+                {
+                    if (continuousProp.ValueKind == JsonValueKind.True)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { /* Invalid JSON, ignore */ }
+        }
+
+        return _options.EnableContinuousStreaming;
+    }
+
+    /// <summary>
+    /// Gets the interval (in milliseconds) between continuous streaming events
+    /// </summary>
+    private int GetContinuousInterval(HttpRequest request)
+    {
+        if (request.Query.TryGetValue("interval", out var intervalParam))
+        {
+            if (int.TryParse(intervalParam, out var interval) && interval > 0)
+            {
+                return interval;
+            }
+        }
+        return _options.ContinuousStreamingIntervalMs;
+    }
+
+    /// <summary>
+    /// Gets the maximum duration (in seconds) for continuous streaming
+    /// </summary>
+    private int GetMaxDuration(HttpRequest request)
+    {
+        if (request.Query.TryGetValue("maxDuration", out var durationParam))
+        {
+            if (int.TryParse(durationParam, out var duration) && duration >= 0)
+            {
+                return duration;
+            }
+        }
+        return _options.ContinuousStreamingMaxDurationSeconds;
+    }
+
+    /// <summary>
     /// Handles a streaming request
     /// </summary>
     public async Task HandleStreamingRequestAsync(
@@ -119,19 +192,30 @@ public class StreamingRequestHandler
         // Optionally include schema in header before any writes
         TryAddSchemaHeader(context, request, shapeInfo.Shape);
 
-        // Route to appropriate streaming mode
-        switch (sseMode)
+        // Check if continuous streaming is enabled
+        var isContinuous = IsContinuousMode(request);
+
+        if (isContinuous)
         {
-            case SseMode.CompleteObjects:
-                await StreamCompleteObjectsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
-                break;
-            case SseMode.ArrayItems:
-                await StreamArrayItemsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
-                break;
-            case SseMode.LlmTokens:
-            default:
-                await StreamLlmTokensAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
-                break;
+            // Continuous streaming mode - keeps connection open and generates new data periodically
+            await HandleContinuousStreamingAsync(context, request, sseMode, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+        }
+        else
+        {
+            // Single-shot streaming mode - generate once and close
+            switch (sseMode)
+            {
+                case SseMode.CompleteObjects:
+                    await StreamCompleteObjectsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    break;
+                case SseMode.ArrayItems:
+                    await StreamArrayItemsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    break;
+                case SseMode.LlmTokens:
+                default:
+                    await StreamLlmTokensAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    break;
+            }
         }
     }
 
@@ -433,6 +517,297 @@ public class StreamingRequestHandler
         {
             doc?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Handles continuous SSE streaming - keeps connection open and periodically generates new data
+    /// Similar to SignalR's continuous data generation but using SSE
+    /// </summary>
+    private async Task HandleContinuousStreamingAsync(
+        HttpContext context,
+        HttpRequest request,
+        SseMode sseMode,
+        string basePrompt,
+        ShapeInfo shapeInfo,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        CancellationToken cancellationToken)
+    {
+        var interval = GetContinuousInterval(request);
+        var maxDurationSeconds = GetMaxDuration(request);
+        var startTime = DateTime.UtcNow;
+        var eventCount = 0;
+
+        _logger.LogInformation("Starting continuous SSE streaming - Mode: {Mode}, Interval: {Interval}ms, MaxDuration: {Duration}s",
+            sseMode, interval, maxDurationSeconds);
+
+        try
+        {
+            // Send initial heartbeat/info event
+            var infoEvent = new
+            {
+                type = "info",
+                message = "Continuous streaming started",
+                mode = sseMode.ToString(),
+                intervalMs = interval,
+                maxDurationSeconds = maxDurationSeconds
+            };
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(infoEvent)}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                // Check if max duration exceeded
+                if (maxDurationSeconds > 0)
+                {
+                    var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
+                    if (elapsed >= maxDurationSeconds)
+                    {
+                        _logger.LogInformation("Continuous streaming max duration reached: {Elapsed}s", elapsed);
+                        var endEvent = new { type = "end", message = "Max duration reached", eventCount, done = true };
+                        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(endEvent)}\n\n");
+                        await context.Response.Body.FlushAsync(cancellationToken);
+                        break;
+                    }
+                }
+
+                // Generate new data using appropriate mode
+                try
+                {
+                    // Add timestamp and event count to prompt for variation
+                    var continuousPrompt = $"{basePrompt}\n\nIMPORTANT: Generate DIFFERENT data than previous events. Event #{eventCount + 1} at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}. Vary values to simulate real-time changes.";
+
+                    switch (sseMode)
+                    {
+                        case SseMode.CompleteObjects:
+                            await GenerateContinuousCompleteObject(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            break;
+                        case SseMode.ArrayItems:
+                            await GenerateContinuousArrayItems(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            break;
+                        case SseMode.LlmTokens:
+                        default:
+                            await GenerateContinuousLlmTokens(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            break;
+                    }
+
+                    eventCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating continuous SSE event #{EventCount}", eventCount);
+                    var errorEvent = new { type = "error", message = ex.Message, eventCount };
+                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorEvent)}\n\n");
+                    await context.Response.Body.FlushAsync(cancellationToken);
+                }
+
+                // Wait for next interval
+                await Task.Delay(interval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Continuous streaming cancelled by client after {EventCount} events", eventCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in continuous streaming loop");
+        }
+    }
+
+    /// <summary>
+    /// Generates a single CompleteObjects event for continuous streaming
+    /// </summary>
+    private async Task GenerateContinuousCompleteObject(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        int eventCount,
+        CancellationToken cancellationToken)
+    {
+        var completion = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
+        var cleanJson = JsonExtractor.ExtractJson(completion);
+
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(cleanJson);
+            var root = doc.RootElement;
+
+            // Send as single complete object event
+            var eventData = new
+            {
+                data = root,
+                index = eventCount,
+                timestamp = DateTime.UtcNow,
+                done = false
+            };
+
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON in continuous CompleteObjects mode");
+        }
+    }
+
+    /// <summary>
+    /// Generates ArrayItems events for continuous streaming
+    /// </summary>
+    private async Task GenerateContinuousArrayItems(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        int eventCount,
+        CancellationToken cancellationToken)
+    {
+        var completion = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
+        var cleanJson = JsonExtractor.ExtractJson(completion);
+
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(cleanJson);
+            var root = doc.RootElement;
+
+            // Extract array items
+            JsonElement[] items;
+            string? arrayName = null;
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                items = root.EnumerateArray().ToArray();
+            }
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                var arrayProp = root.EnumerateObject()
+                    .FirstOrDefault(p => p.Value.ValueKind == JsonValueKind.Array);
+
+                if (arrayProp.Value.ValueKind == JsonValueKind.Array)
+                {
+                    arrayName = arrayProp.Name;
+                    items = arrayProp.Value.EnumerateArray().ToArray();
+                }
+                else
+                {
+                    items = new[] { root };
+                }
+            }
+            else
+            {
+                items = new[] { root };
+            }
+
+            // Send each item as a separate event
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                var eventData = new
+                {
+                    item = items[i],
+                    index = i,
+                    total = items.Length,
+                    arrayName,
+                    batchNumber = eventCount,
+                    timestamp = DateTime.UtcNow,
+                    hasMore = i < items.Length - 1,
+                    done = false
+                };
+
+                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.Body.FlushAsync(cancellationToken);
+
+                // Small delay between array items
+                if (i < items.Length - 1)
+                {
+                    await Task.Delay(50, cancellationToken);
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON in continuous ArrayItems mode");
+        }
+    }
+
+    /// <summary>
+    /// Generates LlmTokens events for continuous streaming (simplified version)
+    /// </summary>
+    private async Task GenerateContinuousLlmTokens(
+        HttpContext context,
+        HttpRequest request,
+        string prompt,
+        string? contextName,
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        int eventCount,
+        CancellationToken cancellationToken)
+    {
+        // For continuous mode, get complete text and send as chunks
+        var completion = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
+        var cleanJson = JsonExtractor.ExtractJson(completion);
+
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
+        }
+
+        // Simulate token-by-token streaming by chunking the complete response
+        var chunkSize = 10; // characters per chunk
+        var accumulated = new StringBuilder();
+
+        for (int i = 0; i < cleanJson.Length; i += chunkSize)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+
+            var chunk = cleanJson.Substring(i, Math.Min(chunkSize, cleanJson.Length - i));
+            accumulated.Append(chunk);
+
+            var eventData = new
+            {
+                chunk,
+                accumulated = accumulated.ToString(),
+                batchNumber = eventCount,
+                done = false
+            };
+
+            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+            await context.Response.Body.FlushAsync(cancellationToken);
+
+            await Task.Delay(20, cancellationToken); // Small delay between tokens
+        }
+
+        // Send final event for this batch
+        var finalEvent = new
+        {
+            content = cleanJson,
+            batchNumber = eventCount,
+            timestamp = DateTime.UtcNow,
+            done = false // Not done with continuous stream, just this batch
+        };
+        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalEvent)}\n\n");
+        await context.Response.Body.FlushAsync(cancellationToken);
     }
 
     private void TryAddSchemaHeader(HttpContext context, HttpRequest request, string? shape)

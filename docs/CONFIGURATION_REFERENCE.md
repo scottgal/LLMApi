@@ -1,6 +1,6 @@
 # Complete Configuration Reference
 
-**Version:** 1.8.0+
+**Version:** 2.0.0+
 **File:** `appsettings.Full.json` - Complete example with all options
 
 This document provides a comprehensive reference for all configuration options available in the Mock LLM API.
@@ -77,7 +77,7 @@ These settings automatically create a default Ollama backend:
 
 **Note:** Ignored if `Backends` array is configured.
 
-### Multiple Backends (v1.8.0+)
+### Multiple Backends (v1.8.0+, enhanced in v2.0.0)
 
 Configure multiple LLM providers for flexibility and reliability:
 
@@ -110,7 +110,7 @@ Configure multiple LLM providers for flexibility and reliability:
 | `BaseUrl` | string | ✅ | - | Full API endpoint URL (must include `/v1/` for most) |
 | `ModelName` | string | ✅ | - | Model identifier (e.g., `"llama3"`, `"gpt-4"`) |
 | `ApiKey` | string | ❌ | `null` | API key (required for OpenAI, optional for others) |
-| `MaxTokens` | int? | ❌ | `null` | Max output tokens (overrides global `MaxOutputTokens`) |
+| `MaxTokens` | int? | ❌ | `null` | Max output tokens (overrides global setting) |
 | `Enabled` | bool | ❌ | `true` | Whether backend is active |
 | `Weight` | int | ❌ | `1` | Load balancing weight (higher = more traffic) |
 | `MaxConcurrentRequests` | int | ❌ | `0` | Request limit (0 = unlimited) |
@@ -203,16 +203,14 @@ Global settings affecting all LLM requests:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `Temperature` | double | `1.2` | Randomness (0.0=deterministic, 2.0=creative) |
-| `MaxInputTokens` | int | `2048` | Maximum input context size |
-| `MaxOutputTokens` | int | `2048` | Maximum output tokens (for chunking) |
+| `MaxContextWindow` | int | `4096` | Model's context window (auto-allocates 75% input, 25% output) |
 | `TimeoutSeconds` | int | `30` | HTTP request timeout |
 
 **Example:**
 ```json
 {
   "Temperature": 1.2,
-  "MaxInputTokens": 4096,
-  "MaxOutputTokens": 2048,
+  "MaxContextWindow": 8192,  // Set to your model's context window size
   "TimeoutSeconds": 30
 }
 ```
@@ -632,8 +630,7 @@ For nested properties, use double underscores (`__`) as separators.
 | `MockLlmApi__BaseUrl` | string | ✅ | Valid URL | `http://localhost:11434/v1/` | Legacy backend URL |
 | `MockLlmApi__ModelName` | string | ✅ | Any string | `llama3` | Legacy model name |
 | `MockLlmApi__Temperature` | double | ✅ | 0.0 - 2.0 | `1.2` | LLM randomness |
-| `MockLlmApi__MaxInputTokens` | int | ✅ | 128 - 32768 | `2048` | Max input context |
-| `MockLlmApi__MaxOutputTokens` | int | ✅ | 128 - 32768 | `2048` | Max output tokens |
+| `MockLlmApi__MaxContextWindow` | int | ✅ | 128 - 128000 | `4096` | Model's context window |
 | `MockLlmApi__TimeoutSeconds` | int | ✅ | 5 - 600 | `30` | HTTP timeout |
 | `MockLlmApi__EnableAutoChunking` | bool | ✅ | true/false | `true` | Auto-chunk large requests |
 | `MockLlmApi__MaxItems` | int | ✅ | 1 - 100000 | `1000` | Max items per response |
@@ -712,7 +709,7 @@ export MockLlmApi__BaseUrl="http://localhost:11434/v1/"
 export MockLlmApi__ModelName="llama3"
 export MockLlmApi__Temperature="1.5"
 export MockLlmApi__EnableVerboseLogging="true"
-export MockLlmApi__MaxOutputTokens="4096"
+export MockLlmApi__MaxContextWindow="8192"
 
 # Windows CMD
 set MockLlmApi__BaseUrl=http://localhost:11434/v1/
@@ -773,7 +770,7 @@ export MockLlmApi__CircuitBreakerDurationSeconds="60"
 # Chunking
 export MockLlmApi__EnableAutoChunking="true"
 export MockLlmApi__MaxItems="5000"
-export MockLlmApi__MaxOutputTokens="4096"
+export MockLlmApi__MaxContextWindow="8192"
 
 # Caching
 export MockLlmApi__MaxCachePerKey="10"
@@ -832,7 +829,7 @@ services:
       - MockLlmApi__Backends__0__Enabled=true
 
       # Performance tuning
-      - MockLlmApi__MaxOutputTokens=4096
+      - MockLlmApi__MaxContextWindow=8192
       - MockLlmApi__EnableAutoChunking=true
       - MockLlmApi__MaxItems=1000
 
@@ -854,7 +851,7 @@ data:
   MockLlmApi__ModelName: "llama3"
   MockLlmApi__Temperature: "1.2"
   MockLlmApi__EnableAutoChunking: "true"
-  MockLlmApi__MaxOutputTokens: "4096"
+  MockLlmApi__MaxContextWindow: "8192"
 ---
 apiVersion: v1
 kind: Secret

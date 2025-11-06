@@ -1,6 +1,6 @@
 # Chunking & Caching Systems
 
-**Release 1.8.0** - Advanced Performance & Resource Management
+**Release 2.0.0** - Simplified Configuration & Advanced Streaming
 
 This document describes two powerful systems that make `mostlylucid.mockllmapi` intelligent, efficient, and production-ready: **Automatic Chunking** and **Response Caching**.
 
@@ -58,13 +58,12 @@ Add to `appsettings.json`:
     "BaseUrl": "http://localhost:11434/v1/",
     "ModelName": "llama3",
 
-    // Auto-Chunking Settings
-    "MaxOutputTokens": 2048,           // LLM output limit (default: 2048)
-    "EnableAutoChunking": true,         // Enable automatic chunking (default: true)
-    "MaxItems": 1000,                   // Maximum items per response (default: 1000)
+    // Context Window (auto-allocates 75% input, 25% output)
+    "MaxContextWindow": 4096,           // Model's total context window (default: 4096)
 
-    // Input Token Settings
-    "MaxInputTokens": 2048              // LLM input limit (default: 2048)
+    // Auto-Chunking Settings
+    "EnableAutoChunking": true,         // Enable automatic chunking (default: true)
+    "MaxItems": 1000                    // Maximum items per response (default: 1000)
   }
 }
 ```
@@ -73,10 +72,9 @@ Add to `appsettings.json`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `MaxOutputTokens` | 2048 | Maximum tokens your LLM can generate. Common values: 512 (small models), 2048 (Llama 3), 4096 (large models) |
+| `MaxContextWindow` | 4096 | Model's total context window. System auto-allocates 75% for input, 25% for output. Common values: 4096 (gemma3:4b), 8192 (llama3), 32768+ (mistral-nemo) |
 | `EnableAutoChunking` | true | Globally enable/disable automatic chunking |
 | `MaxItems` | 1000 | Hard limit on items per response. Requests exceeding this are capped with a warning |
-| `MaxInputTokens` | 2048 | Maximum prompt size. Used to truncate context history if needed |
 
 ### How Chunking Works
 
@@ -91,7 +89,7 @@ flowchart TD
     D --> E
     E -->|false| F[Execute Single Request]
     E -->|true/default| G{Estimate Tokens}
-    G --> H{Will Exceed<br/>MaxOutputTokens?}
+    G --> H{Will Exceed<br/>Output Limit?}
     H -->|No| F
     H -->|Yes| I[Calculate Chunk Strategy]
     I --> J[Execute Chunk 1]
@@ -152,7 +150,7 @@ flowchart LR
 #### 2. **Chunk Size Calculation**
 
 ```
-Available Output Tokens = MaxOutputTokens × 75%  (25% reserved for prompt overhead)
+Available Output Tokens = MaxContextWindow × 0.25 × 0.75  (25% of context for output, then 75% usable after prompt overhead)
 Items Per Chunk = Available Output Tokens / Estimated Tokens Per Item
 Total Chunks = Ceiling(Requested Items / Items Per Chunk)
 ```
@@ -160,10 +158,11 @@ Total Chunks = Ceiling(Requested Items / Items Per Chunk)
 Example:
 - Request: 100 items
 - Shape complexity: 150 tokens/item
-- MaxOutputTokens: 2048
-- Available: 1536 tokens (2048 × 0.75)
-- Items per chunk: 10 (1536 / 150)
-- **Result: 10 chunks of 10 items each**
+- MaxContextWindow: 4096
+- Output allocation: 1024 tokens (4096 × 0.25)
+- Available after overhead: 768 tokens (1024 × 0.75)
+- Items per chunk: 5 (768 / 150)
+- **Result: 20 chunks of 5 items each**
 
 #### 3. **Chunk Execution**
 
@@ -534,7 +533,7 @@ Contexts use the same expiration settings:
 ```json
 {
   "MockLlmApi": {
-    "MaxInputTokens": 2048    // Contexts are truncated to fit within this limit
+    "MaxContextWindow": 4096    // Contexts auto-allocated (75% for input = 3072 tokens)
   }
 }
 ```
@@ -575,11 +574,10 @@ Context storage is implemented using `IMemoryCache` with:
 
 ### Optimal Configuration
 
-**Small LLMs (e.g., tinyllama):**
+**Small LLMs (e.g., gemma3:4b):**
 ```json
 {
-  "MaxOutputTokens": 512,
-  "MaxInputTokens": 1024,
+  "MaxContextWindow": 4096,
   "MaxCachePerKey": 3,
   "EnableAutoChunking": true
 }
@@ -588,18 +586,16 @@ Context storage is implemented using `IMemoryCache` with:
 **Medium LLMs (e.g., Llama 3):**
 ```json
 {
-  "MaxOutputTokens": 2048,
-  "MaxInputTokens": 2048,
+  "MaxContextWindow": 8192,
   "MaxCachePerKey": 5,
   "EnableAutoChunking": true
 }
 ```
 
-**Large LLMs (e.g., Llama 3 70B):**
+**Large LLMs (e.g., Mistral-Nemo):**
 ```json
 {
-  "MaxOutputTokens": 4096,
-  "MaxInputTokens": 4096,
+  "MaxContextWindow": 32768,
   "MaxCachePerKey": 5,
   "EnableAutoChunking": true
 }
@@ -613,11 +609,11 @@ Context storage is implemented using `IMemoryCache` with:
 
 **Problem:** "Request for 100 items only returns 50"
 
-**Solution:** Check logs for chunking execution. If not chunking, increase `MaxOutputTokens`:
+**Solution:** Check logs for chunking execution. If not chunking, increase `MaxContextWindow`:
 
 ```json
 {
-  "MaxOutputTokens": 4096    // Increase limit
+  "MaxContextWindow": 8192    // Increase context window
 }
 ```
 
@@ -632,7 +628,7 @@ Context storage is implemented using `IMemoryCache` with:
 
 **Solution:**
 1. Simplify your shape (remove unnecessary nesting)
-2. Increase `MaxOutputTokens`
+2. Increase `MaxContextWindow`
 3. Reduce requested count
 4. Use `?autoChunk=false` if you don't need full dataset
 
@@ -670,9 +666,9 @@ Context storage is implemented using `IMemoryCache` with:
 
 **Problem:** "Context becoming too large"
 
-**Solution:** Contexts are automatically summarized when they exceed `MaxInputTokens`. Check:
+**Solution:** Contexts are automatically summarized when they exceed input limit. Check:
 1. Logs show "Context summarized" messages
-2. Increase `MaxInputTokens` if needed
+2. Increase `MaxContextWindow` if needed (input limit is 75% of this)
 3. Use shorter context names for efficiency
 
 ---

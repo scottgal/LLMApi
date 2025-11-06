@@ -100,12 +100,14 @@ This package provides **six independent features** - use any combination you nee
 - **Progressive Streaming**: SSE support with progressive JSON generation
 - **Real-time Updates**: Stream data token-by-token to clients
 - **Works standalone**: No REST API setup required
+- **📖 [Complete SSE Guide](./docs/SSE_STREAMING_MODES.md)** | **[Continuous Streaming](./docs/CONTINUOUS_STREAMING.md)**
 
 ### 4. SignalR Real-Time Streaming
 - **WebSocket Streaming**: Continuous real-time mock data via SignalR
 - **Multiple Contexts**: Run multiple independent data streams simultaneously
 - **Lifecycle Management**: Start/stop contexts dynamically with management API
 - **Works standalone**: No REST API setup required
+- **📖 [SignalR Demo Guide](./SIGNALR_DEMO_GUIDE.md)**
 
 ### 5. OpenAPI / Swagger Mock Generation
 - **Automatic Endpoint Generation**: Point to any OpenAPI/Swagger spec (URL or file)
@@ -113,6 +115,7 @@ This package provides **six independent features** - use any combination you nee
 - **Schema-Driven Data**: LLM generates realistic data matching your schemas
 - **Multiple Specs**: Load and mount multiple API specs simultaneously
 - **Works standalone**: No REST API setup required
+- **📖 [OpenAPI Features Guide](./docs/OPENAPI-FEATURES.md)**
 
 ### 6. gRPC Service Mocking (NEW in v1.7.0)
 - **Proto File Upload**: Upload .proto files to generate gRPC service mocks
@@ -120,12 +123,13 @@ This package provides **six independent features** - use any combination you nee
 - **Dynamic Serialization**: Runtime Protobuf encoding without code generation
 - **LLM-Powered Data**: Realistic responses matching your proto message definitions
 - **Works standalone**: No REST API setup required
+- **📖 [gRPC Support Guide](./docs/GRPC_SUPPORT.md)**
 
 ### Common Features
 - **Configurable**: appsettings.json or inline configuration
 - **Highly Variable Data**: Each request/update generates completely different realistic data
 - **NuGet Package**: Easy to add to existing projects
-- **API Contexts (NEW in v1.5.0)**: Maintain consistency across related requests
+- **API Contexts**: Maintain consistency across related requests - **[Complete Guide](./docs/API-CONTEXTS.md)**
 - **Error Simulation**: Comprehensive error testing with 4xx/5xx status codes, custom messages, and multiple configuration methods
 
 ---
@@ -134,7 +138,14 @@ This package provides **six independent features** - use any combination you nee
 
 For detailed guides with architecture diagrams, use cases, and implementation details:
 
-- **[Multiple LLM Backends Guide](./docs/MULTIPLE_LLM_BACKENDS.md)** - NEW in v1.8.0!
+- **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)** - Complete management endpoint documentation
+  - OpenAPI management endpoints
+  - API context management
+  - gRPC proto management
+  - SignalR hubs
+  - Full request/response examples
+
+- **[Multiple LLM Backends Guide](./docs/MULTIPLE_LLM_BACKENDS.md)** - Multiple provider support
   - Connect to Ollama, OpenAI, and LM Studio simultaneously
   - Per-request backend selection via headers/query params
   - Complete backward compatibility with legacy configs
@@ -197,28 +208,110 @@ This package was **developed and tested with `llama3`** (8B parameters), which p
 
 #### Recommended Models
 
-| Model | Size | Speed | Quality | Best For |
-|-------|------|-------|---------|----------|
-| **llama3** (default) | 8B | Fast | Excellent | General use, production |
-| **mistral:7b** | 7B | Fast | Excellent | Alternative to llama3 |
-| **phi3** | 3.8B | Very Fast | Good | Quick prototyping |
-| **tinyllama** | 1.1B | Ultra Fast | Basic | Resource-constrained environments |
+| Model | Size | Speed | Quality | Context | Best For |
+|-------|------|-------|---------|---------|----------|
+| **gemma3:4b** 🚀 | 4B | ⚡⚡⚡ | ⭐⭐⭐ | 4K | **KILLER for lower-end machines!** |
+| **llama3** (default) | 8B | ⚡⚡ | ⭐⭐⭐⭐ | 8K | General use, production |
+| **mistral-nemo** 🎯 | 12B | ⚡ | ⭐⭐⭐⭐⭐ | 128K | **High quality, massive datasets** |
+| **mistral:7b** | 7B | ⚡⚡ | ⭐⭐⭐⭐ | 8K | Alternative to llama3 |
+| **phi3** | 3.8B | ⚡⚡⚡ | ⭐⭐⭐ | 4K | Quick prototyping |
+| **tinyllama** | 1.1B | ⚡⚡⚡ | ⭐⭐ | 2K | Ultra resource-constrained |
+
+#### 🚀 RECOMMENDED: Gemma3 (4B) - Perfect for Development!
+
+**Gemma 3 is KILLER for lower-end machines** - fast, lightweight, excellent quality:
+
+```bash
+ollama pull gemma3:4b
+```
+
+```json
+{
+  "MockLlmApi": {
+    "ModelName": "gemma3:4b",
+    "Temperature": 1.2,
+    "MaxInputTokens": 4096
+  }
+}
+```
+
+**Why it's great:**
+- ✅ Runs smoothly on laptops and budget workstations (4-6GB RAM)
+- ✅ Fast generation even on CPU-only systems
+- ✅ Excellent JSON generation quality
+- ✅ 4K context window (sufficient for most mock data)
+- ✅ Perfect for CI/CD pipelines
+
+#### 🎯 PRODUCTION: Mistral-Nemo - Best Quality & Massive Contexts
+
+**For production-like testing with complex schemas:**
+
+```bash
+ollama pull mistral-nemo
+```
+
+```json
+{
+  "MockLlmApi": {
+    "ModelName": "mistral-nemo",
+    "Temperature": 1.2,
+    "MaxInputTokens": 8000
+  }
+}
+```
+
+**Why it's great:**
+- ✅ Highest quality realistic data generation
+- ✅ **128K context window** (requires [Ollama configuration](./docs/MULTIPLE_LLM_BACKENDS.md#️-ollama-context-window-configuration))
+- ✅ Best for complex nested structures and large datasets
+- ✅ More creative variation in generated data
+- ⚠️ Requires more resources (12-16GB RAM)
 
 #### Model-Specific Configuration
 
-**For llama3 or mistral:7b (Recommended):**
+**For gemma3:4b (Recommended for development):**
 ```json
 {
-  "ModelName": "llama3",  // or "mistral:7b"
-  "Temperature": 1.2      // High variety, diverse outputs
+  "ModelName": "gemma3:4b",
+  "Temperature": 1.2,
+  "MaxContextWindow": 4096   // Set to model's context window size
 }
+```
+
+**For llama3 or mistral:7b (Production):**
+```json
+{
+  "ModelName": "llama3",     // or "mistral:7b"
+  "Temperature": 1.2,
+  "MaxContextWindow": 8192   // Set to model's context window size
+}
+```
+
+**For mistral-nemo (High-quality production):**
+```json
+{
+  "ModelName": "mistral-nemo",
+  "Temperature": 1.2,
+  "MaxContextWindow": 32768, // Or 128000 if configured in Ollama
+  "TimeoutSeconds": 120      // Longer timeout for large contexts
+}
+```
+**⚠️ Note:** Mistral-nemo requires [Ollama context configuration](./docs/MULTIPLE_LLM_BACKENDS.md#️-ollama-context-window-configuration) for 128K contexts.
+
+**🔍 Where to find MaxContextWindow:**
+```bash
+# Check model info
+ollama show {model-name}
+
+# Look for "context_length" or "num_ctx" parameter
+# Example output: "context_length": 8192
 ```
 
 **For smaller models (phi3, tinyllama):**
 ```json
 {
   "ModelName": "tinyllama",
-  "Temperature": 0.7      // Lower temperature for stability
+  "Temperature": 0.7         // Lower temperature for stability
 }
 ```
 
@@ -234,13 +327,16 @@ This package was **developed and tested with `llama3`** (8B parameters), which p
 #### Installation
 
 ```bash
-# Recommended (best quality)
-ollama pull llama3
+# 🚀 RECOMMENDED for development (fast, lightweight)
+ollama pull gemma3:4b
+
+# Production options
+ollama pull llama3          # Best balance
+ollama pull mistral-nemo    # Highest quality (requires more RAM)
 
 # Alternative options
 ollama pull mistral:7b
 ollama pull phi3
-ollama pull tinyllama
 ```
 
 **Important Limitations:**

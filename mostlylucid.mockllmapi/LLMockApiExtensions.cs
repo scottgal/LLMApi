@@ -607,46 +607,76 @@ public static class LlMockApiExtensions
 
         // List all loaded specs
         routeBuilder.MapGet(specsPattern, OpenApiManagementEndpoints.HandleListSpecs)
-            .WithName("LLMockApi-OpenApi-ListSpecs");
+            .WithName("LLMockApi-OpenApi-ListSpecs")
+            .WithTags("OpenAPI Management")
+            .WithSummary("List all loaded OpenAPI specifications")
+            .WithDescription("Returns a list of all currently loaded OpenAPI specifications with their basic details including name, base path, and endpoint count.");
 
         // Load a new spec
         routeBuilder.MapPost(specsPattern, OpenApiManagementEndpoints.HandleLoadSpec)
-            .WithName("LLMockApi-OpenApi-LoadSpec");
+            .WithName("LLMockApi-OpenApi-LoadSpec")
+            .WithTags("OpenAPI Management")
+            .WithSummary("Load a new OpenAPI specification")
+            .WithDescription("Dynamically loads an OpenAPI specification from a URL or file path and registers all endpoints. Accepts JSON with 'name', 'source', 'basePath', and optional 'contextName'.");
 
         // Get specific spec details
         routeBuilder.MapGet($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleGetSpec)
-            .WithName("LLMockApi-OpenApi-GetSpec");
+            .WithName("LLMockApi-OpenApi-GetSpec")
+            .WithTags("OpenAPI Management")
+            .WithSummary("Get details of a specific OpenAPI specification")
+            .WithDescription("Returns detailed information about a loaded OpenAPI specification including all available endpoints, schemas, and configuration.");
 
         // Delete a spec
         routeBuilder.MapDelete($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleDeleteSpec)
-            .WithName("LLMockApi-OpenApi-DeleteSpec");
+            .WithName("LLMockApi-OpenApi-DeleteSpec")
+            .WithTags("OpenAPI Management")
+            .WithSummary("Delete an OpenAPI specification")
+            .WithDescription("Removes a loaded OpenAPI specification and unregisters all its endpoints.");
 
         // Reload a spec
         routeBuilder.MapPost($"{specsPattern}/{{specName}}/reload", OpenApiManagementEndpoints.HandleReloadSpec)
-            .WithName("LLMockApi-OpenApi-ReloadSpec");
+            .WithName("LLMockApi-OpenApi-ReloadSpec")
+            .WithTags("OpenAPI Management")
+            .WithSummary("Reload an OpenAPI specification")
+            .WithDescription("Reloads an OpenAPI specification from its original source, useful when the spec has been updated.");
 
         // Test an endpoint
         routeBuilder.MapPost($"{pattern.TrimEnd('/')}/test", OpenApiManagementEndpoints.HandleTestEndpoint)
-            .WithName("LLMockApi-OpenApi-TestEndpoint");
+            .WithName("LLMockApi-OpenApi-TestEndpoint")
+            .WithTags("OpenAPI Management")
+            .WithSummary("Test a mock OpenAPI endpoint")
+            .WithDescription("Tests a specific endpoint from a loaded OpenAPI specification by generating mock data based on the schema.");
 
         // Context management endpoints
         var contextsPattern = $"{pattern.TrimEnd('/')}/contexts";
 
         // List all contexts
         routeBuilder.MapGet(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleListApiContexts(manager))
-            .WithName("LLMockApi-OpenApi-ListContexts");
+            .WithName("LLMockApi-OpenApi-ListContexts")
+            .WithTags("OpenAPI Contexts")
+            .WithSummary("List all OpenAPI contexts")
+            .WithDescription("Returns a summary of all active OpenAPI contexts with their call counts and last used timestamps.");
 
         // Get specific context details
         routeBuilder.MapGet($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleGetApiContext(contextName, manager))
-            .WithName("LLMockApi-OpenApi-GetContext");
+            .WithName("LLMockApi-OpenApi-GetContext")
+            .WithTags("OpenAPI Contexts")
+            .WithSummary("Get details of a specific OpenAPI context")
+            .WithDescription("Returns detailed information about an OpenAPI context including recent API calls, shared data, and context history.");
 
         // Clear a specific context
         routeBuilder.MapDelete($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearApiContext(contextName, manager))
-            .WithName("LLMockApi-OpenApi-ClearContext");
+            .WithName("LLMockApi-OpenApi-ClearContext")
+            .WithTags("OpenAPI Contexts")
+            .WithSummary("Clear a specific OpenAPI context")
+            .WithDescription("Removes a specific OpenAPI context and all its associated data.");
 
         // Clear all contexts
         routeBuilder.MapDelete(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearAllApiContexts(manager))
-            .WithName("LLMockApi-OpenApi-ClearAllContexts");
+            .WithName("LLMockApi-OpenApi-ClearAllContexts")
+            .WithTags("OpenAPI Contexts")
+            .WithSummary("Clear all OpenAPI contexts")
+            .WithDescription("Removes all OpenAPI contexts and their associated data.");
 
         return app;
     }
@@ -788,42 +818,58 @@ public static class LlMockApiExtensions
         // List all API contexts (summary)
         routeBuilder.MapGet(contextPattern, ApiContextManagementEndpoints.HandleListAllContexts)
             .WithName("LLMockApi-ApiContext-ListAll")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("List all API contexts")
+            .WithDescription("Returns a summary list of all active API contexts including their names, total calls, creation time, and last used time.");
 
         // Get a specific context with full details
         routeBuilder.MapGet($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleGetContext)
             .WithName("LLMockApi-ApiContext-Get")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Get detailed information about a specific context")
+            .WithDescription("Returns complete details for a context including all recent API calls, shared data values, and context summary.");
 
         // Get the formatted prompt for a context
         routeBuilder.MapGet($"{contextPattern}/{{contextName}}/prompt", ApiContextManagementEndpoints.HandleGetContextPrompt)
             .WithName("LLMockApi-ApiContext-GetPrompt")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Get the formatted LLM prompt for a context")
+            .WithDescription("Returns the complete formatted prompt that would be sent to the LLM for this context, including shared data and recent call history.");
 
         // Add a call to a context
         routeBuilder.MapPost($"{contextPattern}/{{contextName}}/calls", ApiContextManagementEndpoints.HandleAddToContext)
             .WithName("LLMockApi-ApiContext-AddCall")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Add an API call to a context")
+            .WithDescription("Manually adds an API call entry to a context for testing or simulation purposes. Accepts method, path, optional request body, and response JSON.");
 
         // Update shared data for a context
         routeBuilder.MapPatch($"{contextPattern}/{{contextName}}/shared-data", ApiContextManagementEndpoints.HandleUpdateSharedData)
             .WithName("LLMockApi-ApiContext-UpdateSharedData")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Update shared data for a context")
+            .WithDescription("Manually updates the shared data dictionary for a context. Shared data is used to maintain consistency across API calls (e.g., lastUserId, lastProductId).");
 
         // Clear a specific context (removes all calls but keeps context registered)
         routeBuilder.MapPost($"{contextPattern}/{{contextName}}/clear", ApiContextManagementEndpoints.HandleClearContext)
             .WithName("LLMockApi-ApiContext-Clear")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Clear a specific context")
+            .WithDescription("Removes all API call history and shared data from a context but keeps the context registered. Use this to reset a context for a new session.");
 
         // Delete a specific context completely
         routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleDeleteContext)
             .WithName("LLMockApi-ApiContext-Delete")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Delete a context completely")
+            .WithDescription("Completely removes a context including all its data and history. The context will need to be recreated before it can be used again.");
 
         // Clear all API contexts
         routeBuilder.MapDelete(contextPattern, ApiContextManagementEndpoints.HandleClearAllContexts)
             .WithName("LLMockApi-ApiContext-ClearAll")
-            .WithTags("API Contexts");
+            .WithTags("API Contexts")
+            .WithSummary("Clear all contexts")
+            .WithDescription("Removes all API contexts and their associated data. Useful for resetting the entire system state.");
 
         return app;
     }
@@ -858,6 +904,8 @@ public static class LlMockApiExtensions
         routeBuilder.MapPost(pattern, GrpcManagementEndpoints.HandleProtoUpload)
             .WithName("LLMockApi-Grpc-UploadProto")
             .WithTags("gRPC Proto Management")
+            .WithSummary("Upload a .proto file")
+            .WithDescription("Uploads and parses a gRPC .proto file to enable mock gRPC services. Accepts multipart/form-data (file upload) or text/plain (raw proto content).")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Accepts<string>("text/plain")
@@ -868,12 +916,16 @@ public static class LlMockApiExtensions
         routeBuilder.MapGet(pattern, GrpcManagementEndpoints.HandleListProtos)
             .WithName("LLMockApi-Grpc-ListProtos")
             .WithTags("gRPC Proto Management")
+            .WithSummary("List all uploaded .proto files")
+            .WithDescription("Returns a list of all uploaded gRPC .proto files with their names, services, and message definitions.")
             .Produces(200);
 
         // Get details of a specific proto definition
         routeBuilder.MapGet($"{pattern}/{{protoName}}", GrpcManagementEndpoints.HandleGetProto)
             .WithName("LLMockApi-Grpc-GetProto")
             .WithTags("gRPC Proto Management")
+            .WithSummary("Get details of a specific .proto file")
+            .WithDescription("Returns detailed information about a specific uploaded .proto file including all service definitions, methods, and message schemas.")
             .Produces(200)
             .Produces(404);
 
@@ -881,6 +933,8 @@ public static class LlMockApiExtensions
         routeBuilder.MapDelete($"{pattern}/{{protoName}}", GrpcManagementEndpoints.HandleDeleteProto)
             .WithName("LLMockApi-Grpc-DeleteProto")
             .WithTags("gRPC Proto Management")
+            .WithSummary("Delete a .proto file")
+            .WithDescription("Removes a specific uploaded .proto file and all its associated mock gRPC services.")
             .Produces(200)
             .Produces(404);
 
@@ -888,6 +942,8 @@ public static class LlMockApiExtensions
         routeBuilder.MapDelete(pattern, GrpcManagementEndpoints.HandleClearAllProtos)
             .WithName("LLMockApi-Grpc-ClearAllProtos")
             .WithTags("gRPC Proto Management")
+            .WithSummary("Delete all .proto files")
+            .WithDescription("Removes all uploaded .proto files and clears all mock gRPC services.")
             .Produces(200);
 
         return app;
@@ -1016,7 +1072,7 @@ public static class LlMockApiExtensions
     /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
     /// Adds LLMock API services to the service collection with inline configuration
     /// </summary>
-    [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.", false)]
+    [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.(ish)", false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static IServiceCollection Addmostlylucid_mockllmapi(
         this IServiceCollection services,
@@ -1029,7 +1085,7 @@ public static class LlMockApiExtensions
     /// DEPRECATED: Use MapLLMockApi instead. This method will be removed in a future version.
     /// Maps LLMock API endpoints
     /// </summary>
-    [Obsolete("Use MapLLMockApi instead. This method will be removed in v2.0.0.", false)]
+    [Obsolete("Use MapLLMockApi instead. This method will be removed in v2.0.0.(ish)", false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static IApplicationBuilder Mapmostlylucid_mockllmapi(
         this IApplicationBuilder app,

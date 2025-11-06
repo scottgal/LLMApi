@@ -1,6 +1,6 @@
 # Multiple LLM Backend Configuration
 
-**Version:** 1.8.0+
+**Version:** 2.0.0+
 **Status:** Production Ready
 
 ## Overview
@@ -19,6 +19,186 @@ The Mock LLM API supports connecting to multiple LLM backends simultaneously, al
 | **ollama** | Local LLM server (default) | Optional | `http://localhost:11434/v1/` |
 | **openai** | Official OpenAI API | Required (API key) | `https://api.openai.com/v1/` |
 | **lmstudio** | Local LM Studio server | Optional | `http://localhost:1234/v1/` |
+
+## Model Recommendations by Hardware
+
+### 🚀 KILLER for Lower-End Machines
+
+**Gemma 3 (4B)** - Excellent performance on modest hardware:
+
+```json
+{
+  "LLMockApi": {
+    "MaxContextWindow": 4096,
+    "Backends": [
+      {
+        "Name": "ollama-gemma3",
+        "Provider": "ollama",
+        "BaseUrl": "http://localhost:11434/v1/",
+        "ModelName": "gemma3:4b",
+        "Temperature": 1.2,
+        "Enabled": true
+      }
+    ]
+  }
+}
+```
+
+**Why it's great:**
+- ✅ Fast generation on CPU-only systems
+- ✅ Low memory footprint (4B parameters)
+- ✅ 4K context window (sufficient for most mock data)
+- ✅ Excellent JSON generation quality
+- ✅ Runs smoothly on laptops and budget workstations
+
+**Best for:** Development machines, CI/CD pipelines, resource-constrained environments
+
+### 🎯 High Quality - Production Testing
+
+**Mistral-Nemo** - Best quality for realistic mock data:
+
+```json
+{
+  "LLMockApi": {
+    "MaxContextWindow": 32768,  // Or 128000 if configured in Ollama
+    "Backends": [
+      {
+        "Name": "ollama-mistral-nemo",
+        "Provider": "ollama",
+        "BaseUrl": "http://localhost:11434/v1/",
+        "ModelName": "mistral-nemo",
+        "Temperature": 1.2,
+        "Enabled": true
+      }
+    ]
+  }
+}
+```
+
+**Why it's great:**
+- ✅ High-quality, realistic data generation
+- ✅ 128K context window (massive datasets)
+- ✅ Better understanding of complex schemas
+- ✅ More creative variation in generated data
+- ✅ Excellent for production-like test scenarios
+
+**Best for:** Production testing, large dataset generation, complex nested structures
+
+### ⚙️ Ollama Context Window Configuration
+
+**IMPORTANT:** Ollama requires explicit configuration for large context windows.
+
+#### Setting Context Window in Ollama
+
+**Via Modelfile:**
+```dockerfile
+FROM mistral-nemo
+PARAMETER num_ctx 128000
+```
+
+Create the model:
+```bash
+ollama create mistral-nemo-128k -f Modelfile
+```
+
+**Via API (runtime):**
+```json
+{
+  "num_ctx": 128000
+}
+```
+
+#### Common Issues with Large Context Windows
+
+**❌ Problem: Timeouts with Large Contexts**
+- **Cause:** Large context windows increase processing time exponentially
+- **Solution:** Increase `TimeoutSeconds` in configuration:
+  ```json
+  {
+    "TimeoutSeconds": 120  // 2 minutes for 128K contexts
+  }
+  ```
+
+**❌ Problem: Out of Memory Errors**
+- **Cause:** 128K contexts require significant RAM (16-32GB+)
+- **Solution:**
+  - Use smaller `MaxInputTokens` (8000-16000)
+  - Reduce concurrent requests
+  - Use `gemma3:4b` instead for lower memory usage
+
+**❌ Problem: Slow Response Times**
+- **Cause:** Large context windows slow down generation
+- **Solution:**
+  - Use context windows only when needed
+  - Default to 4-8K for most use cases
+  - Reserve 128K for specific large dataset tests
+
+**❌ Problem: Inconsistent Output Quality**
+- **Cause:** Very large contexts can confuse models
+- **Solution:**
+  - Keep prompts concise even with large contexts
+  - Use chunking for massive datasets (automatic in v1.8.0+, improved in v2.0.0)
+  - Limit `MaxItems` to reasonable values
+
+#### Recommended Context Window Settings
+
+| Use Case | Model | Ollama num_ctx | MaxContextWindow | Notes |
+|----------|-------|----------------|------------------|-------|
+| **Development** | gemma3:4b | 4096 (default) | 4096 | Fast, low resource |
+| **Standard Testing** | llama3 | 8192 (default) | 8192 | Balanced |
+| **Complex Schemas** | mistral-nemo | 32768 | 32768 | Good quality |
+| **Massive Datasets** | mistral-nemo | 128000 | 128000 | High resource |
+
+**Note:** Just set `MaxContextWindow` to match your model's context size. The system automatically allocates space for prompts and generation.
+
+### 💡 Quick Start Recommendations
+
+**First Time Setup (Lower-End Machine):**
+```bash
+# Pull lightweight model
+ollama pull gemma3:4b
+
+# Check context window
+ollama show gemma3:4b
+# Look for "context_length" or "num_ctx" in output
+
+# Use in config
+"ModelName": "gemma3:4b",
+"MaxContextWindow": 4096  // Match model's context size
+```
+
+**Production-Like Testing (Powerful Machine):**
+```bash
+# Pull high-quality model
+ollama pull mistral-nemo
+
+# Configure large context (optional - for 128K)
+echo "FROM mistral-nemo
+PARAMETER num_ctx 128000" > Modelfile
+ollama create mistral-nemo-128k -f Modelfile
+
+# Use in config
+"ModelName": "mistral-nemo-128k",
+"MaxContextWindow": 128000,  // Match configured context size
+"TimeoutSeconds": 120
+```
+
+**🔍 Finding Your Model's Context Window:**
+```bash
+ollama show {model-name}
+# Look for these parameters:
+# - context_length: 8192
+# - num_ctx: 8192
+# Set MaxContextWindow to this value
+```
+
+### 🔧 Model Comparison
+
+| Model | Params | RAM | Speed | Quality | Context | Best For |
+|-------|--------|-----|-------|---------|---------|----------|
+| **gemma3:4b** | 4B | 4-6GB | ⚡⚡⚡ | ⭐⭐⭐ | 4K | Dev machines |
+| **llama3** | 8B | 8-12GB | ⚡⚡ | ⭐⭐⭐⭐ | 8K | Standard testing |
+| **mistral-nemo** | 12B | 12-16GB | ⚡ | ⭐⭐⭐⭐⭐ | 128K | Production testing |
 
 ## Configuration Examples
 

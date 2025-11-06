@@ -124,6 +124,7 @@
             font-size: 14px;
             font-weight: 500;
             margin-right: 10px;
+            transition: all 0.2s;
         }
 
         button:hover {
@@ -133,6 +134,7 @@
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+            opacity: 0.6;
         }
 
         button.stop {
@@ -141,6 +143,16 @@
 
         button.stop:hover {
             background: #c82333;
+        }
+
+        button.streaming {
+            background: #ffc107;
+            color: #000;
+            cursor: wait;
+        }
+
+        button.streaming:hover {
+            background: #ffc107;
         }
 
         .status {
@@ -372,12 +384,30 @@
                     <button type="button" class="quick-sse-btn" data-path="customers" data-mode="ArrayItems" data-shape='{"customers":[{"id":"string","name":"string","email":"string"}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
                 </div>
 
-                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
                     <div style="flex: 1;">
                         <h4 style="margin: 0; font-size: 13px;">Search Results</h4>
                         <p style="margin: 3px 0; font-size: 12px; color: #666;">Search results streamed with metadata</p>
                     </div>
                     <button type="button" class="quick-sse-btn" data-path="search" data-mode="ArrayItems" data-shape='{"results":[{"id":"string","title":"string","score":0.95}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+
+                <h4 style="margin: 20px 0 10px 0; color: #9333ea;">🔄 Continuous Mode Examples (Like SignalR)</h4>
+
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">Live Stock Dashboard</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Continuous stock updates every 2 seconds</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="stocks" data-mode="CompleteObjects" data-continuous="true" data-interval="2000" data-shape='{"ticker":"AAPL","price":150.25,"change":2.5}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+                </div>
+
+                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 13px;">Real-Time Sensor Data</h4>
+                        <p style="margin: 3px 0; font-size: 12px; color: #666;">IoT sensors streaming continuously</p>
+                    </div>
+                    <button type="button" class="quick-sse-btn" data-path="sensors" data-mode="ArrayItems" data-continuous="true" data-interval="3000" data-shape='{"sensors":[{"id":"string","temp":0,"humidity":0}]}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
                 </div>
             </div>
         </details>
@@ -476,6 +506,28 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
                 </div>
 
                 <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="continuous" name="continuous" style="width: auto; margin-right: 8px;" />
+                        <span>🔄 Continuous Streaming Mode (like SignalR)</span>
+                    </label>
+                    <p class="help-text">Keep connection open and generate new data periodically</p>
+                </div>
+
+                <div id="continuousSettings" style="display: none; margin-left: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div class="form-group">
+                        <label for="interval">Interval (milliseconds)</label>
+                        <input type="number" id="interval" name="interval" value="2000" min="100" max="60000" />
+                        <p class="help-text">Time between events (2000 = 2 seconds)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxDuration">Max Duration (seconds)</label>
+                        <input type="number" id="maxDuration" name="maxDuration" value="60" min="0" max="3600" />
+                        <p class="help-text">Maximum connection duration (0 = unlimited)</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label for="path">Path</label>
                     <input type="text" id="path" name="path" value="products" placeholder="e.g., users, orders, data" />
                     <p class="help-text">Will connect to: /api/mock/stream/{path}</p>
@@ -533,12 +585,51 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
         let startTime = null;
         let durationInterval = null;
         let totalSize = 0;
+        let activeQuickButton = null;
 
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const streamDisplay = document.getElementById('streamDisplay');
         const statusEl = document.getElementById('formStatus');
         const connectionStatus = document.getElementById('connectionStatus');
+        const continuousCheckbox = document.getElementById('continuous');
+        const continuousSettings = document.getElementById('continuousSettings');
+
+        // Show/hide continuous settings based on checkbox
+        continuousCheckbox.addEventListener('change', function() {
+            continuousSettings.style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Disable/enable all quick-start buttons
+        function setQuickButtonsEnabled(enabled) {
+            document.querySelectorAll('.quick-sse-btn').forEach(btn => {
+                if (enabled) {
+                    btn.disabled = false;
+                    btn.classList.remove('streaming');
+                    btn.textContent = 'Stream';
+                } else {
+                    if (btn !== activeQuickButton) {
+                        btn.disabled = true;
+                    }
+                }
+            });
+        }
+
+        // Set active button state
+        function setActiveQuickButton(button, isActive) {
+            if (isActive) {
+                activeQuickButton = button;
+                button.classList.add('streaming');
+                button.textContent = 'Streaming...';
+                button.disabled = false; // Keep active button enabled (acts as stop)
+            } else {
+                if (activeQuickButton) {
+                    activeQuickButton.classList.remove('streaming');
+                    activeQuickButton.textContent = 'Stream';
+                }
+                activeQuickButton = null;
+            }
+        }
 
         function updateConnectionStatus(status) {
             connectionStatus.textContent = status;
@@ -655,6 +746,9 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
             const queryString = document.getElementById('queryString').value.trim();
             const shape = document.getElementById('shape').value.trim();
             const sseMode = document.getElementById('sseMode').value;
+            const continuous = document.getElementById('continuous').checked;
+            const interval = document.getElementById('interval').value;
+            const maxDuration = document.getElementById('maxDuration').value;
 
             if (!path) {
                 showStatus('Please enter a path', true);
@@ -674,6 +768,13 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
             // Add SSE mode
             if (sseMode) {
                 params.append('sseMode', sseMode);
+            }
+
+            // Add continuous mode parameters
+            if (continuous) {
+                params.append('continuous', 'true');
+                if (interval) params.append('interval', interval);
+                if (maxDuration) params.append('maxDuration', maxDuration);
             }
 
             if (queryString) {
@@ -701,17 +802,42 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
 
+                // Disable all quick-start buttons except active one
+                setQuickButtonsEnabled(false);
+
                 eventSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
 
+                        // Handle continuous mode special events
+                        if (data.type === 'info') {
+                            displayChunk(`ℹ️ INFO: ${data.message}\nMode: ${data.mode}, Interval: ${data.intervalMs}ms, Max Duration: ${data.maxDurationSeconds}s`, false);
+                            return;
+                        }
+
+                        if (data.type === 'end') {
+                            displayChunk(`🛑 END: ${data.message}\nTotal events: ${data.eventCount}`, true);
+                            updateConnectionStatus('Complete');
+                            stopStream();
+                            showStatus('Continuous stream ended');
+                            return;
+                        }
+
+                        if (data.type === 'error') {
+                            displayChunk(`❌ ERROR: ${data.message} (event #${data.eventCount})`, true);
+                            return;
+                        }
+
                         // LlmTokens mode
                         if (data.chunk !== undefined) {
                             if (data.done) {
-                                displayChunk(`✓ COMPLETE\n${data.content}`, true);
-                                updateConnectionStatus('Complete');
-                                stopStream();
-                                showStatus('Stream completed successfully');
+                                const batchInfo = data.batchNumber !== undefined ? ` [Batch #${data.batchNumber}]` : '';
+                                displayChunk(`✓ COMPLETE${batchInfo}\n${data.content}`, true);
+                                if (!continuousCheckbox.checked) {
+                                    updateConnectionStatus('Complete');
+                                    stopStream();
+                                    showStatus('Stream completed successfully');
+                                }
                             } else {
                                 chunkCount++;
                                 totalSize += data.chunk.length;
@@ -726,10 +852,11 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
                             totalSize += jsonStr.length;
                             updateStats();
 
-                            const display = `📦 Object ${data.index + 1}/${data.total}\n${jsonStr}`;
+                            const batchInfo = data.timestamp ? ` [${new Date(data.timestamp).toLocaleTimeString()}]` : '';
+                            const display = `📦 Object #${data.index}${batchInfo}\n${jsonStr}`;
                             displayChunk(display, data.done);
 
-                            if (data.done) {
+                            if (data.done && !continuousCheckbox.checked) {
                                 updateConnectionStatus('Complete');
                                 stopStream();
                                 showStatus('Stream completed successfully');
@@ -743,10 +870,11 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
                             updateStats();
 
                             const arrayInfo = data.arrayName ? ` from "${data.arrayName}"` : '';
-                            const display = `📋 Item ${data.index + 1}/${data.total}${arrayInfo}\n${jsonStr}`;
+                            const batchInfo = data.batchNumber !== undefined ? ` [Batch #${data.batchNumber}]` : '';
+                            const display = `📋 Item ${data.index + 1}/${data.total}${arrayInfo}${batchInfo}\n${jsonStr}`;
                             displayChunk(display, data.done);
 
-                            if (data.done) {
+                            if (data.done && !continuousCheckbox.checked) {
                                 updateConnectionStatus('Complete');
                                 stopStream();
                                 showStatus('Stream completed successfully');
@@ -785,25 +913,47 @@ data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"cu
             updateConnectionStatus('Disconnected');
             startBtn.disabled = false;
             stopBtn.disabled = true;
+
+            // Re-enable all quick-start buttons and clear active state
+            setActiveQuickButton(null, false);
+            setQuickButtonsEnabled(true);
         }
 
         // Quick SSE button handlers
         document.querySelectorAll('.quick-sse-btn').forEach(btn => {
             btn.addEventListener('click', function() {
+                // If this button is already streaming, stop it
+                if (this === activeQuickButton && eventSource) {
+                    stopStream();
+                    return;
+                }
+
                 const path = this.getAttribute('data-path');
                 const shape = this.getAttribute('data-shape');
                 const mode = this.getAttribute('data-mode');
+                const isContinuous = this.getAttribute('data-continuous') === 'true';
+                const interval = this.getAttribute('data-interval');
 
-                // Stop any existing stream
+                // Stop any existing stream first (ensures only one active)
                 if (eventSource) {
                     stopStream();
                 }
+
+                // Set this button as the active one
+                setActiveQuickButton(this, true);
 
                 // Set form values
                 document.getElementById('path').value = path;
                 document.getElementById('shape').value = shape;
                 if (mode) {
                     document.getElementById('sseMode').value = mode;
+                }
+
+                // Set continuous mode if specified
+                document.getElementById('continuous').checked = isContinuous;
+                continuousSettings.style.display = isContinuous ? 'block' : 'none';
+                if (interval) {
+                    document.getElementById('interval').value = interval;
                 }
 
                 // Trigger start
