@@ -1,5 +1,22 @@
 # Release Notes
 
+## v1.7.1 (2025-01-05)
+
+**NO BREAKING CHANGES** - All existing code continues to work!
+
+### Enhancements
+
+#### gRPC Demo Page
+- Added comprehensive gRPC demo page at `/grpc` with 4-panel interface
+- Upload/manage .proto files with visual feedback
+- Test JSON endpoints with syntax-highlighted responses
+- Test binary Protobuf endpoints
+- View server reflection data
+
+### Bug Fixes
+- Fixed HTTP 415 errors on gRPC binary endpoint by removing overly restrictive content-type filtering
+- Fixed test compatibility with new API response format (definitions → protos)
+
 ## v1.7.0 (2025-01-05)
 
 **NO BREAKING CHANGES** - All existing code continues to work!

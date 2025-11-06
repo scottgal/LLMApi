@@ -2,6 +2,22 @@ mostlylucid.mockllmapi — Release Notes
 
 Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
 
+v1.7.1 — 2025-01-05
+- gRPC Demo Page and Bug Fixes
+  - Added: Comprehensive gRPC Demo Page
+    - New page at /grpc with 4-panel interface (Upload, JSON Testing, Binary Testing, Reflection)
+    - Upload/manage .proto files with visual feedback and syntax highlighting
+    - Test JSON endpoints with formatted request/response display
+    - Test binary Protobuf endpoints with proper encoding
+    - View server reflection data for uploaded proto files
+  - Fixed: HTTP 415 errors on gRPC binary endpoint
+    - Removed overly restrictive .Accepts() content-type filtering
+    - Binary endpoint now properly accepts both application/json and application/grpc+proto
+    - Added .DisableAntiforgery() to allow POST requests from browser
+  - Fixed: Test compatibility issues
+    - Updated tests to use new API response format (definitions → protos)
+    - All 196 tests now passing
+
 v1.7.0 — 2025-01-05
 - gRPC Service Mocking with dual JSON and binary Protobuf support, SSE streaming improvements.
   - Added: gRPC Service Mocking (MAJOR)

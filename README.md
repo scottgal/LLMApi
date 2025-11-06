@@ -22,11 +22,23 @@ A lightweight ASP.NET Core middleware for generating realistic mock API response
 
 ---
 
-## What's New in v1.7.0
+## What's New in v1.7.1
 
 **NO BREAKING CHANGES** - All existing code continues to work!
 
-### gRPC Service Mocking (NEW!)
+### gRPC Demo Page (NEW!)
+- **Interactive Demo at `/grpc`**: Comprehensive 4-panel interface for testing gRPC functionality
+- **Proto Management**: Upload and manage .proto files with visual feedback
+- **Dual Testing**: Test both JSON and binary Protobuf endpoints in the browser
+- **Reflection View**: Inspect uploaded proto definitions and service metadata
+
+### Bug Fixes
+- Fixed HTTP 415 errors on gRPC binary endpoint
+- Fixed test compatibility with new API response format
+
+### Previous Updates (v1.7.0)
+
+### gRPC Service Mocking
 - **Upload .proto Files**: Automatic gRPC service generation from Protocol Buffer definitions
 - **Dual Support**: Both JSON over HTTP (for testing) and binary Protobuf (production-grade)
 - **LLM-Powered Responses**: Realistic data generation matching your proto message schemas
