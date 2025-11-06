@@ -1,603 +1,67 @@
 mostlylucid.mockllmapi — Release Notes
 
-Changelog is sourced from git tags (v.*). Newest first. Each entry reflects the actual changes in the repository (files, metadata, docs) for that tag.
-
 v1.7.1 — 2025-01-05
 - gRPC Demo Page and Bug Fixes
-  - Added: Comprehensive gRPC Demo Page
-    - New page at /grpc with 4-panel interface (Upload, JSON Testing, Binary Testing, Reflection)
-    - Upload/manage .proto files with visual feedback and syntax highlighting
-    - Test JSON endpoints with formatted request/response display
-    - Test binary Protobuf endpoints with proper encoding
-    - View server reflection data for uploaded proto files
-  - Fixed: HTTP 415 errors on gRPC binary endpoint
-    - Removed overly restrictive .Accepts() content-type filtering
-    - Binary endpoint now properly accepts both application/json and application/grpc+proto
-    - Added .DisableAntiforgery() to allow POST requests from browser
-  - Fixed: Test compatibility issues
-    - Updated tests to use new API response format (definitions → protos)
-    - All 196 tests now passing
+  - Added comprehensive gRPC demo page at /grpc with 4-panel interface
+  - Fixed HTTP 415 errors on gRPC binary endpoint
+  - Fixed test compatibility (all 196 tests passing)
 
 v1.7.0 — 2025-01-05
-- gRPC Service Mocking with dual JSON and binary Protobuf support, SSE streaming improvements.
-  - Added: gRPC Service Mocking (MAJOR)
-    - Upload .proto files to automatically generate gRPC service mocks
-    - Dual protocol support: JSON over HTTP (testing) and binary Protobuf (production-grade)
-    - Management API at /api/grpc/proto for uploading and managing proto files
-    - Supports standard proto3 and proto2 syntax
-    - Parses service definitions, RPC methods, and message types
-  - Added: Dual Protocol gRPC Support
-    - JSON over HTTP: POST /api/grpc/{serviceName}/{methodName} - Easy testing with curl/Postman
-    - Binary Protobuf: POST /api/grpc/proto/{serviceName}/{methodName} - Production-grade gRPC wire protocol
-    - Compatible with real gRPC clients (grpcurl, etc.)
-    - Dynamic runtime serialization without code generation
-  - Added: LLM-Powered gRPC Response Generation
-    - Reads message definitions from uploaded .proto files
-    - Generates JSON shapes from proto field definitions
-    - Creates contextually appropriate mock data via LLM
-    - Serializes to binary Protobuf format for true gRPC responses
-  - Added: Dynamic Protobuf Serialization
-    - New DynamicProtobufHandler service for binary Protobuf operations
-    - Supports all Protobuf field types (scalar, nested messages, repeated fields)
-    - Handles wire types (varint, fixed32, fixed64, length-delimited)
-    - Proper field number ordering and encoding
-  - Added: gRPC Management API Endpoints
-    - POST /api/grpc/proto - Upload proto file (multipart/form-data)
-    - GET /api/grpc/proto - List all uploaded proto files
-    - GET /api/grpc/proto/{name} - Get specific proto file content
-    - DELETE /api/grpc/proto/{name} - Delete proto file
-  - Added: SSE Streaming Improvements
-    - Progressive JSON building: Each event now sends both chunk and accumulated content
-    - Better client experience: See partial JSON structure as it builds
-    - Changed from: {"chunk": "text", "done": false}
-    - Changed to: {"chunk": "text", "accumulated": "partial JSON...", "done": false}
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/GrpcRequestHandler.cs (NEW)
-    - Handles gRPC method invocations with LLM
-    - HandleUnaryCall() for JSON endpoint
-    - HandleUnaryCallBinary() for binary Protobuf endpoint
-    - ExtractJson() utility for parsing LLM responses
-  - Changed: mostlylucid.mockllmapi/Services/ProtoDefinitionManager.cs (NEW)
-    - Manages uploaded .proto files in memory
-    - AddProto(), GetProto(), GetAllProtos(), RemoveProto() methods
-    - FindMethod() to locate RPC methods by service and method name
-    - GetMessage() to retrieve message definitions
-    - Thread-safe ConcurrentDictionary storage
-  - Changed: mostlylucid.mockllmapi/Services/ProtoParser.cs (NEW)
-    - Parses .proto syntax into structured definitions
-    - Regex-based extraction of services, methods, messages, and fields
-    - Supports proto3 and proto2 syntax
-    - GenerateJsonShape() creates JSON templates from proto messages
-    - Handles nested messages and repeated fields
-  - Changed: mostlylucid.mockllmapi/Services/DynamicProtobufHandler.cs (NEW)
-    - Runtime Protobuf serialization/deserialization
-    - SerializeFromJson() converts JSON to binary Protobuf
-    - DeserializeToJson() converts binary to JSON (placeholder)
-    - CreateJsonTemplate() generates JSON from proto definitions
-    - Supports all wire types and field types
-  - Changed: mostlylucid.mockllmapi/GrpcManagementEndpoints.cs (NEW)
-    - Proto file upload endpoint with multipart form handling
-    - List, get, and delete proto files
-    - Proper validation and error handling
-    - Returns structured responses with uploaded proto details
-  - Changed: mostlylucid.mockllmapi/Models/ProtoDefinition.cs (NEW)
-    - Model for proto file definitions
-    - Name, Services, Messages, Content properties
-  - Changed: mostlylucid.mockllmapi/Models/ProtoService.cs (NEW)
-    - Model for gRPC services
-    - Name, Methods properties
-  - Changed: mostlylucid.mockllmapi/Models/ProtoMethod.cs (NEW)
-    - Model for RPC methods
-    - Name, InputType, OutputType, MethodType properties
-    - GetMethodType() determines unary vs streaming
-  - Changed: mostlylucid.mockllmapi/Models/ProtoMessage.cs (NEW)
-    - Model for message types
-    - Name, Fields properties
-  - Changed: mostlylucid.mockllmapi/Models/ProtoField.cs (NEW)
-    - Model for message fields
-    - Name, Type, Number, Repeated properties
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Added RegisterGrpcServices() method
-    - Added MapGrpcEndpoints() method for both JSON and binary endpoints
-    - Registered ProtoDefinitionManager, ProtoParser, DynamicProtobufHandler, GrpcRequestHandler
-    - Two new endpoints: JSON call and binary Protobuf call
-    - Management API endpoints for proto file operations
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
-    - Enhanced SSE with accumulated content (lines 169-174)
-    - Modified to include accumulated JSON in each event
-    - Improved final event to include complete content
-  - Changed: docs/GRPC_SUPPORT.md (NEW)
-    - Comprehensive gRPC feature guide (400+ lines)
-    - Architecture diagrams using Mermaid
-    - Complete .proto file examples
-    - Testing strategies for both JSON and binary
-    - Implementation details and limitations
-    - Troubleshooting guide
-    - Gentle authoritative tone (blog post style)
-  - Changed: README.md
-    - Updated "What's New" section for v1.7.0
-    - Added gRPC as 6th major feature
-    - Added link to gRPC Support Guide in Feature Documentation section
-  - Changed: RELEASE_NOTES.md
-    - Added comprehensive v1.7.0 release notes section
-    - Detailed documentation of all new features
-    - Configuration examples and migration examples
-    - Current limitations section
-  - Changed: LLMApi.Tests/GrpcRequestHandlerTests.cs (NEW)
-    - 25 new gRPC tests
-    - Proto file parsing tests (services, methods, messages, fields)
-    - Proto management API tests (upload, list, get, delete)
-    - Service call tests (JSON and binary)
-    - Error handling tests (missing proto, invalid methods)
-  - Current Limitations (documented in GRPC_SUPPORT.md):
-    - Unary RPC calls only (streaming support planned)
-    - Simplified binary parsing (does not decode actual request data)
-    - No server reflection support
-    - Field validation not enforced
-  - Outcome:
-    - Complete gRPC service mocking with dual protocol support
-    - LLM-powered realistic response generation for gRPC
-    - Better SSE streaming experience with progressive JSON
-    - All 196 tests passing (171 existing + 25 new gRPC tests)
-    - Zero breaking changes - full backward compatibility
-    - Comprehensive documentation with architecture diagrams
+- gRPC Service Mocking (MAJOR NEW FEATURE)
+  - Upload .proto files to automatically generate gRPC service mocks
+  - Dual protocol support: JSON over HTTP and binary Protobuf
+  - LLM-powered realistic response generation matching proto schemas
+  - Dynamic runtime Protobuf serialization without code generation
+  - Management API: POST/GET/DELETE /api/grpc/proto
+  - Service endpoints: /api/grpc/{service}/{method} (JSON), /api/grpc/proto/{service}/{method} (binary)
+- SSE Streaming Improvements
+  - Progressive JSON building with accumulated content in each event
+  - Better client experience showing partial JSON structure as it builds
 
 v1.6.1 — 2025-01-05
-- Documentation fix: Package maintainer forgot to update release notes.txt in v1.6.0.
-  - Changed: mostlylucid.mockllmapi/release notes.txt
-    - Added v1.6.0 release notes that should have been included originally
-    - Added this humble v1.6.1 entry acknowledging the oversight
-  - No code changes - purely a documentation update
-  - Outcome: Release notes now properly reflect v1.6.0 features (error simulation & context management API)
+- Documentation fix: Added missing v1.6.0 release notes
 
-v1.6.0 — 2025-01-05
-- Comprehensive error simulation and API context management endpoints for testing and debugging.
-  - Added: Comprehensive Error Simulation (MAJOR)
-    - Four ways to configure errors (in precedence order): Query parameters, HTTP headers, Shape JSON ($error property), Request body (error property)
-    - Supported status codes: 4xx (400, 401, 403, 404, 405, 408, 409, 422, 429) and 5xx (500, 501, 502, 503, 504)
-    - Default error messages for all status codes (can be overridden with custom messages and details)
-    - Works across all endpoint types: REST, Streaming (SSE), GraphQL, and SignalR
-    - Proper error response formats: JSON for REST/Streaming, GraphQL format with errors array, SSE format for streams
-    - SignalR error simulation via HubContextConfig.ErrorConfig property
-    - Use cases: Test retry logic, validate error UI, test authentication flows, simulate rate limiting, practice graceful degradation
-  - Added: API Context Management Endpoints (MAJOR)
-    - New management API at /api/contexts with 8 endpoints
-    - GET /api/contexts - List all contexts with summary info (totalCalls, lastUsedAt, createdAt, recentCallCount, sharedDataCount)
-    - GET /api/contexts/{name} - Get full context details with all calls and shared data (supports ?includeCallDetails=true&maxCalls=10)
-    - GET /api/contexts/{name}/prompt - View formatted prompt text that gets sent to LLM
-    - POST /api/contexts/{name}/calls - Manually add calls to context (useful for pre-populating or testing)
-    - PATCH /api/contexts/{name}/shared-data - Update shared data for context (merges with existing)
-    - POST /api/contexts/{name}/clear - Clear all calls but keep context registered
-    - DELETE /api/contexts/{name} - Delete context completely
-    - DELETE /api/contexts - Clear all contexts
-    - Enable with app.MapLLMockApiContextManagement("/api/contexts")
-    - Use cases: Debug context state, pre-populate contexts for testing, export history, build automated tests, inspect LLM input
-  - Added: URL Encoding Documentation & Warnings
-    - Comprehensive URL encoding guide in README.md and CLAUDE.md
-    - Common character encodings documented: space→%20, &→%26, :→%3A, '→%27, ,→%2C
-    - All .http file examples now properly URL-encoded with decoded comments for clarity
-    - Important note: Query parameters MUST be URL-encoded; headers and body content do NOT require encoding
-  - Changed: mostlylucid.mockllmapi/Models/ErrorConfig.cs (NEW)
-    - Error configuration model with Code, Message, Details properties
-    - GetDefaultMessage() provides sensible defaults for 14 common HTTP status codes
-    - ToJson() generates REST/Streaming error format: {"error": {"code": 404, "message": "...", "details": "..."}}
-    - ToGraphQLJson() generates GraphQL error format: {"data": null, "errors": [{"message": "...", "extensions": {"code": 404, ...}}]}
-    - Automatic JSON escaping for special characters (quotes, newlines, tabs)
-  - Changed: mostlylucid.mockllmapi/ApiContextManagementEndpoints.cs (NEW)
-    - Management endpoint handlers for all 8 context operations
-    - Built on existing OpenApiContextManager service
-    - Proper 404 handling with helpful error messages listing available contexts
-    - Returns ApiContext with full history (RecentCalls, SharedData, ContextSummary)
-    - Supports filtering with includeCallDetails and maxCalls query parameters
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Added MapLLMockApiContextManagement() extension method
-    - Maps all 8 context management endpoints with proper route patterns
-    - Tagged with "API Contexts" for OpenAPI/Swagger organization
-  - Changed: mostlylucid.mockllmapi/Services/ShapeExtractor.cs
-    - ExtractErrorConfig() method extracts error hints from all 4 sources (query, header, shape, body)
-    - Implements precedence rules: Query > Header > Shape > Body
-    - SanitizeShapeFromErrorHints() removes $error properties from shapes before LLM prompt generation
-    - Handles both simple ($error: 404) and complex ($error: {code, message, details}) formats
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
-    - Integrated error simulation: Returns error response immediately if ErrorConfig present
-    - Sets HTTP status code on response
-    - Bypasses LLM generation for faster error responses
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
-    - Error simulation support for SSE endpoints
-    - Returns single SSE event with error JSON when ErrorConfig present
-    - Proper text/event-stream content type with error status code
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs
-    - GraphQL error format support with proper errors array structure
-    - Extensions object includes status code and optional details
-    - Returns null data with errors array as per GraphQL spec
-  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
-    - SignalR error simulation via HubContextConfig.ErrorConfig
-    - Broadcasts error messages to connected clients when ErrorConfig is set
-    - Proper error format in real-time streams
-  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
-    - Added ErrorConfig property for SignalR error simulation
-    - Optional property - only used when errors need to be simulated in real-time streams
-  - Changed: mostlylucid.mockllmapi/SignalRManagementEndpoints.cs
-    - Support for ErrorConfig in dynamic context creation
-    - Extracts error, errorMessage, errorDetails from request body
-    - Creates ErrorConfig and assigns to HubContextConfig
-  - Changed: LLMApi/Program.cs
-    - Added app.MapLLMockApiContextManagement("/api/contexts") to enable context management endpoints in demo
-  - Changed: LLMApi/contexts.http
-    - Replaced old context management section with new API Context Management API examples
-    - Added 90+ lines of comprehensive examples for all 8 endpoints
-    - Complete workflow example showing list, inspect, add, update, and use context
-    - Error case examples (non-existent context, missing fields)
-  - Changed: LLMApi/LLMApi.http
-    - Added ERROR SIMULATION section with 13 comprehensive examples
-    - Examples cover all 4 configuration methods (query, header, shape, body)
-    - All query parameter examples properly URL-encoded with decoded comments
-    - Error precedence demonstrations
-    - Common error codes reference (400-504)
-    - Errors with context flows
-    - Special characters encoding examples (space, &, :, ', ,)
-  - Changed: README.md
-    - Added comprehensive "Error Simulation" section (~120 lines)
-    - Four configuration methods documented with examples
-    - Error response formats for REST, GraphQL, and SignalR
-    - Supported status codes list with descriptions
-    - Use cases for error simulation
-    - URL encoding warnings and examples
-    - SignalR error configuration examples
-  - Changed: CLAUDE.md
-    - Added "Error Simulation" section with implementation details
-    - URL encoding requirements and reference table
-    - Error extraction precedence rules
-    - ShapeExtractor error handling flow
-    - Testing error responses section with .http file reference
-  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
-    - Version bumped from 1.5.0 to 1.6.0
-    - Description updated to highlight v1.6.0 error simulation feature
-    - PackageReleaseNotes updated with v1.6.0 summary
-  - Changed: LLMApi.Tests/ErrorHandlingTests.cs (NEW)
-    - 28 comprehensive error handling tests
-    - ErrorConfig model tests: Constructor, default messages, GetMessage(), ToJson(), ToGraphQLJson(), JSON escaping
-    - ShapeExtractor error extraction tests: All 4 sources (query, header, shape, body), precedence rules, sanitization
-    - Request handler tests: RegularRequestHandler, GraphQLRequestHandler, StreamingRequestHandler error responses
-    - Both simple and complex error formats tested
-    - Special character handling verified
-  - Changed: RELEASE_NOTES.md
-    - Added comprehensive v1.6.0 release notes section
-    - Detailed documentation of all new features
-    - Configuration examples
-    - Migration examples
-    - Breaking changes (none) and upgrade notes
-  - Outcome:
-    - Comprehensive error simulation for testing client error handling across all endpoint types
-    - API context management endpoints for debugging and programmatic context manipulation
-    - Better documentation with URL encoding warnings preventing common mistakes
-    - All 171 tests passing (28 new error tests)
-    - Zero breaking changes - full backward compatibility
-    - Opt-in features: Error simulation only when error parameters provided, context management requires explicit endpoint mapping
+v1.6.0 — 2025-01-04
+- Comprehensive Error Simulation
+  - Configure realistic error scenarios (rate limits, timeouts, server errors)
+  - Per-endpoint error configuration with customizable rates and messages
+  - SignalR hub error simulation
+- Context Management API Enhancements
+  - GET /api/contexts - List all contexts
+  - GET /api/contexts/{id} - Get specific context
+  - DELETE /api/contexts - Clear all contexts
+  - DELETE /api/contexts/{id} - Delete specific context
 
-v1.5.0 — 2025-01-05
-- API Contexts for maintaining consistency across related requests, OpenAPI dynamic mocking enhancements, and token management.
-  - Added: API Contexts - Shared Memory Across Requests (MAJOR)
-    - Cross-endpoint context support: All endpoint types (REST, Streaming, GraphQL, SignalR) support shared context
-    - Multiple ways to pass context: Query param (?context=name or ?api-context=name), HTTP header (X-Api-Context), or request body ({"context": "name"})
-    - Automatic context tracking: System remembers recent calls (method, path, request, response) in each context
-    - Smart data extraction: Automatically extracts and tracks IDs, names, emails from responses for consistency
-    - Context history in prompts: LLM generates new responses maintaining consistency with previous context history
-    - Use cases: E-commerce flows, stock tickers with realistic variance, game state progression, multi-step user journeys
-  - Added: SignalR Context Support
-    - SignalR hubs can reference API contexts via ApiContextName property in HubContextConfig
-    - Enables realistic data variance for real-time streams (e.g., stock prices that change gradually)
-  - Added: Token Budget Management & Intelligent Truncation
-    - MaxInputTokens configuration: Control token budget per model (default: 2048)
-    - 80/20 priority allocation: Base prompt gets 80% of tokens, context history gets 20%
-    - Automatic truncation: Older calls dropped when context history exceeds budget
-    - Detailed logging: See exactly which calls were dropped and why
-    - Token estimation: Approximates 1 token ≈ 4 characters for quick budget calculations
-  - Added: Model-Specific Configuration Examples
-    - Comprehensive configuration examples for 6 popular Ollama models in appsettings.json
-    - Llama 3/3.1 (4K context) - Recommended
-    - TinyLlama (2K context) - Fast but limited
-    - Qwen 3 14B (4K context) - Good quality
-    - Mistral/Mixtral (8K context) - High quality
-    - Llama 2 (4K context) - Older
-    - Phi-3 (4K context) - Microsoft
-    - Each includes recommended MaxInputTokens values for optimal performance
-  - Added: Context Management API
-    - GET /api/openapi/contexts - List all contexts with stats
-    - GET /api/openapi/contexts/{name} - Get specific context details
-    - DELETE /api/openapi/contexts/{name} - Clear specific context
-    - DELETE /api/openapi/contexts - Clear all contexts
-  - Added: Comprehensive Documentation
-    - Created docs/API-CONTEXTS.md: Complete guide with Mermaid diagrams, use cases, implementation details
-    - Created docs/OPENAPI-FEATURES.md: Complete OpenAPI dynamic mocking guide with architecture diagrams
-    - Updated README.md with feature navigation, table of contents, and context examples
-    - Added ~220 lines of context usage examples to management.http
-  - Added: OpenAPI Dynamic Spec Loading
-    - Load specs from URLs, files, or inline JSON/YAML
-    - Real-time spec management with SignalR notifications
-    - Automatic endpoint generation with path parameters
-    - Interactive testing directly from browser UI
-  - Changed: mostlylucid.mockllmapi/Services/ContextExtractor.cs (NEW)
-    - Extracts context names from requests with precedence: Query param > Header > Body
-  - Changed: mostlylucid.mockllmapi/Services/OpenApiContextManager.cs
-    - Added IOptions<LLMockApiOptions> dependency for token budget management
-    - Implemented intelligent token-based truncation with 80/20 allocation
-    - Added detailed logging of dropped calls
-    - Token estimation using 4 characters per token approximation
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
-    - Integrated ContextExtractor and OpenApiContextManager
-    - Extract context name, retrieve history, build prompt with context, store response
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/StreamingRequestHandler.cs
-    - Added context support following same pattern as RegularRequestHandler
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs
-    - Integrated context support including in retry logic
-    - Context history included in both main and retry prompts
-  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
-    - Added OpenApiContextManager dependency for SignalR context support
-    - Get/store context for each data generation cycle based on ApiContextName
-  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
-    - Added ApiContextName property for SignalR context support
-  - Changed: mostlylucid.mockllmapi/Services/PromptBuilder.cs
-    - Added contextHistory parameter to BuildPrompt method
-    - Context history included in LLM prompts when provided
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Registered ContextExtractor service in DI container
-  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
-    - Added MaxInputTokens property (default: 2048) with model-specific guidance
-  - Changed: LLMApi/management.http
-    - Added extensive context usage examples (~220 lines)
-    - REST, Streaming, GraphQL with contexts
-    - Use case examples: E-commerce, stock ticker, game state
-  - Changed: LLMApi/appsettings.json
-    - Added comprehensive model-specific configuration examples with MaxInputTokens
-  - Changed: LLMApi.Tests/OpenApiContextManagerTests.cs
-    - Updated to use new constructor signature with IOptions<LLMockApiOptions>
-  - Changed: LLMApi.Tests/GraphQLRequestHandlerTests.cs
-    - Updated to use new constructor signature
-  - Changed: LLMApi.Tests/LLMockApiServiceTests.cs
-    - Updated to use new constructor signature
-  - Changed: RELEASE_NOTES.md
-    - Added comprehensive v1.5.0 release notes
-  - Changed: README.md
-    - Added table of contents for easy navigation
-    - Created "Feature Documentation" section linking to detailed guides
-    - Updated configuration section with MaxInputTokens and context notes
-    - Added context usage examples
-    - Improved "What's New" section highlighting v1.5.0 features
-  - Outcome:
-    - Consistent mock data across multi-step workflows
-    - Realistic data variance for real-time streams
-    - Better token management preventing prompt length issues
-    - Comprehensive documentation for all features
-    - All 147 tests passing
-    - No breaking changes - full backward compatibility
+v1.5.0 — 2025-01-03
+- API Contexts for multi-step workflows with shared memory across requests
+- Native GraphQL support with automatic schema-based response generation
+- Fully modular architecture - use only the protocols you need
+- Polly resilience policies with exponential backoff and circuit breaker
+- OpenAPI specification support with automatic endpoint generation
 
-v1.2.1 — 2025-11-04
-- Critical retry policy bug fix resolving "request already sent" errors.
-  - Fixed: Retry Policy HTTP Request Reuse Issue
-    - HttpRequestMessage objects were being reused across retry attempts
-    - In .NET, HttpRequestMessage can only be sent once - retries failed with "request already sent" errors
-    - Now creates a fresh HttpRequestMessage inside retry lambda for each attempt
-    - All three LLM client methods fixed: GetCompletionAsync(), GetStreamingCompletionAsync(), GetNCompletionsAsync()
-    - Test results: All 92 unit tests now pass (previously had intermittent retry failures)
-  - Changed: mostlylucid.mockllmapi/Services/LlmClient.cs
-    - Moved HttpRequestMessage creation inside resilience pipeline lambda
-    - Added helper methods: ExecuteRequestAsync() and ExecuteStreamingRequestAsync()
-    - Ensures proper retry behavior when requests fail or timeout
-  - Outcome: Resilience policies now fully functional - retries work correctly without HTTP client errors
+v1.4.0 — 2024-12-30
+- SignalR real-time mock data streaming
+- Hub context management with automatic cleanup
+- Advanced shape extraction from query/header/body
+- Custom prompt template support
 
-v1.2.0 — 2025-11-04
-- Native GraphQL support, fully modular protocol architecture, and Polly resilience policies.
-  - Added: Polly Resilience Policies (MAJOR)
-    - Exponential backoff retry with configurable attempts (default: 3) and base delay (default: 1s)
-    - Jitter included to prevent thundering herd problems
-    - Circuit breaker pattern to prevent cascading failures (opens after 5 consecutive failures, stays open for 30s)
-    - Comprehensive logging for all retry attempts and circuit breaker state transitions
-    - Enabled by default for production resilience
-    - Fully configurable via appsettings.json (EnableRetryPolicy, MaxRetryAttempts, RetryBaseDelaySeconds, EnableCircuitBreaker, CircuitBreakerFailureThreshold, CircuitBreakerDurationSeconds)
-    - Applies to all protocols: REST, GraphQL, SSE streaming, and SignalR
-    - Added Polly NuGet package dependency (v8.6.4)
-  - Added: GraphQL API Support
-    - Native GraphQL endpoint: POST to /api/mock/graphql with standard GraphQL queries
-    - Query-driven data generation (query itself defines response structure)
-    - Full GraphQL request support: variables, operation names, nested fields
-    - Proper GraphQL response format: { "data": {...} } or { "data": null, "errors": [...] }
-    - Intelligent LLM integration for contextually appropriate mock data
-  - Added: Fully Modular Architecture (MAJOR)
-    - Complete protocol independence: Each protocol (REST, Streaming, GraphQL, SignalR) can be added/mapped independently
-    - New modular Add methods: AddLLMockRest(), AddLLMockStreaming(), AddLLMockGraphQL(), AddLLMockSignalR()
-    - New modular Map methods: MapLLMockRest(), MapLLMockStreaming(), MapLLMockGraphQL(), MapLLMockSignalR()
-    - Smart service registration prevents duplicates when multiple Add methods are called
-    - Benefits: 30-40% reduced memory footprint, faster startup, clearer code intent, mix-and-match protocols
-    - Full backward compatibility: AddLLMockApi() and MapLLMockApi() still work exactly as before
-  - Added: Backward Compatibility for Method Names
-    - Deprecated method aliases: Addmostlylucid_mockllmapi() and Mapmostlylucid_mockllmapi()
-    - [Obsolete] attributes guide users to new method names (AddLLMockApi/MapLLMockApi)
-    - No breaking changes - all existing code continues to work
-  - Added: Shared JSON Extraction Utility
-    - Created JsonExtractor.cs to eliminate code duplication
-    - Handles markdown code blocks in LLM responses
-    - Validates JSON structure and extracts clean JSON from mixed content
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/GraphQLRequestHandler.cs (NEW)
-    - Dedicated handler for GraphQL requests
-    - Parses GraphQL queries and extracts structure for LLM context
-    - Supports variables, operation names, nested fields
-  - Changed: mostlylucid.mockllmapi/Services/JsonExtractor.cs (NEW)
-    - Shared utility for extracting JSON from LLM responses
-    - Used by both RegularRequestHandler and GraphQLRequestHandler
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Major refactoring for modular architecture
-    - Separated registration into Core, REST, Streaming, GraphQL, and SignalR services
-    - Added backward compatibility aliases with [Obsolete] attributes
-    - Organized code with #region directives for clarity
-  - Changed: mostlylucid.mockllmapi/RequestHandlers/RegularRequestHandler.cs
-    - Updated to use shared JsonExtractor utility
-  - Changed: README.md
-    - Added comprehensive GraphQL section with examples
-    - Documented modular architecture with usage patterns
-  - Changed: LLMApi/LLMApi.http
-    - Added 5 GraphQL test examples (simple user query, variables, nested fields, e-commerce, organizational data)
-  - Added: MODULAR_EXAMPLES.md (NEW)
-    - Comprehensive examples for all modular usage patterns
-    - REST only, GraphQL only, Streaming only, SignalR only examples
-    - Mix-and-match examples
-    - Migration guide from v1.1.0 to v1.2.0
-  - Changed: RELEASE_NOTES.md
-    - Updated with v1.2.0 feature documentation
-  - Outcome:
-    - GraphQL support for frontend developers and API prototyping
-    - Fully modular architecture for reduced overhead and clearer intent
-    - No breaking changes - complete backward compatibility
-    - Better code organization and reduced duplication
+v1.3.0 — 2024-12-27
+- Server-Sent Events (SSE) streaming support
+- Token-by-token response streaming
+- Configurable streaming endpoints
 
-v1.1.0 — 2025-11-03
-- Major SignalR enhancements: Full context lifecycle management, interactive demo UI improvements, enhanced data display, and simplified configuration.
-  - Added: SignalR Context Lifecycle Management
-    - New endpoints: POST /api/mock/contexts/{name}/start and /stop for runtime control
-    - Contexts can now be started/stopped dynamically without deletion
-    - Active/inactive status tracking with visual indicators in UI
-  - Added: Connection Tracking
-    - Real-time connection count per context
-    - Automatic increment/decrement on subscribe/unsubscribe
-    - Displayed in context management panel
-  - Added: Interactive Management UI (Index.cshtml - SignalR Demo)
-    - New 3-column layout with "Active Contexts" panel
-    - Live context list with status badges (Active/Stopped)
-    - Per-context controls: Connect, Disconnect, Start, Stop, Delete
-    - Auto-refresh on context creation/modification
-    - Quick-start example buttons for 5 pre-configured scenarios:
-      * IoT Sensors
-      * Stock Market
-      * E-commerce Orders
-      * Server Metrics
-      * Gaming Leaderboard
-  - Added: JSON Syntax Highlighting
-    - Dark-themed code display with color-coded JSON elements
-    - Keys (red), strings (green), numbers (orange), booleans (cyan), null (purple)
-    - No external dependencies - lightweight built-in highlighter
-    - Clean, readable display of streaming data
-  - Added: Automatic appsettings Context Registration
-    - Contexts configured in appsettings.json now automatically appear in Active Contexts panel
-    - Seamless integration between static configuration and dynamic management
-    - Full lifecycle control (start/stop/delete) for all context types
-  - Added: Simplified SignalR Configuration
-    - Context creation now requires only Name and Description (HTTP Method/Path no longer exposed to users)
-    - Method/Path/Body fields are now internal - used only for LLM prompt context
-    - Clearer separation: SignalR uses WebSockets, not HTTP
-    - More intuitive configuration focused on what data to generate, not how
-  - Added: SSE Demo Quick-Start Buttons (Streaming.cshtml)
-    - 4 one-click streaming examples:
-      * User List
-      * Product Catalog
-      * Order Details
-      * Weather Data
-    - Auto-populate form and start streaming
-  - Added: Smart Adaptive Response Caching for SignalR Contexts
-    - Instant first messages: Cache pre-filled on startup for all active contexts
-    - Adaptive batch sizing: Measures first response generation time, calculates optimal batch size (pushInterval / generationTime)
-    - Per-context cache queues to store pre-generated responses
-    - Background refilling: Auto-refills when cache drops below 50%
-    - Intelligent batching: Generates exactly enough responses to fill the time until next push
-    - Significantly reduces LLM load and improves response consistency
-    - Example: If generation takes 500ms and push interval is 5000ms, system automatically batches 10 responses
-  - Changed: mostlylucid.mockllmapi/Models/HubContextConfig.cs
-    - Added IsActive property (default: true) for start/stop functionality
-    - Added ConnectionCount property for tracking connected clients
-  - Changed: mostlylucid.mockllmapi/Services/DynamicHubContextManager.cs
-    - New methods: StartContext, StopContext, IncrementConnectionCount, DecrementConnectionCount
-    - Thread-safe connection tracking
-  - Changed: mostlylucid.mockllmapi/Hubs/MockLlmHub.cs
-    - Integration with DynamicHubContextManager for connection tracking
-    - Subscribe/Unsubscribe now update connection counts
-  - Changed: mostlylucid.mockllmapi/Services/MockDataBackgroundService.cs
-    - Only generates data for active contexts
-    - Registers appsettings contexts with DynamicHubContextManager on startup
-    - Unified context processing (static and dynamic contexts treated equally)
-    - Smart adaptive batching: Measures generation time, calculates optimal batch size per context
-    - Pre-fills all active context caches on startup for instant first messages
-    - Per-context cache queues with intelligent prefilling and refilling
-    - Added comprehensive logging for context processing and batch sizing
-    - Shows configured contexts and calculated batch sizes on startup
-  - Changed: LLMApi/Pages/Index.cshtml
-    - Fixed Unix timestamp (milliseconds) handling for proper time display
-    - Display shows only JSON data (extracts message.data field)
-    - Added syntaxHighlight() function for color-coded JSON
-    - Improved error handling for missing/invalid message fields
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Fixed duplicate context registration bug (was binding config twice)
-    - AddLLMockSignalR no longer re-configures options
-    - Support for both JSON and form-encoded context creation
-    - New management endpoints for start/stop operations
-  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
-    - Removed default "default" context to prevent duplication issues
-  - Outcome:
-    - Complete lifecycle management of SignalR contexts
-    - Better visibility into active connections and data generation
-    - Improved developer experience with interactive UI and beautiful data display
-    - Faster prototyping with quick-start examples
-    - More reliable context management with proper state tracking
-    - Reduced LLM load with intelligent caching
-    - Seamless integration of static and dynamic contexts
+v1.2.0 — 2024-12-25
+- Multi-target framework support (.NET 8.0 and .NET 9.0)
+- Improved error handling and logging
+- Performance optimizations
 
-v1.0.6 — 2025-11-02
-- Add response caching and response-schema header; expand samples and tests.
-  - Changed: mostlylucid.mockllmapi/LLMockApiService.cs
-    - Implement service-level response caching via $cache in shape; primes N variants per key and refills in background.
-    - Added optional X-Response-Schema header with shape echo (bounded length) controlled by IncludeShapeInResponse or ?includeSchema=true.
-  - Changed: mostlylucid.mockllmapi/LLMockApiOptions.cs
-    - New options: IncludeShapeInResponse, MaxCachePerKey.
-  - Changed: mostlylucid.mockllmapi/LLMockApiExtensions.cs
-    - Non-streaming endpoints now use caching when $cache is provided; add schema header when enabled.
-  - Changed: LLMApi/LLMApi.http
-    - Added sections for shape control, streaming endpoints, and caching examples.
-  - Changed: LLMApi.Tests/LLMockApiServiceTests.cs
-    - Added tests for cache priming/depletion/refill and shape sanitization.
-  - Changed: README.md
-    - Document new features and usage.
-  - Outcome: Faster repeat calls with controlled variability and optional visibility of the generation schema.
+v1.1.0 — 2024-12-20
+- Custom prompt templates
+- Temperature and timeout configuration
+- Enhanced documentation
 
-v1.0.5 — 2025-11-02
-- Add package icon to NuGet package metadata.
-  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
-    - Declared <PackageIcon> icon.png
-    - Ensured icon.png is packed into the .nupkg
-  - Outcome: The package now displays a proper icon on NuGet.org and in IDE package managers.
-
-v1.0.4 — 2025-11-02
-- Fix package RepositoryUrl metadata (NuGet link) in project file.
-  - Changed: mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
-    - RepositoryUrl updated to https://github.com/scottgal/LLMApi
-
-v1.0.2 — 2025-11-02
-- Fix NuGet badge links in README for correct package name.
-  - Changed: README.md
-    - Updated badge image and target URLs to match the actual package ID.
-
-v1.0.1 — 2025-11-02
-- Add NuGet badges to README and tidy sample code formatting.
-  - Changed: README.md
-    - Added shields.io NuGet badges (version and downloads)
-  - Changed: LLMApi/Program.cs
-    - Minor formatting/cleanup
-
-v0.0.3 — 2025-11-02
-- Enhance NuGet publishing workflow with OIDC login and improve setup docs.
-  - Changed: .github/workflows/publish-nuget.yml
-    - Adjusted workflow to support OIDC-based authentication
-  - Changed: .github/NUGET_SETUP.md
-    - Updated instructions to reflect the improved workflow
-  - Changed: CLAUDE.md
-    - Documentation grooming
-
-v0.0.2 — 2025-11-02
-- Adopt Unlicense and refine NuGet publishing steps and workflow.
-  - Added: LICENSE (Unlicense)
-  - Changed: .github/workflows/publish-nuget.yml
-  - Changed: .github/NUGET_SETUP.md
-
-v0.0.1 — 2025-11-02
-- Switch license to Unlicense and update docs for GitHub Actions–based automated NuGet publishing.
-  - Summary commit: Switch license to Unlicense and update documentation for GitHub Actions-based automated NuGet publishing.
-
-Notes
-- Package versioning is driven by git tags (v.*): the NuGet release notes and this file reflect those tags.
-- See README.md for usage, configuration, and examples.
+v1.0.0 — 2024-12-15
+- Initial release
+- LLM-powered mock API responses via Ollama
+- Flexible shape-based response generation
+- Easy ASP.NET Core integration
