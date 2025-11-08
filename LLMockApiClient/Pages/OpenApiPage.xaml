@@ -1,0 +1,34 @@
+<Page x:Class="LLMockApiClient.Pages.OpenApiPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="OpenAPI Manager">
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="📋 OpenAPI Specification Manager" FontSize="32" FontWeight="SemiBold"/>
+            <TextBlock Text="Load and test OpenAPI specs" Opacity="0.7"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="Spec Name:" Margin="0,0,0,4"/>
+            <TextBox x:Name="SpecNameTextBox" Margin="0,0,0,8"/>
+            <TextBlock Text="Spec URL:" Margin="0,0,0,4"/>
+            <TextBox x:Name="SpecUrlTextBox" Text="https://petstore3.swagger.io/api/v3/openapi.json" Margin="0,0,0,12"/>
+            <Button Content="📥 Load Spec" Click="LoadSpec_Click" Padding="16,8" HorizontalAlignment="Left"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="#F5F5F5" CornerRadius="8" Padding="16">
+            <ScrollViewer>
+                <StackPanel>
+                    <TextBlock Text="Loaded Specs" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                    <ListBox x:Name="SpecsListBox" Height="400"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Page>

@@ -1,0 +1,155 @@
+<Page x:Class="LLMockApiClient.Pages.SignalRPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.modernwpf.com/2019"
+      xmlns:controls="clr-namespace:LLMockApiClient.Controls"
+      Title="SignalR Manager">
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,24">
+            <TextBlock Text="🔄 SignalR Context Manager" FontSize="32" FontWeight="SemiBold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+            <TextBlock Text="Manage contexts and receive real-time data updates" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+        </StackPanel>
+
+        <!-- Context List -->
+        <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="#E74C3C" BorderThickness="2"
+                CornerRadius="8" Padding="16" Margin="0,0,16,16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="📋 Active Contexts" FontSize="18" FontWeight="SemiBold" Foreground="#E74C3C"/>
+                    <TextBlock Text="Create and manage SignalR streaming contexts" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ContextsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                        BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Context Name and Status -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <TextBlock Text="🔗 " FontSize="16"/>
+                                                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="{Binding StatusColor}" CornerRadius="10" Padding="8,2">
+                                                <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Description -->
+                                        <TextBlock Grid.Row="1" Text="{Binding Description}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                   TextWrapping="Wrap" Margin="0,0,0,8" FontSize="11"/>
+
+                                        <!-- Action Buttons -->
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Grid.Column="0" Content="▶️ Start" Click="StartContext_Click"
+                                                    Tag="{Binding Name}" Padding="8,4" Margin="0,0,4,0"
+                                                    IsEnabled="{Binding CanStart}" FontSize="11"/>
+                                            <Button Grid.Column="1" Content="⏹️ Stop" Click="StopContext_Click"
+                                                    Tag="{Binding Name}" Padding="8,4" Margin="0,0,4,0"
+                                                    IsEnabled="{Binding CanStop}" FontSize="11"/>
+                                            <Button Grid.Column="2" Content="🔌 Subscribe" Click="SubscribeContext_Click"
+                                                    Tag="{Binding Name}" Padding="8,4" Margin="0,0,4,0"
+                                                    IsEnabled="{Binding CanSubscribe}" FontSize="11"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding MessageCount, StringFormat='{}Messages: {0}'}"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Live Data Display -->
+        <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="#E74C3C" BorderThickness="2"
+                CornerRadius="8" Padding="16" Margin="0,0,0,16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="📡 Live Stream" FontSize="18" FontWeight="SemiBold"
+                           Foreground="#E74C3C" Margin="0,0,0,12"/>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" x:Name="LiveDataScrollViewer">
+                    <controls:JsonViewer x:Name="LiveDataViewer" MinHeight="400"/>
+                </ScrollViewer>
+
+                <Button Grid.Row="2" Content="🗑️ Clear" Click="ClearLiveData_Click"
+                        HorizontalAlignment="Stretch" Padding="8,4" Margin="0,12,0,0"/>
+            </Grid>
+        </Border>
+
+        <!-- Create Context Panel -->
+        <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="#E74C3C" BorderThickness="2"
+                CornerRadius="8" Padding="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Context Name" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                    <TextBox x:Name="ContextNameTextBox" ui:ControlHelper.PlaceholderText="e.g., user-notifications"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                    <TextBox x:Name="DescriptionTextBox" ui:ControlHelper.PlaceholderText="Brief description of context"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
+                    <Button Content="➕ Create Context" Click="CreateContext_Click"
+                            Padding="16,8" Style="{StaticResource AccentButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

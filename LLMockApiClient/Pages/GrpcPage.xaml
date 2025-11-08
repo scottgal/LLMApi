@@ -1,0 +1,34 @@
+<Page x:Class="LLMockApiClient.Pages.GrpcPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="gRPC Demo">
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="⚡ gRPC Service Testing" FontSize="32" FontWeight="SemiBold"/>
+            <TextBlock Text="Upload .proto files and test gRPC methods" Opacity="0.7"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="Proto Name:" Margin="0,0,0,4"/>
+            <TextBox x:Name="ProtoNameTextBox" Margin="0,0,0,8"/>
+            <TextBlock Text="Proto Content:" Margin="0,0,0,4"/>
+            <TextBox x:Name="ProtoContentTextBox" Height="120" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12" FontFamily="Consolas"/>
+            <Button Content="📤 Upload Proto" Click="UploadProto_Click" Padding="16,8" HorizontalAlignment="Left"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="#F5F5F5" CornerRadius="8" Padding="16">
+            <ScrollViewer>
+                <StackPanel>
+                    <TextBlock Text="Uploaded Protos" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                    <ListBox x:Name="ProtosListBox" Height="300"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Page>
