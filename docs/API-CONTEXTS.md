@@ -86,49 +86,53 @@ graph TD
 
 ### Context Storage
 
-Contexts are stored in-memory using a thread-safe `ConcurrentDictionary`:
+Contexts are stored using `IMemoryCache` with automatic sliding expiration:
 
 ```csharp
-public class OpenApiContextManager
+public class MemoryCacheContextStore : IContextStore
 {
-    private readonly ConcurrentDictionary<string, ApiContext> _contexts;
-    private const int MaxRecentCalls = 15;
-    private const int SummarizeThreshold = 20;
+    private readonly IMemoryCache _cache;
+    private readonly TimeSpan _slidingExpiration;
 
-    public void AddToContext(
-        string contextName,
-        string method,
-        string path,
-        string? requestBody,
-        string responseBody)
+    public MemoryCacheContextStore(IMemoryCache cache, ILogger logger)
     {
-        var context = _contexts.GetOrAdd(contextName, _ => new ApiContext
-        {
-            Name = contextName,
-            CreatedAt = DateTimeOffset.UtcNow,
-            RecentCalls = new List<RequestSummary>(),
-            SharedData = new Dictionary<string, string>(),
-            TotalCalls = 0
-        });
+        _cache = cache;
+        _slidingExpiration = TimeSpan.FromMinutes(15); // Configurable expiration
+    }
 
-        context.RecentCalls.Add(new RequestSummary
-        {
-            Timestamp = DateTimeOffset.UtcNow,
-            Method = method,
-            Path = path,
-            RequestBody = requestBody,
-            ResponseBody = responseBody
-        });
+    public ApiContext GetOrAdd(string contextName, Func<string, ApiContext> factory)
+    {
+        var cacheKey = GetCacheKey(contextName);
 
-        ExtractSharedData(context, responseBody);
-
-        if (context.RecentCalls.Count > MaxRecentCalls)
+        if (_cache.TryGetValue<ApiContext>(cacheKey, out var context) && context != null)
         {
-            SummarizeOldCalls(context);
+            // Refresh sliding expiration on access
+            SetContextInCache(cacheKey, contextName, context);
+            return context;
         }
+
+        var newContext = factory(contextName);
+        SetContextInCache(cacheKey, contextName, newContext);
+        return newContext;
+    }
+
+    private void SetContextInCache(string cacheKey, string contextName, ApiContext context)
+    {
+        var options = new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = _slidingExpiration, // Auto-expires after inactivity
+            Priority = CacheItemPriority.Normal
+        };
+        _cache.Set(cacheKey, context, options);
     }
 }
 ```
+
+**Key Benefits:**
+- **Automatic expiration**: Contexts expire after 15 minutes of inactivity (configurable)
+- **Memory management**: No manual cleanup needed - expired contexts are automatically removed
+- **Sliding expiration**: Each access refreshes the expiration timer
+- **Thread-safe**: Built on IMemoryCache's thread-safe implementation
 
 ### Automatic Summarization
 
@@ -169,7 +173,7 @@ private void SummarizeOldCalls(ApiContext context)
 
 ### Shared Data Extraction
 
-The context manager automatically extracts common identifiers from responses to make them easily accessible:
+The context manager **automatically extracts ALL fields** from JSON responses (not just predefined ones), making them available for subsequent requests:
 
 ```csharp
 private void ExtractSharedData(ApiContext context, string responseBody)
@@ -177,25 +181,94 @@ private void ExtractSharedData(ApiContext context, string responseBody)
     using var doc = JsonDocument.Parse(responseBody);
     var root = doc.RootElement;
 
+    // Extract from arrays (uses first item)
     if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
     {
-        var firstItem = root[0];
-        ExtractValueIfExists(context, firstItem, "id", "lastId");
-        ExtractValueIfExists(context, firstItem, "userId", "lastUserId");
-        ExtractValueIfExists(context, firstItem, "name", "lastName");
-        ExtractValueIfExists(context, firstItem, "email", "lastEmail");
+        ExtractAllFields(context, root[0]);
     }
+    // Extract from objects
     else if (root.ValueKind == JsonValueKind.Object)
     {
-        ExtractValueIfExists(context, root, "id", "lastId");
-        ExtractValueIfExists(context, root, "userId", "lastUserId");
-        ExtractValueIfExists(context, root, "name", "lastName");
-        // ... more common patterns
+        ExtractAllFields(context, root);
+    }
+}
+
+private void ExtractAllFields(ApiContext context, JsonElement element,
+    string prefix = "", int depth = 0, int maxDepth = 2)
+{
+    foreach (var property in element.EnumerateObject())
+    {
+        var key = string.IsNullOrEmpty(prefix)
+            ? property.Name
+            : $"{prefix}.{property.Name}";
+
+        switch (property.Value.ValueKind)
+        {
+            case JsonValueKind.String:
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                context.SharedData[key] = property.Value.ToString();
+                AddLegacyKey(context, property.Name, value, depth); // Backward compat
+                break;
+
+            case JsonValueKind.Object:
+                // Recurse into nested objects (up to depth 2)
+                ExtractAllFields(context, property.Value, key, depth + 1, maxDepth);
+                break;
+
+            case JsonValueKind.Array:
+                // Store array length and extract first item if it's an object
+                context.SharedData[$"{key}.length"] = property.Value.GetArrayLength();
+                if (depth < maxDepth && property.Value[0].ValueKind == JsonValueKind.Object)
+                {
+                    ExtractAllFields(context, property.Value[0], $"{key}[0]", depth + 1);
+                }
+                break;
+        }
     }
 }
 ```
 
-This allows the system to track the most recent user ID, order ID, etc., making them available in the context history.
+**What Gets Extracted:**
+
+| Response Type | Extracted Data | Example Key | Example Value |
+|--------------|----------------|-------------|---------------|
+| Top-level fields | All primitive values | `email` | `"alice@example.com"` |
+| Nested objects | Dot notation | `address.city` | `"Seattle"` |
+| Deep nesting (2 levels) | Nested dot notation | `user.profile.avatar` | `"https://..."` |
+| Arrays | Length + first item | `items.length`, `items[0].id` | `"3"`, `"PROD-001"` |
+| ID fields | Legacy `last*` keys | `lastId`, `lastUserId` | `"123"`, `"456"` |
+
+**Examples:**
+
+```json
+// Response:
+{
+  "orderId": "ORD-123",
+  "customer": {
+    "name": "Alice",
+    "email": "alice@example.com"
+  },
+  "items": [
+    {"productId": "PROD-001", "price": 25.00},
+    {"productId": "PROD-002", "price": 49.99}
+  ]
+}
+
+// Extracted SharedData:
+{
+  "orderId": "ORD-123",
+  "lastOrderId": "ORD-123",          // Backward compatibility
+  "customer.name": "Alice",
+  "customer.email": "alice@example.com",
+  "items.length": "2",
+  "items[0].productId": "PROD-001",
+  "items[0].price": "25.00"
+}
+```
+
+This comprehensive extraction ensures **all** data from responses is available to maintain consistency in subsequent API calls, not just hardcoded field names.
 
 ## Using Contexts
 
@@ -565,17 +638,46 @@ POST /api/openapi/specs
 Each context stores:
 - Up to 15 recent calls (full request/response)
 - Summary of older calls (compressed)
-- Extracted shared data (small dictionary)
+- Extracted shared data (comprehensive dictionary with all fields)
 
 **Typical memory per context**: ~50-200 KB depending on response sizes
 
+**Automatic Memory Management:**
+- Contexts automatically expire after **15 minutes of inactivity** (sliding expiration)
+- Expired contexts are automatically removed from memory
+- No risk of memory leaks - inactive contexts are cleaned up automatically
+- Accessing a context refreshes its expiration timer
+
+**Configuration:**
+
+You can customize the expiration time in your `appsettings.json`:
+
+```json
+{
+  "MockLlmApi": {
+    "ContextExpirationMinutes": 15  // Default: 15 minutes
+  }
+}
+```
+
+**Examples:**
+- Set to `5` for short test sessions (saves memory)
+- Set to `60` for long-running integration tests
+- Set to `1440` for full-day development sessions
+
 ### Thread Safety
 
-`OpenApiContextManager` uses `ConcurrentDictionary` for thread-safe storage. Multiple requests can safely read/write contexts concurrently.
+`MemoryCacheContextStore` uses `IMemoryCache` for thread-safe storage. Multiple requests can safely read/write contexts concurrently. The underlying cache handles all synchronization automatically.
 
 ### LLM Token Limits
 
-Context history is included in every prompt. If you have very large responses or many calls, you may approach token limits. The automatic summarization helps prevent this, but for very long sessions, consider periodically clearing the context.
+Context history is included in every prompt. The system has multiple safeguards:
+
+1. **Automatic Summarization**: Old calls (>15) are summarized to reduce token usage
+2. **Dynamic Truncation**: Recent calls are truncated based on `MaxInputTokens` (20% allocation)
+3. **Token-Aware Limits**: System estimates token usage and drops oldest calls if needed
+
+For very long sessions with large responses, the system automatically manages token limits. You can also manually clear contexts if needed.
 
 ## Limitations
 
@@ -583,6 +685,8 @@ Context history is included in every prompt. If you have very large responses or
 2. **No Persistence** - Not suitable for production data storage
 3. **Single Server** - Contexts don't sync across multiple server instances
 4. **LLM Dependent** - Consistency quality depends on the LLM's ability to follow instructions
+5. **Automatic Expiration** - Inactive contexts expire after 15 minutes (configurable)
+6. **Extraction Depth** - Nested objects are extracted up to 2 levels deep to prevent context explosion
 
 ## Conclusion
 

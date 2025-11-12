@@ -375,4 +375,257 @@ public class OpenApiContextManagerTests
         Assert.Contains("Request:", prompt);
         Assert.Contains("New User", prompt);
     }
+
+    [Fact]
+    public void ExtractSharedData_ExtractsAllTopLevelFields()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"{
+            ""id"": 123,
+            ""customField"": ""customValue"",
+            ""anotherField"": 456,
+            ""isActive"": true,
+            ""isDeleted"": false
+        }";
+
+        // Act
+        manager.AddToContext("test-context", "GET", "/api/data", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Verify all fields are extracted (not just hardcoded ones)
+        Assert.Contains("customField", context!.SharedData.Keys);
+        Assert.Contains("anotherField", context.SharedData.Keys);
+        Assert.Contains("isActive", context.SharedData.Keys);
+        Assert.Contains("isDeleted", context.SharedData.Keys);
+
+        // Verify values
+        Assert.Equal("customValue", context.SharedData["customField"]);
+        Assert.Equal("456", context.SharedData["anotherField"]);
+        Assert.Equal("true", context.SharedData["isActive"]);
+        Assert.Equal("false", context.SharedData["isDeleted"]);
+    }
+
+    [Fact]
+    public void ExtractSharedData_ExtractsNestedFieldsWithDotNotation()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"{
+            ""id"": 123,
+            ""user"": {
+                ""name"": ""Alice"",
+                ""age"": 30,
+                ""address"": {
+                    ""city"": ""Seattle"",
+                    ""zipCode"": ""98101""
+                }
+            }
+        }";
+
+        // Act
+        manager.AddToContext("test-context", "GET", "/api/data", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Verify nested fields use dot notation
+        Assert.Contains("user.name", context!.SharedData.Keys);
+        Assert.Contains("user.age", context.SharedData.Keys);
+        Assert.Contains("user.address.city", context.SharedData.Keys);
+        Assert.Contains("user.address.zipCode", context.SharedData.Keys);
+
+        // Verify values
+        Assert.Equal("Alice", context.SharedData["user.name"]);
+        Assert.Equal("30", context.SharedData["user.age"]);
+        Assert.Equal("Seattle", context.SharedData["user.address.city"]);
+        Assert.Equal("98101", context.SharedData["user.address.zipCode"]);
+    }
+
+    [Fact]
+    public void ExtractSharedData_HandlesArrays_WithLengthAndFirstItem()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"{
+            ""users"": [
+                {""id"": 1, ""name"": ""Alice""},
+                {""id"": 2, ""name"": ""Bob""}
+            ],
+            ""tags"": [""admin"", ""user""]
+        }";
+
+        // Act
+        manager.AddToContext("test-context", "GET", "/api/data", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Verify array length is stored
+        Assert.Contains("users.length", context!.SharedData.Keys);
+        Assert.Equal("2", context.SharedData["users.length"]);
+
+        // Verify first array item fields are extracted
+        Assert.Contains("users[0].id", context.SharedData.Keys);
+        Assert.Contains("users[0].name", context.SharedData.Keys);
+        Assert.Equal("1", context.SharedData["users[0].id"]);
+        Assert.Equal("Alice", context.SharedData["users[0].name"]);
+
+        // Simple array should have length
+        Assert.Contains("tags.length", context.SharedData.Keys);
+        Assert.Equal("2", context.SharedData["tags.length"]);
+    }
+
+    [Fact]
+    public void ExtractSharedData_MaintainsBackwardCompatibility_WithLegacyKeys()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"{
+            ""id"": 456,
+            ""userId"": 123,
+            ""orderId"": 789,
+            ""name"": ""Bob"",
+            ""email"": ""bob@example.com"",
+            ""username"": ""bobby""
+        }";
+
+        // Act
+        manager.AddToContext("test-context", "POST", "/users", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Verify legacy "last*" keys still work
+        Assert.Contains("lastId", context!.SharedData.Keys);
+        Assert.Contains("lastUserId", context.SharedData.Keys);
+        Assert.Contains("lastOrderId", context.SharedData.Keys);
+        Assert.Contains("lastName", context.SharedData.Keys);
+        Assert.Contains("lastEmail", context.SharedData.Keys);
+        Assert.Contains("lastUsername", context.SharedData.Keys);
+
+        // Verify legacy values
+        Assert.Equal("456", context.SharedData["lastId"]);
+        Assert.Equal("123", context.SharedData["lastUserId"]);
+        Assert.Equal("789", context.SharedData["lastOrderId"]);
+        Assert.Equal("Bob", context.SharedData["lastName"]);
+        Assert.Equal("bob@example.com", context.SharedData["lastEmail"]);
+        Assert.Equal("bobby", context.SharedData["lastUsername"]);
+
+        // Verify new direct keys also exist
+        Assert.Contains("id", context.SharedData.Keys);
+        Assert.Contains("userId", context.SharedData.Keys);
+        Assert.Contains("name", context.SharedData.Keys);
+    }
+
+    [Fact]
+    public void ExtractSharedData_HandlesComplexRealWorldResponse()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"{
+            ""orderId"": ""ORD-12345"",
+            ""totalAmount"": 99.99,
+            ""status"": ""completed"",
+            ""customer"": {
+                ""customerId"": ""CUST-789"",
+                ""firstName"": ""Jane"",
+                ""lastName"": ""Doe"",
+                ""email"": ""jane@example.com"",
+                ""phone"": ""+1-555-0100""
+            },
+            ""items"": [
+                {""productId"": ""PROD-001"", ""quantity"": 2, ""price"": 25.00},
+                {""productId"": ""PROD-002"", ""quantity"": 1, ""price"": 49.99}
+            ],
+            ""shippingAddress"": {
+                ""street"": ""123 Main St"",
+                ""city"": ""Portland"",
+                ""state"": ""OR"",
+                ""zip"": ""97201""
+            },
+            ""isPaid"": true,
+            ""isShipped"": false
+        }";
+
+        // Act
+        manager.AddToContext("test-context", "GET", "/orders/12345", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Top-level fields
+        Assert.Equal("ORD-12345", context!.SharedData["orderId"]);
+        Assert.Equal("99.99", context.SharedData["totalAmount"]);
+        Assert.Equal("completed", context.SharedData["status"]);
+        Assert.Equal("true", context.SharedData["isPaid"]);
+        Assert.Equal("false", context.SharedData["isShipped"]);
+
+        // Nested customer fields
+        Assert.Equal("CUST-789", context.SharedData["customer.customerId"]);
+        Assert.Equal("Jane", context.SharedData["customer.firstName"]);
+        Assert.Equal("Doe", context.SharedData["customer.lastName"]);
+        Assert.Equal("jane@example.com", context.SharedData["customer.email"]);
+        Assert.Equal("+1-555-0100", context.SharedData["customer.phone"]);
+
+        // Nested address fields
+        Assert.Equal("123 Main St", context.SharedData["shippingAddress.street"]);
+        Assert.Equal("Portland", context.SharedData["shippingAddress.city"]);
+        Assert.Equal("OR", context.SharedData["shippingAddress.state"]);
+        Assert.Equal("97201", context.SharedData["shippingAddress.zip"]);
+
+        // Array metadata
+        Assert.Equal("2", context.SharedData["items.length"]);
+        Assert.Equal("PROD-001", context.SharedData["items[0].productId"]);
+        Assert.Equal("2", context.SharedData["items[0].quantity"]);
+        Assert.Equal("25.00", context.SharedData["items[0].price"]);
+
+        // Legacy keys for IDs
+        Assert.Equal("ORD-12345", context.SharedData["lastOrderId"]);
+    }
+
+    [Fact]
+    public void ExtractSharedData_FromArrayResponse_ExtractsAllFieldsFromFirstItem()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var response = @"[
+            {
+                ""id"": 1,
+                ""customField"": ""value1"",
+                ""metadata"": {
+                    ""created"": ""2024-01-01"",
+                    ""source"": ""api""
+                }
+            },
+            {
+                ""id"": 2,
+                ""customField"": ""value2""
+            }
+        ]";
+
+        // Act
+        manager.AddToContext("test-context", "GET", "/api/items", null, response);
+
+        // Assert
+        var context = manager.GetContext("test-context");
+        Assert.NotNull(context);
+
+        // Should extract all fields from first item only
+        Assert.Equal("1", context!.SharedData["id"]);
+        Assert.Equal("value1", context.SharedData["customField"]);
+        Assert.Equal("2024-01-01", context.SharedData["metadata.created"]);
+        Assert.Equal("api", context.SharedData["metadata.source"]);
+
+        // Should NOT contain data from second item
+        Assert.DoesNotContain("2", context.SharedData.Values);
+        Assert.DoesNotContain("value2", context.SharedData.Values);
+    }
 }

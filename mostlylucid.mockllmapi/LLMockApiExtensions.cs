@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -220,8 +221,14 @@ public static class LlMockApiExtensions
             services.AddScoped<LLMockApiService>();
             services.AddScoped<ChunkingCoordinator>(); // Automatic request chunking
 
-            // Register context store with automatic 15-minute expiration
-            services.AddSingleton<IContextStore, MemoryCacheContextStore>();
+            // Register context store with configurable automatic expiration
+            services.AddSingleton<IContextStore>(sp =>
+            {
+                var cache = sp.GetRequiredService<IMemoryCache>();
+                var logger = sp.GetRequiredService<ILogger<MemoryCacheContextStore>>();
+                var options = sp.GetRequiredService<IOptions<LLMockApiOptions>>().Value;
+                return new MemoryCacheContextStore(cache, logger, options.ContextExpirationMinutes);
+            });
         }
     }
 

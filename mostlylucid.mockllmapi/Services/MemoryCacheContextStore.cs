@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// In-memory context store with automatic expiration after 15 minutes of inactivity.
+/// In-memory context store with configurable automatic expiration (default: 15 minutes of inactivity).
 /// Uses IMemoryCache with sliding expiration to prevent memory leaks.
 /// Contexts are automatically removed when not accessed within the expiration window.
 /// </summary>
@@ -19,12 +19,13 @@ public class MemoryCacheContextStore : IContextStore
 
     public MemoryCacheContextStore(
         IMemoryCache cache,
-        ILogger<MemoryCacheContextStore> logger)
+        ILogger<MemoryCacheContextStore> logger,
+        int expirationMinutes = 15)
     {
         _cache = cache;
         _logger = logger;
         _contextNames = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
-        _slidingExpiration = TimeSpan.FromMinutes(15); // 15 minutes of inactivity before expiration
+        _slidingExpiration = TimeSpan.FromMinutes(expirationMinutes);
     }
 
     public ApiContext GetOrAdd(string contextName, Func<string, ApiContext> factory)
@@ -47,8 +48,8 @@ public class MemoryCacheContextStore : IContextStore
         SetContextInCache(cacheKey, contextName, newContext);
 
         _logger.LogInformation(
-            "Created new context '{ContextName}' with 15-minute sliding expiration",
-            contextName);
+            "Created new context '{ContextName}' with {ExpirationMinutes}-minute sliding expiration",
+            contextName, _slidingExpiration.TotalMinutes);
 
         return newContext;
     }

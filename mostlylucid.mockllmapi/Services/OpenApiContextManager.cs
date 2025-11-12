@@ -238,7 +238,7 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Extracts shared data from response JSON (IDs, names, etc.)
+    /// Extracts shared data from response JSON - captures ALL fields dynamically
     /// </summary>
     private void ExtractSharedData(ApiContext context, string responseBody)
     {
@@ -251,30 +251,11 @@ public class OpenApiContextManager
             if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
             {
                 var firstItem = root[0];
-                ExtractValueIfExists(context, firstItem, "id", "lastId");
-                ExtractValueIfExists(context, firstItem, "userId", "lastUserId");
-                ExtractValueIfExists(context, firstItem, "orderId", "lastOrderId");
-                ExtractValueIfExists(context, firstItem, "productId", "lastProductId");
-                ExtractValueIfExists(context, firstItem, "customerId", "lastCustomerId");
-                ExtractValueIfExists(context, firstItem, "petId", "lastPetId");
-                ExtractValueIfExists(context, firstItem, "name", "lastName");
-                ExtractValueIfExists(context, firstItem, "username", "lastUsername");
-                ExtractValueIfExists(context, firstItem, "email", "lastEmail");
+                ExtractAllFields(context, firstItem);
             }
             else if (root.ValueKind == JsonValueKind.Object)
             {
-                // Extract common ID patterns
-                ExtractValueIfExists(context, root, "id", "lastId");
-                ExtractValueIfExists(context, root, "userId", "lastUserId");
-                ExtractValueIfExists(context, root, "orderId", "lastOrderId");
-                ExtractValueIfExists(context, root, "productId", "lastProductId");
-                ExtractValueIfExists(context, root, "customerId", "lastCustomerId");
-                ExtractValueIfExists(context, root, "petId", "lastPetId");
-
-                // Extract common name patterns
-                ExtractValueIfExists(context, root, "name", "lastName");
-                ExtractValueIfExists(context, root, "username", "lastUsername");
-                ExtractValueIfExists(context, root, "email", "lastEmail");
+                ExtractAllFields(context, root);
             }
         }
         catch (JsonException)
@@ -283,24 +264,81 @@ public class OpenApiContextManager
         }
     }
 
-    private void ExtractValueIfExists(ApiContext context, JsonElement element, string jsonKey, string storageKey)
+    /// <summary>
+    /// Recursively extracts all fields from a JSON object up to maxDepth levels
+    /// </summary>
+    private void ExtractAllFields(ApiContext context, JsonElement element, string prefix = "", int depth = 0, int maxDepth = 2)
     {
-        if (element.TryGetProperty(jsonKey, out var value))
-        {
-            var stringValue = value.ValueKind switch
-            {
-                JsonValueKind.String => value.GetString(),
-                JsonValueKind.Number => value.GetRawText(),
-                JsonValueKind.True => "true",
-                JsonValueKind.False => "false",
-                _ => null
-            };
+        if (element.ValueKind != JsonValueKind.Object || depth > maxDepth)
+            return;
 
-            if (stringValue != null)
+        foreach (var property in element.EnumerateObject())
+        {
+            var key = string.IsNullOrEmpty(prefix) ? property.Name : $"{prefix}.{property.Name}";
+
+            switch (property.Value.ValueKind)
             {
-                context.SharedData[storageKey] = stringValue;
-                context.SharedData[jsonKey] = stringValue; // Store under both keys
+                case JsonValueKind.String:
+                    var strValue = property.Value.GetString();
+                    if (strValue != null)
+                    {
+                        context.SharedData[key] = strValue;
+                        AddLegacyKey(context, property.Name, strValue, depth);
+                    }
+                    break;
+
+                case JsonValueKind.Number:
+                    var numValue = property.Value.GetRawText();
+                    context.SharedData[key] = numValue;
+                    AddLegacyKey(context, property.Name, numValue, depth);
+                    break;
+
+                case JsonValueKind.True:
+                    context.SharedData[key] = "true";
+                    break;
+
+                case JsonValueKind.False:
+                    context.SharedData[key] = "false";
+                    break;
+
+                case JsonValueKind.Object:
+                    // Recurse into nested objects
+                    ExtractAllFields(context, property.Value, key, depth + 1, maxDepth);
+                    break;
+
+                case JsonValueKind.Array:
+                    // For arrays, store count and optionally first item
+                    var arrayLength = property.Value.GetArrayLength();
+                    context.SharedData[$"{key}.length"] = arrayLength.ToString();
+
+                    if (arrayLength > 0 && depth < maxDepth)
+                    {
+                        var firstArrayItem = property.Value[0];
+                        if (firstArrayItem.ValueKind == JsonValueKind.Object)
+                        {
+                            ExtractAllFields(context, firstArrayItem, $"{key}[0]", depth + 1, maxDepth);
+                        }
+                    }
+                    break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Adds legacy "last*" keys for common patterns to maintain backward compatibility
+    /// </summary>
+    private void AddLegacyKey(ApiContext context, string fieldName, string value, int depth)
+    {
+        // Only add legacy "last*" keys for top-level fields
+        if (depth > 0)
+            return;
+
+        var lowerKey = fieldName.ToLowerInvariant();
+        // Add "last*" prefix for common ID patterns (backward compatibility)
+        if (lowerKey.EndsWith("id") || lowerKey == "name" || lowerKey == "username" || lowerKey == "email")
+        {
+            var legacyKey = $"last{char.ToUpper(fieldName[0])}{fieldName.Substring(1)}";
+            context.SharedData[legacyKey] = value;
         }
     }
 
