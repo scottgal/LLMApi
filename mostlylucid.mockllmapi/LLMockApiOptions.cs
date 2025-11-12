@@ -279,4 +279,16 @@ public class LLMockApiOptions
     public List<OpenApiSpecConfig> OpenApiSpecs { get; set; } = new();
 
     #endregion
+
+    #region Context Options
+
+    /// <summary>
+    /// Sliding expiration in minutes for API contexts (default: 15 minutes)
+    /// Contexts are automatically removed after this period of inactivity.
+    /// Each context access (request/response) refreshes the expiration timer.
+    /// Set higher for long-running test sessions, lower to reduce memory usage.
+    /// </summary>
+    public int ContextExpirationMinutes { get; set; } = 15;
+
+    #endregion
 }
