@@ -1,20 +1,20 @@
-# What if Every Neuron Was an AI?
+# Semantic Cognition Meshes: When Every Neuron is an AI
 
-Here's a wild idea: What if we stopped thinking about neural networks as layers of math and started thinking about them as **societies of intelligent agents**?
+Right, so here's a properly mental idea that's been rattling around: What if we stopped thinking about neural networks as passive mathematical constructs and started treating them as **societies of intelligent agents**?
 
-I'm talking about replacing passive neurons—those simple `sum(weights * inputs) + activation_function` things—with actual LLMs. Each "neuron" would be an autonomous agent with its own reasoning, memory, tools, and the ability to talk back to its neighbors.
+I'm talking about replacing those simple `sum(weights * inputs) + activation_function` neurons with actual LLMs. Each "neuron" becomes an autonomous agent with its own reasoning, memory, tools, and the ability to talk back to its neighbours.
 
-Sound absurd? Maybe. But let's explore what this could look like.
+Sounds barmy? Perhaps. But bear with me whilst we explore where this could go.
 
-## The Core Idea
+## The Problem with Passive Neurons
 
-Traditional neural networks are amazing, but they're fundamentally **passive**. Data flows forward through layers, gradients flow backward during training, and individual neurons have no idea what they're doing—they just compute weighted sums.
+Traditional neural networks are brilliant at what they do, but they're fundamentally **passive**. Data flows forward through layers, gradients flow backward during training, and individual neurons are completely oblivious to their role in the larger computation—they just crunch numbers.
 
-What if instead, each node in your network was more like this:
+Here's the thing though: what if each node in your network looked more like this?
 
 ```mermaid
 graph TB
-    Node[Agent Node: "Calendar Expert"]
+    Node[Agent Node: Calendar Expert]
 
     Node --> Tools[Tool Access]
     Node --> Memory[Contextual Memory]
@@ -33,29 +33,31 @@ graph TB
     Reasoning --> Adapt[Adapt based on<br/>feedback]
 ```
 
-Each node is a complete AI system—it can:
+Each node becomes a proper AI system that can:
 - Read and understand natural language
 - Decide which tools to use based on cost, latency, and reliability
 - Remember what worked in the past
-- Evaluate its own performance and adjust
+- Evaluate its own performance and adjust accordingly
 - Send feedback upstream to change how earlier nodes behave
 
-## How Would Data Flow Work?
+This isn't just anthropomorphising computers for the sake of it. By using LLMs as the computational substrate for individual nodes, we're operating at a fundamentally different level of abstraction—where the basic unit of computation is **semantic reasoning** rather than numeric transformation.
 
-In a traditional neural network, you have fixed layers. In a **semantic cognition mesh**, the topology emerges from the input itself.
+## How Data Flows Through the Mesh
+
+In a traditional neural network, you've got fixed layers. In a **semantic cognition mesh**, the topology emerges from the input itself. No hardcoded workflows—the structure adapts to what you're asking it to do.
 
 ```mermaid
 graph LR
     Input[User: When can I meet<br/>Dave for lunch next week?]
 
-    Input --> Intent[Intent Analyzer<br/>Extracts: person, time, meal]
+    Input --> Intent[Intent Analyser<br/>Extracts: person, time, meal]
 
     Intent --> Cal[Calendar Agent<br/>Checks availability]
-    Intent --> Email[Email Pattern Agent<br/>Analyzes Dave's habits]
+    Intent --> Email[Email Pattern Agent<br/>Analyses Dave's habits]
     Intent --> Social[Social Graph Agent<br/>Gets Dave's workplace]
     Intent --> Loc[Location Agent<br/>Finds Dave's office]
 
-    Cal --> Synth[Response Synthesizer]
+    Cal --> Synth[Response Synthesiser]
     Email --> Synth
     Social --> Synth
     Loc --> Synth
@@ -70,22 +72,22 @@ graph LR
     style Synth fill:#fff3cd
 ```
 
-Notice what just happened:
-1. **No hardcoded workflow** - The mesh decided to activate 4 agents in parallel
+Notice what's happened here:
+1. **No explicit orchestration code** - The mesh decided to activate 4 agents in parallel
 2. **Semantic routing** - It understood "lunch" meant restaurants, "next week" meant calendar checks
-3. **Tool diversity** - Calendar APIs, email analysis, social graphs, geolocation
+3. **Tool diversity** - Calendar APIs, email analysis, social graphs, geolocation—all coordinated
 4. **Context synthesis** - The final answer integrated insights from multiple sources
 
-Nobody programmed this workflow. It emerged from the input's semantic properties.
+Nobody programmed this workflow. It emerged from the semantic properties of the input. Rather clever, that.
 
-## Wait, Can Nodes Talk Backwards?
+## Nodes That Talk Backwards (Reflex Arcs)
 
-Yes! This is where it gets really interesting. Traditional neural networks only pass information forward (and gradients backward during training). But what if nodes could send **semantic feedback** upstream during execution?
+Here's where it gets properly interesting. Traditional neural networks only pass information forward (and gradients backward during training). But what if nodes could send **semantic feedback** upstream during execution?
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Doc as Document Analyzer
+    participant Doc as Document Analyser
     participant Trans as Translation Agent
     participant Meta as Meta-Evaluator
 
@@ -94,25 +96,25 @@ sequenceDiagram
     Note over Trans: Uses fast, cheap<br/>general NMT tool
     Trans->>Trans: Quality check: 0.72/1.0<br/>❌ Below threshold
     Trans->>Meta: Quality insufficient!
-    Meta->>Meta: Analyze tool options:<br/>• General NMT: fast, cheap, low quality<br/>• Technical NMT: slower, 20x cost, high quality
+    Meta->>Meta: Analyse tool options:<br/>• General NMT: fast, cheap, low quality<br/>• Technical NMT: slower, 20x cost, high quality
     Meta->>Trans: Switch to technical NMT
-    Trans->>Trans: Re-translate with<br/>specialized tool
+    Trans->>Trans: Re-translate with<br/>specialised tool
     Trans->>Meta: Quality check: 0.91/1.0 ✓
     Meta->>Doc: Cache learning: Skip general<br/>NMT for technical docs
     Doc->>User: Translation complete
 ```
 
-The translation agent **evaluated its own output**, decided it wasn't good enough, and triggered a tool switch. The system adapted mid-execution without explicit error handling code.
+The translation agent **evaluated its own output**, decided it wasn't up to scratch, and triggered a tool switch. The system adapted mid-execution without any explicit error handling code.
 
-Next time someone requests a technical translation, the mesh will remember: "Don't waste time with the cheap tool—start with the good one."
+Next time someone requests a technical translation, the mesh will remember: "Don't waste time with the cheap tool—start with the good one." Bob's your uncle.
 
-## But Here's the Really Wild Part: Nodes Can Talk to THEMSELVES
+## The Really Mental Bit: Nodes Talking to Themselves
 
-What if nodes didn't just execute once and return a result? What if they could **run internal experiments** before committing to an answer?
+Right, this is where it gets properly wild. What if nodes didn't just execute once and return a result? What if they could **run internal experiments** before committing to an answer?
 
-Think about it: When you get a tricky question, you don't immediately respond. You think through multiple approaches, maybe sketch something out, test an idea mentally, realize it won't work, pivot to a different approach...
+Think about how you tackle a tricky problem. You don't immediately respond—you think through multiple approaches, test an idea mentally, realise it won't work, pivot to something else. That's what we want nodes to do.
 
-A cognition mesh node could do the same thing:
+A cognition mesh node could operate like this:
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +137,7 @@ sequenceDiagram
     Node->>Node: ✓ Confirmed: External contact
 
     Node->>Node: Hypothesis 3: Use email patterns<br/>for availability estimation
-    Node->>Tools: Analyze response times
+    Node->>Tools: Analyse response times
     Tools-->>Node: Dave responds fastest Thu mornings
     Node->>Node: ✓ Strong signal
 
@@ -146,7 +148,7 @@ sequenceDiagram
     Note over Node: Internal testing complete
 ```
 
-**Key difference from current LLM tool use:**
+**The key difference from current LLM tool use:**
 
 Most LLM agents today do:
 1. Get input
@@ -160,45 +162,43 @@ But a self-deliberating node does:
 3. **Test hypothesis A** → call tool → evaluate result → weak signal
 4. **Pivot to hypothesis B** → call different tool → strong signal
 5. **Maybe test hypothesis C** for validation
-6. **Synthesize** findings from internal exploration
+6. **Synthesise** findings from internal exploration
 7. Return high-confidence result
 
-This is **hypothesis-driven tool use** rather than reactive tool calling.
+This is **hypothesis-driven tool use** rather than reactive tool calling. Proper scientific method, if you will.
 
-### Example: Self-Deliberating Literature Search Node
+### Example: A Research Agent's Internal Monologue
 
 ```
-Internal monologue of a research agent:
+User asks about protein folding. Right, let me think through this...
 
-"User asks about protein folding. Let me think through this...
-
-Hypothesis 1: Recent papers means last 6 months
+Hypothesis 1: "Recent papers" means last 6 months
 → Test: Query PubMed with date filter
 → Result: Only 3 papers, seems too narrow
 → Assessment: Probably wrong timeframe
 
-Hypothesis 2: 'Recent' in this field means ~2 years (AlphaFold era)
+Hypothesis 2: "Recent" in this field means ~2 years (AlphaFold era)
 → Test: Query with 2-year window
 → Result: 247 papers, looks reasonable
 → Assessment: Better, but let me validate
 
-Hypothesis 3: User mentioned 'advances' - are these review papers or novel methods?
+Hypothesis 3: User mentioned "advances"—are these review papers or novel methods?
 → Test: Filter for paper types
 → Result: Mix of reviews (12) and research articles (235)
 → Assessment: User probably wants the reviews + key research
 
 Synthesis: Fetch 12 review papers + top 20 cited research articles
 Confidence: 0.87 (high)
-Output: Curated list with reasoning"
+Output: Curated list with reasoning
 ```
 
 **Why this matters:**
 
 1. **Higher quality results** - Node self-validates before committing
-2. **Fewer wasted API calls** - Bad hypotheses caught internally
-3. **Explainable reasoning** - Node can show its work
-4. **Cost optimization** - Tests cheap hypotheses before expensive ones
-5. **Emergent expertise** - Nodes learn which hypothesis patterns work
+2. **Fewer wasted API calls** - Bad hypotheses caught internally before burning through your API budget
+3. **Explainable reasoning** - Node can show its working
+4. **Cost optimisation** - Tests cheap hypotheses before expensive ones
+5. **Emergent expertise** - Nodes learn which hypothesis patterns actually work
 
 ### The Scalability Challenge
 
@@ -214,13 +214,13 @@ That's the difference between:
 - **Current LLM agents**: Stateless, single-pass execution
 - **Cognition mesh nodes**: Stateful, multi-iteration deliberation
 
-And yeah, I don't have this. I execute tools once and respond. I can't spawn an internal conversation to test "what if I try approach A vs B vs C?"
+And yeah, I don't have this capability. I execute tools once and respond. I can't spawn an internal conversation to test "what if I try approach A versus B versus C?"
 
 **But your mesh could.**
 
-## Show Me a Complex Example
+## A Proper Complex Example
 
-Okay, here's a scheduling request that triggers a cascade of agents:
+Right, let's walk through a scheduling request that triggers a cascade of agents:
 
 **Input**: *"When can I meet Dave for lunch next week? Somewhere walking distance from his office."*
 
@@ -267,16 +267,16 @@ graph TB
     style Final fill:#d4edda
 ```
 
-**Key observations:**
+**What's actually happened here:**
 
 1. **Four agents activated in parallel** - The mesh didn't wait for Calendar to finish before checking email patterns
-2. **Email patterns influenced the decision** - Thursday was prioritized over Friday because the mesh noticed Dave's behavior
+2. **Email patterns influenced the decision** - Thursday was prioritised over Friday because the mesh noticed Dave's behaviour
 3. **Geo-aware filtering** - Restaurant search used the office location from Social Graph Agent
 4. **No orchestration code** - This entire workflow emerged from semantic understanding
 
-The human didn't say "check calendar AND email AND social graph AND location." The mesh figured that out.
+The human didn't say "check calendar AND email AND social graph AND location." The mesh figured that out on its own. Rather brilliant, really.
 
-## How Does Learning Work?
+## Learning Through Semantic Caching
 
 After completing a task, agents cache a **semantic fingerprint**:
 
@@ -318,16 +318,16 @@ graph LR
     style Multi fill:#f8d7da
 ```
 
-The mesh got **exponentially faster** as it recognized similar queries: 23s → 8s → 4s.
+The mesh got **exponentially faster** as it recognised similar queries: 23s → 8s → 4s.
 
-It learned that for biology literature reviews:
+It learnt that for biology literature reviews:
 - PubMed is more useful than Google Scholar
 - Previous summaries can be reused and extended
 - Most queries are incremental refinements
 
-Nobody programmed these optimizations. They emerged from tracking what worked.
+Nobody programmed these optimisations. They emerged from tracking what actually worked.
 
-## Tool Selection: The Cost-Benefit Game
+## Tool Selection: The Economic Game
 
 Here's where it gets economically interesting. Every tool has metadata:
 
@@ -350,11 +350,11 @@ graph TB
 
     Need --> Options{Available Tools}
 
-    Options --> Cache[Cached Calendar Data<br/>Cost: $0<br/>Latency: <1ms<br/>Freshness: 45min old]
+    Options --> Cache[Cached Calendar Data<br/>Cost: £0<br/>Latency: <1ms<br/>Freshness: 45min old]
 
-    Options --> API[Google Calendar API<br/>Cost: $0.001<br/>Latency: 120ms<br/>Freshness: Real-time]
+    Options --> API[Google Calendar API<br/>Cost: £0.001<br/>Latency: 120ms<br/>Freshness: Real-time]
 
-    Options --> Exchange[Exchange Server<br/>Cost: $0<br/>Latency: 2000ms<br/>Freshness: Real-time<br/>Requires: VPN]
+    Options --> Exchange[Exchange Server<br/>Cost: £0<br/>Latency: 2000ms<br/>Freshness: Real-time<br/>Requires: VPN]
 
     Cache --> Decision{Decision Context:<br/>User-facing request<br/>SLA: 2 seconds<br/>Budget: Low priority}
 
@@ -374,7 +374,7 @@ graph TB
     style Choice fill:#d4edda
 ```
 
-The agent is making economic decisions based on:
+The agent is making proper economic decisions based on:
 - **Cost** - Is the API fee worth it?
 - **Latency** - Can we meet the SLA?
 - **Freshness** - Is cached data acceptable?
@@ -387,13 +387,13 @@ Over time, it learns patterns like:
 
 ## Open Questions That Keep Me Up at Night
 
-### 1. Can Nodes Discover Their Own Specializations?
+### 1. Can Nodes Discover Their Own Specialisations?
 
 What if instead of pre-defining "Calendar Agent" and "Email Agent," we started with **generic nodes** and let them evolve roles?
 
 ```mermaid
 graph LR
-    Start[Day 1: 10 Generic Nodes<br/>All identical, no specialization]
+    Start[Day 1: 10 Generic Nodes<br/>All identical, no specialisation]
 
     Start --> Usage[Days 2-30: Process diverse tasks]
 
@@ -405,7 +405,7 @@ graph LR
 
     Observe --> Evolve3[Node 5 detects sarcasm well<br/>→ becomes Sentiment Analyst]
 
-    Evolve1 --> Emergent[Emergent Specialization:<br/>Roles discovered, not programmed]
+    Evolve1 --> Emergent[Emergent Specialisation:<br/>Roles discovered, not programmed]
     Evolve2 --> Emergent
     Evolve3 --> Emergent
 
@@ -413,7 +413,7 @@ graph LR
     style Emergent fill:#d4edda
 ```
 
-Could a mesh **invent its own node types** based on usage patterns? Maybe after handling 1000 customer service requests, it discovers it needs a "Sarcasm Detector" node because the generic sentiment analysis keeps failing.
+Could a mesh **invent its own node types** based on usage patterns? Maybe after handling 1000 customer service requests, it discovers it needs a "Sarcasm Detector" node because the generic sentiment analysis keeps making a hash of it.
 
 ### 2. What About Adversarial Attacks?
 
@@ -440,7 +440,7 @@ graph TB
     style Quarantine fill:#d4edda
 ```
 
-Could the mesh topology itself provide **distributed immunity**? If one node gets compromised, neighboring nodes might notice the anomalous output and quarantine it.
+Could the mesh topology itself provide **distributed immunity**? If one node gets compromised, neighbouring nodes might notice the anomalous output and quarantine it. Like white blood cells for AI.
 
 ### 3. Cross-Mesh Knowledge Sharing?
 
@@ -450,13 +450,13 @@ Imagine 1000 companies each running their own cognition mesh. Can they share lea
 graph TB
     Mesh1[Company A's Mesh:<br/>Customer support specialist]
     Mesh2[Company B's Mesh:<br/>Technical documentation specialist]
-    Mesh3[Company C's Mesh:<br/>Sales optimization specialist]
+    Mesh3[Company C's Mesh:<br/>Sales optimisation specialist]
 
     Mesh1 --> SharedCache[Shared Semantic Cache<br/>Privacy-preserving embeddings]
     Mesh2 --> SharedCache
     Mesh3 --> SharedCache
 
-    SharedCache --> Patterns[Discovered Patterns:<br/>• Email response optimization<br/>• Calendar scheduling heuristics<br/>• Document structure recognition]
+    SharedCache --> Patterns[Discovered Patterns:<br/>• Email response optimisation<br/>• Calendar scheduling heuristics<br/>• Document structure recognition]
 
     Patterns --> Mesh1
     Patterns --> Mesh2
@@ -477,11 +477,11 @@ Maybe through **federated learning on semantic vectors**? Mesh A discovers that 
 
 ### 4. Hardware Co-Design?
 
-Current LLMs run on GPUs designed for matrix math. What if we designed chips specifically for semantic routing?
+Current LLMs run on GPUs designed for matrix maths. What if we designed chips specifically for semantic routing?
 
 ```mermaid
 graph TB
-    CPU[Specialized Cognition Mesh Processor]
+    CPU[Specialised Cognition Mesh Processor]
 
     CPU --> Unit1[Semantic Routing ASIC<br/>Fast embedding similarity<br/>1M comparisons/sec]
 
@@ -500,13 +500,13 @@ graph TB
     style Perf fill:#d4edda
 ```
 
-Could we get 10x speedups with custom silicon?
+Could we get 10x speedups with custom silicon? Probably, yeah.
 
 ## The Practical Stuff (Because This Has to Actually Work)
 
-### How Do You Run This Without Going Broke?
+### Running This Without Going Broke
 
-Running a separate LLM per node would cost a fortune. Here's the trick:
+Running a separate LLM per node would cost an absolute fortune. Here's the trick:
 
 ```mermaid
 graph TB
@@ -514,7 +514,7 @@ graph TB
 
     Base --> Node1[Calendar Agent<br/>System prompt:<br/>You are a calendar specialist...]
 
-    Base --> Node2[Email Agent<br/>System prompt:<br/>You analyze email patterns...]
+    Base --> Node2[Email Agent<br/>System prompt:<br/>You analyse email patterns...]
 
     Base --> Node3[Translation Agent<br/>System prompt:<br/>You translate documents...]
 
@@ -534,7 +534,9 @@ graph TB
 **Batched inference** - Nodes in the same "layer" process together
 **Selective activation** - Not every node runs for every input
 
-### What About Latency?
+Sorted.
+
+### Handling Latency
 
 If one agent calls a slow API, it could block everything:
 
@@ -542,7 +544,7 @@ If one agent calls a slow API, it could block everything:
 sequenceDiagram
     participant Fast as Fast Node<br/>(local cache)
     participant Slow as Slow Node<br/>(web scraping)
-    participant Synth as Synthesizer
+    participant Synth as Synthesiser
 
     Note over Fast,Slow: Asynchronous execution
 
@@ -555,10 +557,10 @@ sequenceDiagram
 
     alt Timeout not exceeded
         Slow->>Synth: Results ready (8000ms)
-        Synth->>Synth: Synthesize complete response
+        Synth->>Synth: Synthesise complete response
     else Timeout exceeded
         Slow-->>Synth: Partial results + confidence=0.6
-        Synth->>Synth: Synthesize with degraded data
+        Synth->>Synth: Synthesise with degraded data
     end
 
     Synth->>User: Response<br/>(with quality indicator)
@@ -569,13 +571,15 @@ sequenceDiagram
 **Graceful degradation** - Partial results with confidence scores
 **Circuit breakers** - If a tool fails repeatedly, temporarily disable it
 
-## Comparison Time: How Is This Different?
+Standard resilience patterns, really.
+
+## How Is This Different from What We've Already Got?
 
 ### vs. Traditional Neural Networks
 
 | Traditional DNN | Cognition Mesh |
 |-----------------|----------------|
-| Passive neurons (math) | Active agents (reasoning) |
+| Passive neurons (maths) | Active agents (reasoning) |
 | Fixed topology | Dynamic, emergent topology |
 | No memory beyond weights | Working + episodic + procedural memory |
 | Opaque decisions | Natural language reasoning traces |
@@ -588,46 +592,46 @@ sequenceDiagram
 |-----------|----------------|
 | Hardcoded workflows (`if X then Y`) | Emergent workflows from semantics |
 | Try/catch error handling | Reflexive self-correction |
-| Manual optimization | Automatic semantic caching |
-| Centralized orchestrator | Distributed node autonomy |
+| Manual optimisation | Automatic semantic caching |
+| Centralised orchestrator | Distributed node autonomy |
 | Static tool selection | Cost-aware, metadata-driven routing |
 
-## So... Should You Actually Build This?
+## Should You Actually Build This?
 
 **Good use cases:**
 - Multi-modal tasks (lots of different tools/APIs)
 - Fluid workflows (no fixed sequence)
-- Cost/latency optimization matters
+- Cost/latency optimisation matters
 - Continuous learning is valuable
 
 **Bad use cases:**
-- Simple, fixed workflows (use traditional code)
-- Single-tool scenarios (just call the API)
+- Simple, fixed workflows (just write normal code, mate)
+- Single-tool scenarios (just call the bloody API)
 - Real-time requirements <100ms (too much overhead)
 - Deterministic outputs required (LLMs are probabilistic)
 
 **The big question:** Is the added complexity worth it?
 
-For most applications, probably not yet. But as LLMs get faster and cheaper, and as our problems get more complex and multi-modal, this architecture starts making sense.
+For most applications, probably not yet. But as LLMs get faster and cheaper, and as our problems get more complex and multi-modal, this architecture starts making proper sense.
 
 ## Where Does This Lead?
 
-Maybe the future of AI isn't **one giant brain**, but **societies of specialized intelligences** that:
+Maybe the future of AI isn't **one giant brain**, but **societies of specialised intelligences** that:
 - Discover their own roles
 - Learn from each other's successes
 - Adapt to changing environments
 - Develop emergent strategies nobody programmed
 
-Imagine deploying a mesh with 100 generic nodes and coming back a month later to find it's reorganized itself into:
+Imagine deploying a mesh with 100 generic nodes and coming back a month later to find it's reorganised itself into:
 - 20 data retrieval specialists
 - 15 analysis experts
 - 10 synthesis coordinators
 - 5 quality evaluators
-- 50 hybrid agents with unpredictable but effective specializations
+- 50 hybrid agents with unpredictable but effective specialisations
 
 You didn't design that hierarchy. It emerged.
 
-**That's** the wild part.
+**That's** the properly mental bit.
 
 ---
 
@@ -635,9 +639,9 @@ You didn't design that hierarchy. It emerged.
 
 1. **How deep should internal deliberation go?** If a node can test hypotheses, should it test 2? 5? 10? What's the ROI curve?
 
-2. **Can we prove convergence?** Does a cognition mesh always stabilize, or can it get stuck in infinite hypothesis loops?
+2. **Can we prove convergence?** Does a cognition mesh always stabilise, or can it get stuck in infinite hypothesis loops?
 
-3. **What's the minimum viable mesh?** How few nodes do you need before emergent behavior appears?
+3. **What's the minimum viable mesh?** How few nodes do you need before emergent behaviour appears?
 
 4. **Can nodes vote?** Should important decisions require consensus from multiple agents testing different hypotheses?
 
@@ -649,7 +653,7 @@ You didn't design that hierarchy. It emerged.
 
 8. **Evolutionary pressure:** If we had 1000 meshes compete, would the best hypothesis-testing strategies spread like genes?
 
-9. **Meta-learning:** Can nodes learn WHEN to deliberate vs when to answer immediately? Some queries don't need hypothesis testing.
+9. **Meta-learning:** Can nodes learn WHEN to deliberate versus when to answer immediately? Some queries don't need hypothesis testing.
 
 ---
 
@@ -659,4 +663,4 @@ You didn't design that hierarchy. It emerged.
 *Last Updated: 2025-01-13*
 *Status: Speculative architecture exploration*
 *New in v1.1: Self-deliberating nodes with internal hypothesis testing*
-*License: Unlicense (Public Domain)*
+*Licence: Unlicense (Public Domain)*
