@@ -280,6 +280,9 @@
                 @{
                     var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
                 }
+                <a href="/Dashboard" class="nav-button @(currentPage == "/Dashboard" ? "active" : "")">
+                    🎛️ Dashboard
+                </a>
                 <a href="/" class="nav-button @(currentPage == "/Index" || currentPage == "" ? "active" : "")">
                     📊 SignalR Demo
                 </a>
