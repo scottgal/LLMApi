@@ -119,9 +119,14 @@
             </Grid>
         </Border>
 
-        <!-- Content Area -->
-        <Frame x:Name="ContentFrame" Grid.Column="1"
-               NavigationUIVisibility="Hidden"
-               Margin="0"/>
+        <!-- Content Area with Toast Overlay -->
+        <Grid Grid.Column="1">
+            <Frame x:Name="ContentFrame"
+                   NavigationUIVisibility="Hidden"
+                   Margin="0"/>
+
+            <!-- Toast Container (on top of content) -->
+            <Grid x:Name="ToastContainer" IsHitTestVisible="False"/>
+        </Grid>
     </Grid>
 </Window>

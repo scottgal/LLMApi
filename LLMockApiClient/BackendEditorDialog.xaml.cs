@@ -123,18 +123,27 @@ public partial class BackendEditorDialog : Window
             var baseUrl = BaseUrlTextBox.Text.Trim();
             if (string.IsNullOrEmpty(baseUrl))
             {
-                ModelStatusText.Text = "Enter a Base URL to discover models";
+                ModelStatusText.Text = "⚠️ Enter a Base URL to discover models";
+                ModelStatusText.Foreground = System.Windows.Media.Brushes.Orange;
                 return;
             }
 
             var provider = ((System.Windows.Controls.ComboBoxItem)ProviderComboBox.SelectedItem).Tag?.ToString() ?? "custom";
 
             if (provider != "ollama" && provider != "lmstudio")
+            {
+                ModelStatusText.Text = provider == "openai"
+                    ? "ℹ️ OpenAI models: gpt-4, gpt-3.5-turbo, etc. (manual entry)"
+                    : "ℹ️ Manual model entry required for custom endpoints";
+                ModelStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219));
                 return;
+            }
 
+            // Show loading state
             DiscoverModelsButton.IsEnabled = false;
-            DiscoverModelsButton.Content = "🔍 Discovering...";
-            ModelStatusText.Text = $"Connecting to {baseUrl}...";
+            DiscoverModelsButton.Content = "⏳ Discovering...";
+            ModelStatusText.Text = $"🔍 Connecting to {baseUrl}...";
+            ModelStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219));
 
             var models = await _modelDiscovery.DiscoverModelsAsync(baseUrl, provider);
 
@@ -153,11 +162,13 @@ public partial class BackendEditorDialog : Window
                 }
 
                 ModelComboBox.SelectedIndex = 0;
-                ModelStatusText.Text = $"✅ Found {models.Count} model(s)";
+                ModelStatusText.Text = $"✅ Found {models.Count} model(s) successfully";
+                ModelStatusText.Foreground = System.Windows.Media.Brushes.Green;
             }
             else
             {
-                ModelStatusText.Text = "❌ No models found. Check the URL and ensure the service is running.";
+                ModelStatusText.Text = "⚠️ No models found. Check the URL and ensure the service is running.";
+                ModelStatusText.Foreground = System.Windows.Media.Brushes.Orange;
             }
 
             DiscoverModelsButton.IsEnabled = true;
@@ -165,7 +176,8 @@ public partial class BackendEditorDialog : Window
         }
         catch (Exception ex)
         {
-            ModelStatusText.Text = $"⚠️ Could not connect: {ex.Message}";
+            ModelStatusText.Text = $"❌ Connection failed: {ex.Message}";
+            ModelStatusText.Foreground = System.Windows.Media.Brushes.Red;
             DiscoverModelsButton.IsEnabled = true;
             DiscoverModelsButton.Content = "🔍 Refresh Models";
         }
@@ -190,16 +202,30 @@ public partial class BackendEditorDialog : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        // Validate
+        // Validate name
         if (string.IsNullOrWhiteSpace(NameTextBox.Text))
         {
-            MessageBox.Show("Please enter a backend name", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("⚠️ Backend name is required.\n\nPlease enter a descriptive name for this backend.",
+                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            NameTextBox.Focus();
             return;
         }
 
+        // Validate URL
         if (string.IsNullOrWhiteSpace(BaseUrlTextBox.Text))
         {
-            MessageBox.Show("Please enter a base URL", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("⚠️ Base URL is required.\n\nPlease enter the full API endpoint URL\n(e.g., http://localhost:11434)",
+                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            BaseUrlTextBox.Focus();
+            return;
+        }
+
+        // Validate URL format
+        if (!Uri.TryCreate(BaseUrlTextBox.Text.Trim(), UriKind.Absolute, out var uri))
+        {
+            MessageBox.Show("⚠️ Invalid URL format.\n\nPlease enter a valid URL starting with http:// or https://",
+                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            BaseUrlTextBox.Focus();
             return;
         }
 
@@ -224,7 +250,7 @@ public partial class BackendEditorDialog : Window
         }
 
         // Context Length
-        if (int.TryParse(ContextLengthTextBox.Text, out var contextLength))
+        if (int.TryParse(ContextLengthTextBox.Text, out var contextLength) && contextLength > 0)
         {
             _backend.ContextLength = contextLength;
         }

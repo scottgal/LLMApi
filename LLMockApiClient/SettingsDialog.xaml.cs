@@ -157,6 +157,7 @@ public partial class SettingsDialog : Window
 
             var results = new System.Text.StringBuilder();
             results.AppendLine("Model Discovery Results:\n");
+            var anyModelsFound = false;
 
             foreach (var backend in _config.Backends.Where(b => b.IsEnabled))
             {
@@ -167,6 +168,7 @@ public partial class SettingsDialog : Window
 
                     if (models.Any())
                     {
+                        anyModelsFound = true;
                         results.AppendLine($"✅ Found {models.Count} model(s):\n");
                         foreach (var model in models)
                         {
@@ -193,11 +195,12 @@ public partial class SettingsDialog : Window
 
             BackendsListBox.Items.Refresh();
 
+            var icon = anyModelsFound ? MessageBoxImage.Information : MessageBoxImage.Warning;
             MessageBox.Show(
                 results.ToString(),
                 "Model Discovery Complete",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                icon);
 
             if (button != null)
             {
@@ -281,19 +284,34 @@ public partial class SettingsDialog : Window
     {
         try
         {
+            // Validate at least one backend is enabled
+            if (!_config.Backends.Any(b => b.IsEnabled))
+            {
+                var result = MessageBox.Show(
+                    "⚠️ No backends are enabled!\n\nAt least one backend must be enabled for the application to work.\n\nDo you want to continue anyway?",
+                    "Warning",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.No)
+                    return;
+            }
+
             _config.EnableTrafficLogging = EnableTrafficLoggingCheckBox.IsChecked ?? true;
             _config.AutoReconnectSignalR = AutoReconnectCheckBox.IsChecked ?? true;
 
             var json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText("appsettings.json", json);
 
-            MessageBox.Show("Settings saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("✅ Settings saved successfully!\n\nYour configuration has been updated.",
+                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error saving settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"❌ Error saving settings:\n\n{ex.Message}\n\nPlease check file permissions and try again.",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -26,6 +26,11 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
     }
 
+    public void ShowToast(string message, Controls.ToastNotification.ToastType type = Controls.ToastNotification.ToastType.Success)
+    {
+        Controls.ToastNotification.Show(message, type);
+    }
+
     private void OnActivityOccurred(object? sender, ActivityType type)
     {
         var color = type switch
@@ -58,8 +63,14 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        // Initialize toast notification system
+        Controls.ToastNotification.Initialize(ToastContainer);
+
         // Navigate to Dashboard by default
         ContentFrame.Navigate(new DashboardPage(_apiService));
+
+        // Show welcome message
+        ShowToast("Welcome to LLMock API Client!", Controls.ToastNotification.ToastType.Info);
     }
 
     private void NavigationList_SelectionChanged(object sender, SelectionChangedEventArgs e)
