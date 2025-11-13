@@ -176,10 +176,21 @@ All examples use `/api/mock` pattern to match current configuration.
     "ModelName": "llama3",
     "Temperature": 1.2,
     "TimeoutSeconds": 30,
-    "EnableVerboseLogging": false
+    "EnableVerboseLogging": false,
+    "ContextExpirationMinutes": 15
   }
 }
 ```
+
+**Key Configuration Options:**
+- `BaseUrl`: LLM API endpoint (default: `http://localhost:11434/v1/`)
+- `ModelName`: Model to use (default: `llama3`)
+- `Temperature`: Randomness level (default: `1.2` for high variety)
+- `TimeoutSeconds`: Request timeout (default: `30`)
+- `ContextExpirationMinutes`: Auto-expire inactive API contexts (default: `15`)
+  - Contexts maintain consistency across related requests
+  - Automatically cleaned up after inactivity to prevent memory leaks
+  - Set higher (60+) for long test sessions, lower (5) to save memory
 
 ### Demo App (LLMApi/Program.cs)
 
