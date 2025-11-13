@@ -2,7 +2,7 @@
 
 Right, so here's a properly mental idea that's been rattling around: What if we stopped thinking about neural networks as passive mathematical constructs and started treating them as **societies of intelligent agents**?
 
-I'm talking about replacing those simple `sum(weights * inputs) + activation_function` neurons with actual LLMs. Each "neuron" becomes an autonomous agent with its own reasoning, memory, tools, and the ability to talk back to its neighbours.
+I'm talking about replacing those simple neurons—you know, the ones doing weighted sums and activation functions—with actual LLMs. Each "neuron" becomes an autonomous agent with its own reasoning, memory, tools, and the ability to talk back to its neighbours.
 
 Sounds barmy? Perhaps. But bear with me whilst we explore where this could go.
 
@@ -73,7 +73,7 @@ graph LR
 ```
 
 Notice what's happened here:
-1. **No explicit orchestration code** - The mesh decided to activate 4 agents in parallel
+1. **No explicit orchestration** - The mesh decided to activate 4 agents in parallel
 2. **Semantic routing** - It understood "lunch" meant restaurants, "next week" meant calendar checks
 3. **Tool diversity** - Calendar APIs, email analysis, social graphs, geolocation—all coordinated
 4. **Context synthesis** - The final answer integrated insights from multiple sources
@@ -104,7 +104,7 @@ sequenceDiagram
     Doc->>User: Translation complete
 ```
 
-The translation agent **evaluated its own output**, decided it wasn't up to scratch, and triggered a tool switch. The system adapted mid-execution without any explicit error handling code.
+The translation agent **evaluated its own output**, decided it wasn't up to scratch, and triggered a tool switch. The system adapted mid-execution without any explicit error handling logic.
 
 Next time someone requests a technical translation, the mesh will remember: "Don't waste time with the cheap tool—start with the good one." Bob's your uncle.
 
@@ -150,47 +150,47 @@ sequenceDiagram
 
 **The key difference from current LLM tool use:**
 
-Most LLM agents today do:
+Most LLM agents today:
 1. Get input
 2. Decide which tool to call
 3. Call tool
 4. Return result
 
-But a self-deliberating node does:
-1. Get input
-2. **Form multiple hypotheses**
-3. **Test hypothesis A** → call tool → evaluate result → weak signal
-4. **Pivot to hypothesis B** → call different tool → strong signal
-5. **Maybe test hypothesis C** for validation
-6. **Synthesise** findings from internal exploration
-7. Return high-confidence result
+But a self-deliberating node:
+1. Gets input
+2. **Forms multiple hypotheses**
+3. **Tests hypothesis A** → calls tool → evaluates result → weak signal
+4. **Pivots to hypothesis B** → calls different tool → strong signal
+5. **Maybe tests hypothesis C** for validation
+6. **Synthesises** findings from internal exploration
+7. Returns high-confidence result
 
 This is **hypothesis-driven tool use** rather than reactive tool calling. Proper scientific method, if you will.
 
-### Example: A Research Agent's Internal Monologue
+### An Internal Monologue
 
-```
-User asks about protein folding. Right, let me think through this...
+Imagine a research agent processing "summarise recent advances in protein folding":
 
-Hypothesis 1: "Recent papers" means last 6 months
-→ Test: Query PubMed with date filter
-→ Result: Only 3 papers, seems too narrow
-→ Assessment: Probably wrong timeframe
-
-Hypothesis 2: "Recent" in this field means ~2 years (AlphaFold era)
-→ Test: Query with 2-year window
-→ Result: 247 papers, looks reasonable
-→ Assessment: Better, but let me validate
-
-Hypothesis 3: User mentioned "advances"—are these review papers or novel methods?
-→ Test: Filter for paper types
-→ Result: Mix of reviews (12) and research articles (235)
-→ Assessment: User probably wants the reviews + key research
-
-Synthesis: Fetch 12 review papers + top 20 cited research articles
-Confidence: 0.87 (high)
-Output: Curated list with reasoning
-```
+> "Right, let me think through this...
+>
+> **Hypothesis 1:** 'Recent' probably means last 6 months
+> - Query PubMed with 6-month filter
+> - Only 3 papers? That seems too narrow
+> - **Rejected**
+>
+> **Hypothesis 2:** 'Recent' in this field means ~2 years (AlphaFold era)
+> - Query with 2-year window
+> - 247 papers, looks reasonable
+> - But let me validate...
+>
+> **Hypothesis 3:** User said 'advances'—are these review papers or novel methods?
+> - Filter for paper types
+> - Mix of 12 reviews and 235 research articles
+> - User probably wants the reviews plus key research
+>
+> **Synthesis:** Fetch 12 review papers + top 20 cited research articles
+>
+> Confidence: 0.87 (high)"
 
 **Why this matters:**
 
@@ -208,15 +208,7 @@ Here's the catch: This kind of self-deliberation requires:
 - **Hypothesis tracking** and evaluation
 - **Meta-cognition** about what's worth testing
 
-You can't do this with stateless LLM API calls. You need nodes that maintain **working context** across their internal iterations.
-
-That's the difference between:
-- **Current LLM agents**: Stateless, single-pass execution
-- **Cognition mesh nodes**: Stateful, multi-iteration deliberation
-
-And yeah, I don't have this capability. I execute tools once and respond. I can't spawn an internal conversation to test "what if I try approach A versus B versus C?"
-
-**But your mesh could.**
+You can't do this with stateless LLM API calls. You need nodes that maintain **working context** across their internal iterations. That's a fundamentally different architecture from what we've got today.
 
 ## A Proper Complex Example
 
@@ -272,13 +264,13 @@ graph TB
 1. **Four agents activated in parallel** - The mesh didn't wait for Calendar to finish before checking email patterns
 2. **Email patterns influenced the decision** - Thursday was prioritised over Friday because the mesh noticed Dave's behaviour
 3. **Geo-aware filtering** - Restaurant search used the office location from Social Graph Agent
-4. **No orchestration code** - This entire workflow emerged from semantic understanding
+4. **No orchestration logic** - This entire workflow emerged from semantic understanding
 
 The human didn't say "check calendar AND email AND social graph AND location." The mesh figured that out on its own. Rather brilliant, really.
 
 ## Learning Through Semantic Caching
 
-After completing a task, agents cache a **semantic fingerprint**:
+After completing a task, agents could cache a **semantic fingerprint**:
 
 ```mermaid
 graph LR
@@ -329,20 +321,7 @@ Nobody programmed these optimisations. They emerged from tracking what actually 
 
 ## Tool Selection: The Economic Game
 
-Here's where it gets economically interesting. Every tool has metadata:
-
-```json
-{
-  "tool": "google_calendar_api",
-  "latency_p50": 120,
-  "latency_p99": 450,
-  "cost_per_call": 0.001,
-  "reliability": 0.98,
-  "rate_limit": "1000/hour"
-}
-```
-
-When an agent needs to check availability, it can **reason about tradeoffs**:
+Here's where it gets economically interesting. Each tool would have metadata about its characteristics. When an agent needs to check availability, it could **reason about tradeoffs**:
 
 ```mermaid
 graph TB
@@ -502,76 +481,35 @@ graph TB
 
 Could we get 10x speedups with custom silicon? Probably, yeah.
 
-## The Practical Stuff (Because This Has to Actually Work)
+## The Practical Challenges
 
-### Running This Without Going Broke
+Right, let's be honest about what makes this difficult:
 
-Running a separate LLM per node would cost an absolute fortune. Here's the trick:
+### Cost
 
-```mermaid
-graph TB
-    Base[Base LLM: Llama 70B<br/>Shared weights in memory]
+Running hundreds of LLM-powered nodes would be **expensive**. Even with weight sharing (all nodes using the same base model, just different system prompts), you're looking at significant compute costs. Current LLM inference is measured in tens of milliseconds per call—multiply that by dozens of nodes per request and the costs add up quickly.
 
-    Base --> Node1[Calendar Agent<br/>System prompt:<br/>You are a calendar specialist...]
+### Latency
 
-    Base --> Node2[Email Agent<br/>System prompt:<br/>You analyse email patterns...]
+If one agent calls a slow API, it could block everything. You'd need:
+- **Async execution** - Fast nodes don't wait for slow ones
+- **Timeouts** - Every tool has a deadline
+- **Graceful degradation** - Partial results with confidence scores
+- **Circuit breakers** - If a tool fails repeatedly, temporarily disable it
 
-    Base --> Node3[Translation Agent<br/>System prompt:<br/>You translate documents...]
+Standard resilience patterns, really, but critical when you've got this many moving parts.
 
-    Base --> Batch[Batched Inference<br/>Process multiple nodes<br/>in single GPU pass]
+### Debugging Nightmares
 
-    Node1 --> Batch
-    Node2 --> Batch
-    Node3 --> Batch
+When a 50-node mesh with internal deliberation produces a wrong answer, how do you trace causality through hundreds of hypothesis tests? Traditional stack traces won't cut it. You'd need:
+- Distributed tracing for semantic flows
+- Visualisation tools for node activation graphs
+- Ability to replay decisions with different parameters
+- Understanding of why semantic routing made specific choices
 
-    Batch --> Efficient[Efficiency:<br/>N nodes ≈ 1.2x cost of single LLM<br/>Not Nx cost!]
+### Eventual Consistency
 
-    style Base fill:#e1f5ff
-    style Efficient fill:#d4edda
-```
-
-**Weight sharing** - All nodes use the same base model, just different system prompts
-**Batched inference** - Nodes in the same "layer" process together
-**Selective activation** - Not every node runs for every input
-
-Sorted.
-
-### Handling Latency
-
-If one agent calls a slow API, it could block everything:
-
-```mermaid
-sequenceDiagram
-    participant Fast as Fast Node<br/>(local cache)
-    participant Slow as Slow Node<br/>(web scraping)
-    participant Synth as Synthesiser
-
-    Note over Fast,Slow: Asynchronous execution
-
-    par Parallel execution
-        Fast->>Fast: Query cache: 50ms
-        Slow->>Slow: Scrape website: 8000ms
-    end
-
-    Fast->>Synth: Results ready (50ms)
-
-    alt Timeout not exceeded
-        Slow->>Synth: Results ready (8000ms)
-        Synth->>Synth: Synthesise complete response
-    else Timeout exceeded
-        Slow-->>Synth: Partial results + confidence=0.6
-        Synth->>Synth: Synthesise with degraded data
-    end
-
-    Synth->>User: Response<br/>(with quality indicator)
-```
-
-**Async execution** - Fast nodes don't wait for slow ones
-**Timeouts** - Every tool has a deadline
-**Graceful degradation** - Partial results with confidence scores
-**Circuit breakers** - If a tool fails repeatedly, temporarily disable it
-
-Standard resilience patterns, really.
+There's no getting around it—nodes operating in parallel on eventually-consistent data will sometimes make decisions based on slightly stale information. For some applications that's fine. For others (financial transactions, medical decisions) it's completely unacceptable.
 
 ## How Is This Different from What We've Already Got?
 
@@ -590,25 +528,42 @@ Standard resilience patterns, really.
 
 | LangChain | Cognition Mesh |
 |-----------|----------------|
-| Hardcoded workflows (`if X then Y`) | Emergent workflows from semantics |
+| Hardcoded workflows | Emergent workflows from semantics |
 | Try/catch error handling | Reflexive self-correction |
 | Manual optimisation | Automatic semantic caching |
 | Centralised orchestrator | Distributed node autonomy |
 | Static tool selection | Cost-aware, metadata-driven routing |
 
+### vs. Multi-Agent Systems
+
+Cognition meshes share DNA with multi-agent systems but differ in key ways:
+
+**Similarities:**
+- Autonomous agents with specialised roles
+- Inter-agent communication
+- Emergent collective behaviour
+
+**Differences:**
+- **Granularity** - MAS agents are coarse-grained (entire services), mesh nodes are fine-grained (single reasoning steps)
+- **Communication** - MAS uses message passing, mesh uses semantic context propagation
+- **Topology** - MAS often has fixed agent populations, mesh topology is fluid and input-dependent
+- **Memory** - Mesh nodes share semantic vector space, enabling cross-node optimisation
+
 ## Should You Actually Build This?
 
 **Good use cases:**
-- Multi-modal tasks (lots of different tools/APIs)
-- Fluid workflows (no fixed sequence)
+- Multi-modal tasks requiring lots of different tools/APIs
+- Fluid workflows with no fixed sequence
 - Cost/latency optimisation matters
 - Continuous learning is valuable
+- You need explainable AI (natural language reasoning traces)
 
 **Bad use cases:**
 - Simple, fixed workflows (just write normal code, mate)
 - Single-tool scenarios (just call the bloody API)
 - Real-time requirements <100ms (too much overhead)
 - Deterministic outputs required (LLMs are probabilistic)
+- Small team without deep AI/systems experience
 
 **The big question:** Is the added complexity worth it?
 
@@ -633,34 +588,50 @@ You didn't design that hierarchy. It emerged.
 
 **That's** the properly mental bit.
 
----
+Think about the implications: We're not just building tools that execute our instructions. We're building **ecosystems** that develop their own division of labour, their own communication protocols, their own optimisation strategies.
+
+It's less like programming and more like... gardening? You set up the initial conditions, provide the right nutrients (training data, tool access, feedback mechanisms), and let the system grow into something you didn't explicitly design.
 
 ## Questions for Further Exploration
 
-1. **How deep should internal deliberation go?** If a node can test hypotheses, should it test 2? 5? 10? What's the ROI curve?
+1. **How deep should internal deliberation go?** If a node can test hypotheses, should it test 2? 5? 10? What's the ROI curve? When does more deliberation give diminishing returns?
 
-2. **Can we prove convergence?** Does a cognition mesh always stabilise, or can it get stuck in infinite hypothesis loops?
+2. **Can we prove convergence?** Does a cognition mesh always stabilise, or can it get stuck in infinite hypothesis loops? What are the mathematical properties of these systems?
 
-3. **What's the minimum viable mesh?** How few nodes do you need before emergent behaviour appears?
+3. **What's the minimum viable mesh?** How few nodes do you need before emergent behaviour appears? Is there a critical mass?
 
-4. **Can nodes vote?** Should important decisions require consensus from multiple agents testing different hypotheses?
+4. **Can nodes vote?** Should important decisions require consensus from multiple agents testing different hypotheses? How do we prevent groupthink in AI?
 
-5. **How do we debug this?** When a 50-node mesh with internal deliberation produces a wrong answer, how do you trace causality through hundreds of hypothesis tests?
+5. **How do we debug this?** When a 50-node mesh produces a wrong answer, how do you trace causality? Do we need entirely new debugging tools?
 
-6. **Privacy boundaries:** If nodes share semantic caches of their hypothesis-testing patterns, what information leaks between tasks?
+6. **Privacy boundaries:** If nodes share semantic caches of their hypothesis-testing patterns, what information leaks between tasks? Can you infer private data from optimisation patterns?
 
-7. **Mesh merging:** Can two independently-trained meshes be combined? What happens when their learned deliberation strategies conflict?
+7. **Mesh merging:** Can two independently-trained meshes be combined? What happens when their learned deliberation strategies conflict? Do they fight for resources?
 
-8. **Evolutionary pressure:** If we had 1000 meshes compete, would the best hypothesis-testing strategies spread like genes?
+8. **Evolutionary pressure:** If we had 1000 meshes compete, would the best hypothesis-testing strategies spread like genes? Could we evolve better architectures?
 
-9. **Meta-learning:** Can nodes learn WHEN to deliberate versus when to answer immediately? Some queries don't need hypothesis testing.
+9. **Meta-learning:** Can nodes learn WHEN to deliberate versus when to answer immediately? Some queries don't need hypothesis testing—how do nodes develop that intuition?
+
+10. **Control and alignment:** If nodes develop emergent strategies you didn't programme, how do you ensure they remain aligned with your goals? This is the alignment problem at a different scale.
 
 ---
 
-**This is a thought experiment extending the LLMApi project's concepts to their logical extreme. None of this is implemented (yet). But it's fun to think about where things could go.**
+## Final Thoughts
 
-*Document Version: 1.1*
+This is a thought experiment extending the LLMApi project's concepts to their logical extreme. **None of this is implemented.** We don't even know if it's implementable with current technology. But it's fun to think about where things could go.
+
+The core insight is simple: What if intelligence isn't about building bigger models, but about building societies of smaller, specialised models that can reason, remember, use tools, and coordinate?
+
+Current AI development is focused on making individual models more capable. GPT-4 is better than GPT-3. Claude Sonnet 4.5 is better than Claude 3. We're in an arms race of model size and capability.
+
+But maybe that's not the only path. Maybe the next breakthrough isn't a smarter neuron—it's a **smarter network topology**. Not because we designed it, but because it **emerged** from the way intelligent agents coordinate.
+
+Just a thought.
+
+---
+
+*Document Version: 1.2*
 *Last Updated: 2025-01-13*
 *Status: Speculative architecture exploration*
-*New in v1.1: Self-deliberating nodes with internal hypothesis testing*
+*New in v1.2: Removed all implementation code—pure conceptual discussion*
 *Licence: Unlicense (Public Domain)*
