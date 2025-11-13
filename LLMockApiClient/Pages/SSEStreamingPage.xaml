@@ -13,7 +13,7 @@
 
         <StackPanel Grid.Row="0" Margin="0,0,0,24">
             <TextBlock Text="📡 Server-Sent Events (SSE) Streaming" FontSize="32" FontWeight="SemiBold" Foreground="White"/>
-            <TextBlock Text="Three streaming modes: LlmTokens, CompleteObjects, ArrayItems" Foreground="#AAAAAA" Margin="0,4,0,0"/>
+            <TextBlock Text="Three streaming modes: LlmTokens, CompleteObjects, ArrayItems" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,4,0,0"/>
         </StackPanel>
 
         <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
@@ -52,7 +52,7 @@
                             Click="ClearOutput_Click" Padding="16,8"/>
 
                     <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="Events:" Margin="0,0,8,0" Foreground="#AAAAAA"/>
+                        <TextBlock Text="Events:" Margin="0,0,8,0" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         <TextBlock x:Name="EventCountText" Text="0" FontWeight="Bold" Foreground="#3498DB"/>
                     </StackPanel>
                 </Grid>

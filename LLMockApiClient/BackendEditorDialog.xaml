@@ -57,21 +57,19 @@
                         </StackPanel>
 
                         <TextBlock Text="Select Model" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                        <ComboBox x:Name="ModelComboBox" Margin="0,0,0,12" SelectionChanged="Model_SelectionChanged">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                                        <TextBlock Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11">
-                                            <Run Text="Context: "/>
-                                            <Run Text="{Binding ContextLength, Mode=OneWay, FallbackValue='Unknown'}"/>
-                                            <Run Text=" | Size: "/>
-                                            <Run Text="{Binding SizeGB, Mode=OneWay, FallbackValue='Unknown'}"/>
-                                            <Run Text=" GB"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
+                        <ComboBox x:Name="ModelComboBox" Margin="0,0,0,12" SelectionChanged="Model_SelectionChanged" DisplayMemberPath="Name">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="ToolTip">
+                                        <Setter.Value>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding ModelInfo, Mode=OneWay}" FontSize="11"/>
+                                            </StackPanel>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
                         </ComboBox>
 
                         <TextBlock x:Name="ModelStatusText" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11" TextWrapping="Wrap"/>

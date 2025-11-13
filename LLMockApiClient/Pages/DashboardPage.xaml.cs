@@ -184,7 +184,7 @@ public partial class DashboardPage : Page
         }
     }
 
-    private async void QuickSSE_Click(object sender, RoutedEventArgs e)
+    private void QuickSSE_Click(object sender, RoutedEventArgs e)
     {
         var app = (App)Application.Current;
         app.ActivityIndicator.TriggerActivity(ActivityType.SSE);

@@ -11,6 +11,15 @@ public class ModelViewModel
     public int? ContextLength { get; set; }
     public long? Size { get; set; }
     public double? SizeGB => Size.HasValue ? Math.Round(Size.Value / (1024.0 * 1024.0 * 1024.0), 2) : null;
+    public string ModelInfo
+    {
+        get
+        {
+            var context = ContextLength?.ToString() ?? "Unknown";
+            var size = SizeGB?.ToString("F2") ?? "Unknown";
+            return $"Context: {context} | Size: {size} GB";
+        }
+    }
 }
 
 public partial class BackendEditorDialog : Window

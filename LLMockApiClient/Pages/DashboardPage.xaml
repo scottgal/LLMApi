@@ -20,7 +20,7 @@
             <StackPanel>
                 <!-- Header -->
                 <TextBlock Text="📊 Quick Start Dashboard" FontSize="32" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="White"/>
-                <TextBlock Text="Live demos and quick samples" FontSize="16" Foreground="#AAAAAA" Margin="0,0,0,24"/>
+                <TextBlock Text="Live demos and quick samples" FontSize="16" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,24"/>
 
                 <!-- Connection Status -->
                 <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
@@ -117,8 +117,8 @@
                             <Button Grid.Column="1" Content="▶️ Connect" Click="QuickSignalR_Click" Padding="16,8"/>
                         </Grid>
 
-                        <TextBlock x:Name="SignalRQuickStatusText" Margin="0,8,0,0" FontSize="11" Foreground="#AAAAAA"/>
-                        <TextBlock x:Name="SignalRStatusText" Margin="0,4,0,0" FontSize="11" Foreground="#AAAAAA"/>
+                        <TextBlock x:Name="SignalRQuickStatusText" Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock x:Name="SignalRStatusText" Margin="0,4,0,0" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                     </StackPanel>
                 </Border>
 
@@ -162,7 +162,7 @@
                             <Button Grid.Column="2" Content="▶️ Test" Click="QuickSSE_Click" Padding="16,8"/>
                         </Grid>
 
-                        <TextBlock x:Name="SSEStatusText" Margin="0,8,0,0" FontSize="11" Foreground="#AAAAAA"/>
+                        <TextBlock x:Name="SSEStatusText" Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                     </StackPanel>
                 </Border>
 
@@ -201,7 +201,7 @@
                             <Button Grid.Column="1" Content="📥 Load" Click="QuickOpenAPI_Click" Padding="16,8"/>
                         </Grid>
 
-                        <TextBlock x:Name="OpenApiStatusText" Margin="0,8,0,0" FontSize="11" Foreground="#AAAAAA"/>
+                        <TextBlock x:Name="OpenApiStatusText" Margin="0,8,0,0" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 
                         <!-- Loaded Endpoints List -->
                         <StackPanel x:Name="OpenApiEndpointsPanel" Visibility="Collapsed" Margin="0,12,0,0">
@@ -224,7 +224,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="SelectedEndpointText" Grid.Column="0" FontSize="11" Foreground="#AAAAAA" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="SelectedEndpointText" Grid.Column="0" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1" Content="🚀 Test" Click="TestOpenApiEndpoint_Click" Padding="12,6" IsEnabled="False" x:Name="TestEndpointButton"/>
                             </Grid>
 
@@ -248,7 +248,7 @@
                 <!-- Header -->
                 <StackPanel Grid.Row="0" Margin="0,0,0,12">
                     <TextBlock Text="📊 Live Activity" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <TextBlock Text="Real-time data streams" FontSize="11" Foreground="#AAAAAA"/>
+                    <TextBlock Text="Real-time data streams" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                 </StackPanel>
 
                 <!-- Live Data Display -->
@@ -270,7 +270,7 @@
                             HorizontalAlignment="Stretch" Padding="8,4" Margin="0,0,0,8"/>
                     <StackPanel>
                         <TextBlock Text="Stats:" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                        <TextBlock x:Name="LiveStatsText" FontSize="10" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="LiveStatsText" FontSize="10" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>

@@ -6,13 +6,13 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
-**Version 2.1.0** - Enhanced reliability, comprehensive validation, and streamlined configuration.
+**Version 2.2.0 (COMING SOON!)** - Dynamic context memory with automatic expiration and enhanced shared data extraction.
 
 ---
 
 ## Table of Contents
 
-- [What's New in v2.1.0](#whats-new-in-v210)
+- [What's New in v2.2.0](#whats-new-in-v220)
 - [Features Overview](#features)
 - [Quick Start](#quick-start)
 - [Feature Documentation](#feature-documentation)
@@ -25,42 +25,91 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 ---
 
-## What's New in v2.1.0
+## What's New in v2.2.0
 
-**Focus**: Enhanced reliability, comprehensive testing, and improved developer experience. Fully backward compatible with v2.0.
+**Focus**: Intelligent, self-managing context memory that adapts to your testing needs. Fully backward compatible with v2.1.0.
 
-### 1. Comprehensive HTTP Validation Suite
-Complete validation coverage with 70+ ready-to-run test cases:
-- **Complete Coverage**: OpenAPI, contexts, gRPC, SSE, chunking, errors
-- **Backend Selection**: Validation for X-LLM-Backend header
-- **Schema Validation**: includeSchema + X-Response-Schema testing
-- **[Ready-to-Run Tests](./LLMApi/LLMApi.http)**
+### 1. Dynamic Context Memory Management 🔥
+Context memory is now truly dynamic with automatic lifecycle management:
 
-### 2. Enhanced Chunking Reliability
-Improved instruction following for large array generation:
-- **Explicit Array Formatting**: Prevents comma-separated objects
-- **Better Prompts**: Ultra-clear instructions for LLMs
-- **Model Recommendations**: Documented temperature/model combinations
-- **[Chunking Guide](./CHUNKING_AND_CACHING.md)**
+**Automatic Expiration**
+- **Sliding Expiration**: Contexts expire after 15 minutes of inactivity (configurable)
+- **No Memory Leaks**: Automatic cleanup prevents indefinite memory growth
+- **Smart Touch**: Each access refreshes the expiration timer
+- **Configurable Duration**: Set from 5 minutes to 24 hours based on your needs
 
-### 3. Streamlined Configuration
-Clean, reference-based configuration:
-- **Clean appsettings.json**: Removed verbose comments
-- **OLLAMA_MODELS.md**: Comprehensive 10+ model configurations
-- **Hardware Requirements**: GPU/RAM guidance for each model
-- **Temperature Guidelines**: Optimized settings per use case
-- **[Model Reference Guide](./docs/OLLAMA_MODELS.md)**
+**Benefits**
+- Start testing immediately - no manual cleanup needed
+- Long-running test sessions stay active as long as you're using them
+- Abandoned contexts automatically disappear
+- Memory-efficient for CI/CD pipelines
 
-### 4. Complete Swagger Documentation
-All 25+ management endpoints fully documented:
-- **Tags Organization**: Logical endpoint grouping
-- **Request/Response Examples**: Complete samples
-- **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)**
+**Configuration Example**
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "ContextExpirationMinutes": 15  // Default: 15 (range: 5-1440)
+  }
+}
+```
 
-**Note**: v2.0.0 was skipped to refine these critical areas before stable release.
+### 2. Intelligent Shared Data Extraction
+Context memory now automatically extracts **ALL** fields from responses:
+
+**Before (v2.1)**: Only hardcoded fields (`id`, `userId`, `name`, `email`)
+**Now (v2.2)**: Every field at any nesting level!
+
+**New Capabilities**
+- **Nested Objects**: Extracts `address.city`, `payment.cardNumber`, etc.
+- **Array Tracking**: Stores array lengths (e.g., `items.length: 5`)
+- **First Item Data**: Captures `items[0].productId` automatically
+- **Custom Fields**: Any domain-specific field is now tracked
+- **Backward Compatible**: Legacy `lastId`, `lastUserId` keys still work
+
+**Example**
+```json
+// Response from GET /orders/123
+{
+  "orderId": 123,
+  "customer": {
+    "customerId": 456,
+    "tier": "gold"
+  },
+  "items": [
+    {"productId": 789, "sku": "WIDGET-01"}
+  ]
+}
+
+// Automatically extracted shared data:
+{
+  "orderId": "123",
+  "customer.customerId": "456",
+  "customer.tier": "gold",
+  "items.length": "1",
+  "items[0].productId": "789",
+  "items[0].sku": "WIDGET-01",
+  // Legacy keys for compatibility:
+  "lastId": "123"
+}
+```
+
+**Why This Matters**
+- No more manual specification of which fields to track
+- Domain-specific data (SKUs, account numbers, reference codes) automatically tracked
+- Nested relationships preserved across API calls
+- Perfect for complex e-commerce, financial, or enterprise scenarios
+
+### 3. Enhanced Context API Documentation
+Comprehensive updates to [API-CONTEXTS.md](./docs/API-CONTEXTS.md):
+- **Memory Management**: IMemoryCache architecture explained
+- **Dynamic Extraction**: How recursive field extraction works
+- **Configuration Guide**: Expiration time recommendations
+- **Performance Impact**: Memory usage and token considerations
+- **Real-World Scenarios**: Updated examples with nested data
 
 **[See RELEASE_NOTES.md for complete details and full version history](./RELEASE_NOTES.md)**
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
+- See [API-CONTEXTS.md](./docs/API-CONTEXTS.md) for context memory deep dive
 
 ---
 
