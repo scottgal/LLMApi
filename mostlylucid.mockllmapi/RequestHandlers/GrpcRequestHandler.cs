@@ -19,6 +19,8 @@ public class GrpcRequestHandler
     private readonly PromptBuilder _promptBuilder;
     private readonly IOptions<LLMockApiOptions> _options;
     private readonly DynamicProtobufHandler _protobufHandler;
+    private readonly ContextExtractor _contextExtractor;
+    private readonly OpenApiContextManager _contextManager;
 
     public GrpcRequestHandler(
         ILogger<GrpcRequestHandler> logger,
@@ -26,7 +28,9 @@ public class GrpcRequestHandler
         LlmClient llmClient,
         PromptBuilder promptBuilder,
         IOptions<LLMockApiOptions> options,
-        DynamicProtobufHandler protobufHandler)
+        DynamicProtobufHandler protobufHandler,
+        ContextExtractor contextExtractor,
+        OpenApiContextManager contextManager)
     {
         _logger = logger;
         _protoManager = protoManager;
@@ -34,6 +38,8 @@ public class GrpcRequestHandler
         _promptBuilder = promptBuilder;
         _options = options;
         _protobufHandler = protobufHandler;
+        _contextExtractor = contextExtractor;
+        _contextManager = contextManager;
     }
 
     /// <summary>
@@ -43,8 +49,12 @@ public class GrpcRequestHandler
         string serviceName,
         string methodName,
         string requestJson,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        // Extract context name from request
+        var contextName = _contextExtractor.ExtractContextName(httpContext.Request, requestJson);
+
         // Find the method definition
         var (definition, service, method) = _protoManager.FindMethod(serviceName, methodName);
 
@@ -70,25 +80,46 @@ public class GrpcRequestHandler
         var parser = _protoManager.GetParser();
         var shape = parser.GenerateJsonShape(outputMessage, definition.Messages);
 
-        // Build prompt
+        // Get context history if context is specified
+        var contextHistory = !string.IsNullOrWhiteSpace(contextName)
+            ? _contextManager.GetContextForPrompt(contextName)
+            : null;
+
+        // Build prompt with context history
         var prompt = $@"You are a gRPC service mock. Generate realistic data for this response.
 
 Service: {serviceName}
 Method: {methodName}
 Request: {requestJson}
 
+{(!string.IsNullOrWhiteSpace(contextHistory) ? $@"
+Previous API interactions in this context:
+{contextHistory}
+
+IMPORTANT: Maintain consistency with previous data. Reuse IDs, names, and relationships from the context above." : "")}
+
 Generate a response matching this structure:
 {shape}
 
 Return ONLY valid JSON matching the structure above. Be creative with realistic values.";
 
-        _logger.LogInformation("Calling LLM for gRPC method: {Service}/{Method}", serviceName, methodName);
+        _logger.LogInformation("Calling LLM for gRPC method: {Service}/{Method}{ContextInfo}",
+            serviceName, methodName,
+            !string.IsNullOrWhiteSpace(contextName) ? $" (context: {contextName})" : "");
 
         // Get response from LLM
         var response = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
 
         // Extract JSON from response
         var jsonResponse = ExtractJson(response);
+
+        // Store in context if context name was provided
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            var path = $"/{serviceName}/{methodName}";
+            _contextManager.AddToContext(contextName, "gRPC", path, requestJson, jsonResponse);
+            _logger.LogDebug("Stored gRPC response in context: {ContextName}", contextName);
+        }
 
         return jsonResponse;
     }
@@ -100,6 +131,7 @@ Return ONLY valid JSON matching the structure above. Be creative with realistic 
         string serviceName,
         string methodName,
         byte[] requestData,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         // Find the method definition
@@ -130,29 +162,53 @@ Return ONLY valid JSON matching the structure above. Be creative with realistic 
             ? _protobufHandler.CreateJsonTemplate(inputMessage!, definition.Messages)
             : "{}";
 
+        // Extract context name from request (check query params and headers since body is binary)
+        var contextName = _contextExtractor.ExtractContextName(httpContext.Request, null);
+
         // Generate JSON shape for the output
         var parser = _protoManager.GetParser();
         var shape = parser.GenerateJsonShape(outputMessage, definition.Messages);
 
-        // Build prompt
+        // Get context history if context is specified
+        var contextHistory = !string.IsNullOrWhiteSpace(contextName)
+            ? _contextManager.GetContextForPrompt(contextName)
+            : null;
+
+        // Build prompt with context history
         var prompt = $@"You are a gRPC service mock. Generate realistic data for this response.
 
 Service: {serviceName}
 Method: {methodName}
 Request: {requestJson}
 
+{(!string.IsNullOrWhiteSpace(contextHistory) ? $@"
+Previous API interactions in this context:
+{contextHistory}
+
+IMPORTANT: Maintain consistency with previous data. Reuse IDs, names, and relationships from the context above." : "")}
+
 Generate a response matching this structure:
 {shape}
 
 Return ONLY valid JSON matching the structure above. Be creative with realistic values.";
 
-        _logger.LogInformation("Calling LLM for gRPC method (binary): {Service}/{Method}", serviceName, methodName);
+        _logger.LogInformation("Calling LLM for gRPC method (binary): {Service}/{Method}{ContextInfo}",
+            serviceName, methodName,
+            !string.IsNullOrWhiteSpace(contextName) ? $" (context: {contextName})" : "");
 
         // Get response from LLM
         var response = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
 
         // Extract JSON from response
         var jsonResponse = ExtractJson(response);
+
+        // Store in context if context name was provided
+        if (!string.IsNullOrWhiteSpace(contextName))
+        {
+            var path = $"/{serviceName}/{methodName}";
+            _contextManager.AddToContext(contextName, "gRPC", path, requestJson, jsonResponse);
+            _logger.LogDebug("Stored gRPC binary response in context: {ContextName}", contextName);
+        }
 
         // Convert JSON to binary Protobuf
         var binaryResponse = _protobufHandler.SerializeFromJson(jsonResponse, outputMessage, definition.Messages);

@@ -218,6 +218,8 @@ public static class LlMockApiExtensions
             services.AddSingleton<LlmProviderFactory>();
             services.AddSingleton<CacheManager>();
             services.AddScoped<DelayHelper>();
+            services.AddSingleton<RateLimitService>(); // Rate limiting with per-endpoint statistics
+            services.AddScoped<BatchingCoordinator>(); // Batched requests with strategies
             services.AddScoped<LLMockApiService>();
             services.AddScoped<ChunkingCoordinator>(); // Automatic request chunking
 
@@ -993,6 +995,7 @@ public static class LlMockApiExtensions
                         serviceName,
                         methodName,
                         requestJson,
+                        context,
                         context.RequestAborted);
 
                     // Return JSON response
@@ -1033,6 +1036,7 @@ public static class LlMockApiExtensions
                         serviceName,
                         methodName,
                         requestData,
+                        context,
                         context.RequestAborted);
 
                     // Return binary Protobuf response

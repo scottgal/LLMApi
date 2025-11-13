@@ -272,10 +272,12 @@ public class LLMockApiServiceTests
         var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(opts);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, opts);
+        var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(opts);
+        var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, opts, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
 
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, cacheManager, delayHelper,
-            chunkingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
+            chunkingCoordinator, rateLimitService, batchingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,

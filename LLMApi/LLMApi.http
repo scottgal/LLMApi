@@ -828,6 +828,112 @@ Accept: application/json
 ###
 
 ###############################################################################
+# RATE LIMITING & BATCHING (v2.1.0+)
+# Documentation: docs/RATE_LIMITING_BATCHING.md
+# Features:
+# - N-completions: Generate multiple response variants
+# - Rate limiting: Simulate API delays and rate limits
+# - Batching strategies: Sequential, Parallel, Streaming, Auto
+# - Statistics tracking: Per-endpoint timing with moving averages
+# - Response headers: X-RateLimit-*, X-LLMApi-* headers
+###############################################################################
+
+### Basic N-Completions (n=3)
+# Generate 3 different variations of the same response
+# Useful for testing response diversity and variation handling
+GET {{LLMApi_HostAddress}}/api/mock/users?n=3
+Accept: application/json
+
+###
+
+### N-Completions with Rate Limiting
+# Generate 5 completions with random delays between 500-2000ms
+# Tests backoff strategies and timeout handling
+GET {{LLMApi_HostAddress}}/api/mock/users?n=5&rateLimit=500-2000
+Accept: application/json
+
+###
+
+### Sequential Strategy
+# Execute completions one at a time with delays between each
+# Predictable timing for sequential dependency testing
+GET {{LLMApi_HostAddress}}/api/mock/products?n=3&rateLimit=1000-2000&strategy=sequential
+Accept: application/json
+
+###
+
+### Parallel Strategy
+# Start all requests simultaneously, stagger response delivery
+# Fast completion with simulated rate limiting
+GET {{LLMApi_HostAddress}}/api/mock/orders?n=4&rateLimit=500-1500&strategy=parallel
+Accept: application/json
+
+###
+
+### Streaming Strategy
+# Stream results as they complete with rate-limited delays
+# Best for real-time UIs and large batches (n > 5)
+GET {{LLMApi_HostAddress}}/api/mock/analytics?n=6&rateLimit=500-1000&strategy=streaming
+Accept: application/json
+
+###
+
+### "max" Delay Range
+# Delay matches actual LLM response time (doubles total time)
+# Simulates APIs that rate limit based on processing time
+GET {{LLMApi_HostAddress}}/api/mock/users?n=3&rateLimit=max
+Accept: application/json
+
+###
+
+### Header-Based Configuration
+# Override rate limiting via headers instead of query params
+GET {{LLMApi_HostAddress}}/api/mock/products?n=4
+X-Rate-Limit-Delay: 1000-3000
+X-Rate-Limit-Strategy: parallel
+Accept: application/json
+
+###
+
+### Combined with Shape
+# N-completions with custom response shape
+# Each completion follows the same structure but varies data
+GET {{LLMApi_HostAddress}}/api/mock/users?n=3&rateLimit=500-1000&shape=%7B%22name%22%3A%22string%22%2C%22age%22%3A0%2C%22city%22%3A%22string%22%7D
+Accept: application/json
+
+###
+
+### Performance Testing
+# Check response headers for timing statistics:
+# - X-RateLimit-Limit: Max requests/minute
+# - X-RateLimit-Remaining: Requests remaining
+# - X-LLMApi-Request-Time: LLM processing time (ms)
+# - X-LLMApi-Avg-Time: Endpoint moving average (ms)
+# - X-LLMApi-Delay-Applied: Artificial delay applied (ms)
+GET {{LLMApi_HostAddress}}/api/mock/users?n=2&rateLimit=500-1000
+Accept: application/json
+
+###
+
+### Timeout Testing
+# Simulate slow API responses to test timeout handling
+# Adds 5 second delay to test client timeout behavior
+GET {{LLMApi_HostAddress}}/api/mock/products?rateLimit=5000
+Accept: application/json
+
+###
+
+### Auto Strategy (Default)
+# System automatically selects best strategy based on n:
+# - n=1: No batching
+# - n=2-5: Parallel
+# - n>5: Streaming
+GET {{LLMApi_HostAddress}}/api/mock/users?n=10&rateLimit=500-1500&strategy=auto
+Accept: application/json
+
+###
+
+###############################################################################
 # END OF VALIDATION SUITE
 # This file covers:
 # ✅ Basic REST endpoints (GET, POST, PUT, DELETE)
@@ -846,6 +952,7 @@ Accept: application/json
 # ✅ Backend selection (X-LLM-Backend)
 # ✅ Schema validation (includeSchema + X-Response-Schema)
 # ✅ Combined feature validation
+# ✅ Rate limiting & batching (v2.1.0+)
 #
 # ⚠️  Not included: Binary protobuf (as requested)
 # ⚠️  SignalR WebSocket testing (requires WebSocket client)

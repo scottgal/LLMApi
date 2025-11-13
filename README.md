@@ -6,7 +6,11 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
+**Companion Package:** [mostlylucid.mockllmapi.Testing](./mostlylucid.mockllmapi.Testing/README.md) - Testing utilities with fluent HttpClient integration
+
 **Version 2.2.0 (COMING SOON!)** - Dynamic context memory with automatic expiration and enhanced shared data extraction.
+
+**Version 2.1.0 (NEW!)** - [Rate limiting and batching support](./docs/RATE_LIMITING_BATCHING.md) with n-completions, per-endpoint statistics, and multiple execution strategies.
 
 ---
 
@@ -164,12 +168,20 @@ This package provides **six independent features** - use any combination you nee
 - **NuGet Package**: Easy to add to existing projects
 - **API Contexts**: Maintain consistency across related requests - **[Complete Guide](./docs/API-CONTEXTS.md)**
 - **Error Simulation**: Comprehensive error testing with 4xx/5xx status codes, custom messages, and multiple configuration methods
+- **Testing Utilities**: Companion package `mostlylucid.mockllmapi.Testing` for easy HttpClient integration in tests - **[See Testing Section](#testing)**
 
 ---
 
 ## Feature Documentation
 
 For detailed guides with architecture diagrams, use cases, and implementation details:
+
+- **[Docker Deployment Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and deployment
+  - Quick start with Docker Compose + Ollama
+  - End-to-end example with llama3
+  - Configuration methods (env vars, volume mapping, .env files)
+  - GPU support, multi-backend setup
+  - Production considerations and troubleshooting
 
 - **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)** - Complete management endpoint documentation
   - OpenAPI management endpoints
@@ -189,6 +201,13 @@ For detailed guides with architecture diagrams, use cases, and implementation de
   - E-commerce flows, stock tickers, game state examples
   - Token management and intelligent truncation
   - Mermaid architecture diagrams
+
+- **[Rate Limiting & Batching Guide](./docs/RATE_LIMITING_BATCHING.md)** - NEW in v2.1.0!
+  - N-completions support for generating multiple response variants
+  - Per-endpoint statistics tracking with moving averages
+  - Three batching strategies (Sequential, Parallel, Streaming)
+  - Detailed timing headers for performance testing
+  - Perfect for testing backoff strategies and timeout scenarios
 
 - **[gRPC Support Guide](./docs/GRPC_SUPPORT.md)** - NEW in v1.7.0!
   - Upload .proto files for automatic gRPC service mocking
@@ -223,11 +242,48 @@ For detailed guides with architecture diagrams, use cases, and implementation de
 
 ### Installation
 
+**Main Package:**
 ```bash
 dotnet add package mostlylucid.mockllmapi
 ```
 
-### Prerequisites
+**Testing Utilities (Optional):**
+```bash
+dotnet add package mostlylucid.mockllmapi.Testing
+```
+> Provides fluent API for easy HttpClient configuration in tests. [See Testing Section](#testing) for details.
+
+### Quick Start with Docker (Recommended)
+
+The fastest way to get started - no .NET or Ollama installation required!
+
+```bash
+# Clone the repository
+git clone https://github.com/scottgal/LLMApi.git
+cd LLMApi
+
+# Start everything with Docker Compose (includes Ollama + llama3)
+docker compose up -d
+
+# Wait for model download (first run only, ~4.7GB)
+docker compose logs -f ollama
+
+# Test the API
+curl "http://localhost:5116/api/mock/users?shape={\"id\":0,\"name\":\"\",\"email\":\"\"}"
+```
+
+**That's it!** The API is running at `http://localhost:5116` with Ollama backend.
+
+See the **[Complete Docker Guide](./docs/DOCKER_GUIDE.md)** for:
+- Configuration options (env vars, volume mapping)
+- Using different models (gemma3:4b, mistral-nemo)
+- GPU support
+- Production deployment
+- Troubleshooting
+
+### Prerequisites (Local Development)
+
+If not using Docker:
 
 1. Install [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 2. Install [Ollama](https://ollama.ai/) and pull a model:
@@ -1564,7 +1620,32 @@ See the complete [management.http](LLMApi/management.http) file for 20+ ready-to
 
 ### Demo Applications
 
-The package includes two complete demo applications with interactive web interfaces featuring full context management:
+The package includes complete demo applications with interactive interfaces featuring full context management:
+
+#### Windows Desktop Client (`LLMockApiClient/`) — WPF Application (In Development)
+
+> **⚠️ DEVELOPMENT STATUS**: The Windows desktop client is currently under active development. While many features are functional, some functionality may be incomplete or subject to change. Use for testing and development purposes.
+
+A comprehensive WPF desktop application for interacting with the LLMock API:
+
+**Features:**
+- **Dashboard**: Real-time connection status and system monitoring
+- **SignalR Real-Time**: Create contexts and subscribe to live data streams
+- **SSE Streaming**: Three streaming modes (tokens, objects, array items)
+- **OpenAPI Manager**: Load specs from URL/JSON, test endpoints
+- **gRPC Services**: Upload .proto files, test gRPC methods
+- **Play with APIs**: Interactive HTTP testing playground
+- **Multi-Backend Support**: Configure and switch between multiple backends
+- **Traffic Monitor**: Live HTTP request/response logging
+- **Dark/Light Theme**: Toggle between themes with smooth transitions
+
+**Documentation:** [LLMockApiClient README](./LLMockApiClient/README.md)
+
+**Perfect for:** Desktop testing workflows, visual API exploration, development and debugging
+
+---
+
+#### Web-Based Demos
 
 #### SignalR Demo (`/`) — Real-Time Data Streaming with Management UI
 
@@ -1922,12 +2003,79 @@ Notes
 
 ## Testing
 
+### Testing Utilities Package (NEW!)
+
+**mostlylucid.mockllmapi.Testing** - A companion NuGet package that makes testing with the mock API even easier!
+
+```bash
+dotnet add package mostlylucid.mockllmapi.Testing
+```
+
+**Quick Example:**
+```csharp
+using mostlylucid.mockllmapi.Testing;
+
+// Create a configured HttpClient for testing
+var client = HttpClientExtensions.CreateMockLlmClient(
+    baseAddress: "http://localhost:5116",
+    pathPattern: "/users",
+    configure: endpoint => endpoint
+        .WithShape(new { id = 0, name = "", email = "" })
+        .WithCache(5)
+        .WithError(404) // Simulate errors easily
+);
+
+// Use in your tests
+var response = await client.GetAsync("/users");
+var users = await response.Content.ReadFromJsonAsync<User[]>();
+```
+
+**Key Features:**
+- **Fluent API**: Easy configuration with `WithShape()`, `WithError()`, `WithCache()`, etc.
+- **HttpClient Integration**: Works seamlessly with `HttpClient` and `IHttpClientFactory`
+- **Multiple Endpoints**: Configure different behaviors for different paths
+- **Error Simulation**: Test error handling with various status codes
+- **Streaming Support**: Test SSE streaming endpoints
+- **Dependency Injection**: Built-in support for typed and named clients
+
+**Configuration Examples:**
+```csharp
+// Multiple endpoints with different configurations
+var client = HttpClientExtensions.CreateMockLlmClient(
+    "http://localhost:5116",
+    configure: handler => handler
+        .ForEndpoint("/users", config => config
+            .WithShape(new { id = 0, name = "", email = "" })
+            .WithCache(10))
+        .ForEndpoint("/posts", config => config
+            .WithShape(new { id = 0, title = "", content = "" })
+            .WithStreaming()
+            .WithSseMode("CompleteObjects"))
+        .ForEndpoint("/error", config => config
+            .WithError(500, "Internal server error"))
+);
+
+// Dependency Injection support
+services.AddMockLlmHttpClient<IUserApiClient>(
+    baseApiPath: "/api/mock",
+    configure: handler => handler
+        .ForEndpoint("/users", config => config.WithShape(...))
+);
+```
+
+**How It Works:**
+The `MockLlmHttpHandler` is a `DelegatingHandler` that intercepts HTTP requests and automatically applies your configuration via query parameters and headers before forwarding to the mock API. This means you can use real `HttpClient` instances in your tests while controlling mock behavior declaratively.
+
+**See the [Testing Package README](./mostlylucid.mockllmapi.Testing/README.md) for complete documentation and examples.**
+
+### HTTP File Testing
+
 Use the included `LLMApi.http` file with:
 - Visual Studio / Rider HTTP client
 - VS Code REST Client extension
 - Any HTTP client
 
-## Testing
+### Unit Tests
 
 The project includes comprehensive unit tests:
 

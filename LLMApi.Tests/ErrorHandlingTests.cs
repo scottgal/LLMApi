@@ -422,8 +422,10 @@ public class ErrorHandlingTests
         var cacheManager = new CacheManager(options, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
+        var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(options);
+        var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, options, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
         var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, NullLogger<RegularRequestHandler>.Instance);
+            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");

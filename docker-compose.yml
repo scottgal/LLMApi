@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Ollama service - provides LLM inference
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - llmapi-network
+    restart: unless-stopped
+
+  # LLM Mock API service
+  llmapi:
+    build:
+      context: .
+      dockerfile: LLMApi/Dockerfile
+    container_name: llmapi
+    ports:
+      - "5116:8080"
+      - "5117:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      # Configure to use Ollama service
+      - MockLlmApi__BaseUrl=http://ollama:11434/v1/
+      - MockLlmApi__ModelName=llama3
+      - MockLlmApi__Temperature=1.2
+      - MockLlmApi__TimeoutSeconds=30
+      - MockLlmApi__EnableVerboseLogging=false
+      - MockLlmApi__MaxContextWindow=8192
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - llmapi-network
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  llmapi-network:
+    driver: bridge

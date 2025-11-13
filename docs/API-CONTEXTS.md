@@ -464,6 +464,31 @@ Content-Type: application/json
 }
 ```
 
+#### gRPC
+```http
+# JSON over HTTP
+POST /api/grpc/json/UserService/CreateUser?context=grpc-session
+Content-Type: application/json
+
+{
+  "name": "Alice",
+  "email": "alice@example.com"
+}
+
+# Binary Protobuf (context extracted from query param or headers)
+POST /api/grpc/proto/UserService/GetUser?context=grpc-session
+Content-Type: application/grpc+proto
+
+[binary protobuf data]
+```
+
+#### OpenAPI
+```http
+# Dynamically generated endpoints support contexts
+GET /petstore/pets/123?context=petstore-session
+POST /shop/orders?context=shop-session
+```
+
 #### SignalR (via configuration)
 ```json
 {
@@ -880,6 +905,15 @@ API Contexts transform stateless mock APIs into stateful simulations that mainta
 The combination of automatic memory management, comprehensive shared data extraction, intelligent summarization, and seamless integration across all endpoint types makes contexts a powerful tool for realistic API testing and development.
 
 For more advanced scenarios, combine contexts with OpenAPI specifications to create fully-featured mock APIs that behave like the real thing.
+
+---
+
+## Additional Resources
+
+- **[Context Examples (HTTP file)](../mostlylucid.mockllmapi.Testing.Examples/ContextExamples.http)** - Runnable HTTP examples covering all mock types
+- **[Context Memory Guide](../mostlylucid.mockllmapi.Testing.Examples/CONTEXT_MEMORY.md)** - Comprehensive guide with detailed examples and troubleshooting
+- **[gRPC Support](./GRPC_SUPPORT.md)** - Using contexts with gRPC services
+- **[OpenAPI Features](./OPENAPI-FEATURES.md)** - Context support with dynamically generated endpoints
 
 ---
 
