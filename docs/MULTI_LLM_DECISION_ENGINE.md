@@ -1,3 +1,5 @@
+Hey, ever wonder what you could do if you had your own GPU farm?
+
 # Random Ponderings: An emergent AI pathway I randomly thought about...
 
 ## Building a Multi-LLM Synthetic Decision Engine with LLMockApi
