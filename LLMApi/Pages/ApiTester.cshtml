@@ -1,0 +1,714 @@
+@page
+@model LLMApi.Pages.ApiTesterModel
+@{
+    ViewData["Title"] = "API Tester";
+}
+
+@section Styles {
+<style>
+    :root {
+        --code-bg: #1e1e1e;
+        --code-text: #d4d4d4;
+        --code-keyword: #569cd6;
+        --code-string: #ce9178;
+        --code-number: #b5cea8;
+        --code-boolean: #569cd6;
+        --code-null: #569cd6;
+        --code-property: #9cdcfe;
+    }
+
+    [data-theme="light"] {
+        --code-bg: #f5f5f5;
+        --code-text: #333333;
+        --code-keyword: #0000ff;
+        --code-string: #a31515;
+        --code-number: #098658;
+        --code-boolean: #0000ff;
+        --code-null: #0000ff;
+        --code-property: #001080;
+    }
+
+    .test-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    @@media (max-width: 1024px) {
+        .test-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .theme-toggle-tester {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: var(--bg-primary);
+        border: 2px solid var(--border);
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        z-index: 100;
+    }
+
+    .theme-toggle-tester:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .example-card {
+        background: var(--bg-secondary);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid var(--primary);
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 15px;
+    }
+
+    .example-card:hover {
+        background: var(--bg-primary);
+        box-shadow: 0 4px 12px var(--shadow);
+        transform: translateY(-2px);
+    }
+
+    .example-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .example-desc {
+        font-size: 0.9em;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .example-code {
+        background: var(--code-bg);
+        color: var(--code-text);
+        padding: 10px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85em;
+        overflow-x: auto;
+        border: 1px solid var(--border);
+    }
+
+    .code-block {
+        background: var(--code-bg);
+        color: var(--code-text);
+        padding: 15px;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        overflow-x: auto;
+        border: 2px solid var(--border);
+        box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .code-block-header {
+        background: var(--bg-secondary);
+        padding: 10px 15px;
+        border-radius: 8px 8px 0 0;
+        border: 2px solid var(--border);
+        border-bottom: none;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .copy-button {
+        padding: 4px 12px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+    }
+
+    .copy-button:hover {
+        background: var(--secondary);
+    }
+
+    .form-section {
+        background: var(--bg-primary);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .result-panel {
+        background: var(--bg-primary);
+        padding: 20px;
+        border-radius: 8px;
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+    }
+</style>
+}
+
+<button class="theme-toggle-tester" onclick="toggleTheme()">
+    <span id="themeIcon">🌙</span>
+    <span id="themeText">Dark</span>
+</button>
+
+<h1 style="margin-bottom: 20px;">🧪 API Tester</h1>
+
+<div class="test-container">
+    <!-- Left Panel: Examples and Form -->
+    <div>
+        <div class="card">
+            <h2>Example Requests</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Click any example to load it into the tester below
+            </p>
+
+            <div class="example-card" onclick="loadExample('basic')">
+                <div class="example-title">
+                    <span>📄</span> Basic GET Request
+                </div>
+                <div class="example-desc">Simple GET request with no configuration</div>
+                <div class="example-code">GET /api/mock/users</div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('shape-query')">
+                <div class="example-title">
+                    <span>🔧</span> Custom Shape (Query Param)
+                </div>
+                <div class="example-desc">Define response structure via query parameter</div>
+                <div class="example-code">GET /api/mock/products?shape={"id":0,"name":"string","price":0.0}</div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('shape-header')">
+                <div class="example-title">
+                    <span>📋</span> Custom Shape (Header)
+                </div>
+                <div class="example-desc">Define response structure via X-Shape header</div>
+                <div class="example-code">
+GET /api/mock/orders<br/>
+X-Shape: {"orderId":0,"items":[{"name":"string","qty":0}]}
+                </div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('post-body')">
+                <div class="example-title">
+                    <span>📝</span> POST with Body Shape
+                </div>
+                <div class="example-desc">Shape defined in POST request body</div>
+                <div class="example-code">
+POST /api/mock/users<br/>
+Body: {"shape":{"id":0,"email":"string"},"name":"John"}
+                </div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('context')">
+                <div class="example-title">
+                    <span>🔄</span> Consistent Data (Context)
+                </div>
+                <div class="example-desc">Multiple requests share the same data via context</div>
+                <div class="example-code">
+GET /api/mock/user/123<br/>
+X-Context: my-session
+                </div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('backend')">
+                <div class="example-title">
+                    <span>🎯</span> Specific Backend
+                </div>
+                <div class="example-desc">Route to specific LLM backend</div>
+                <div class="example-code">
+GET /api/mock/creative-content<br/>
+X-LLM-Backend: openai
+                </div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('streaming')">
+                <div class="example-title">
+                    <span>🌊</span> Streaming Response
+                </div>
+                <div class="example-desc">Get response as Server-Sent Events stream</div>
+                <div class="example-code">GET /api/mock/stream/data</div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('error')">
+                <div class="example-title">
+                    <span>❌</span> Error Simulation
+                </div>
+                <div class="example-desc">Test error handling with simulated errors</div>
+                <div class="example-code">
+GET /api/mock/users?error=404&errorMessage=Not%20found
+                </div>
+            </div>
+
+            <div class="example-card" onclick="loadExample('complex')">
+                <div class="example-title">
+                    <span>⚙️</span> All Options Combined
+                </div>
+                <div class="example-desc">Complex request using all available features</div>
+                <div class="example-code">
+POST /api/mock/api/advanced<br/>
+X-Context: test-session<br/>
+X-LLM-Backend: openai<br/>
+X-Shape: {"users":[{"id":0,"profile":{...}}]}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Configure Request</h3>
+
+            <div class="form-group">
+                <label>HTTP Method:</label>
+                <select id="method">
+                    <option>GET</option>
+                    <option>POST</option>
+                    <option>PUT</option>
+                    <option>PATCH</option>
+                    <option>DELETE</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Path:</label>
+                <input type="text" id="path" value="/api/mock/users" placeholder="/api/mock/..." />
+            </div>
+
+            <div class="form-group">
+                <label>Shape (JSON) - Optional:</label>
+                <textarea id="shape" placeholder='{"id": 0, "name": "string", "email": "string"}'></textarea>
+                <small style="color: var(--text-secondary);">
+                    Define the structure of the response. Can also be passed via query param or header.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>Request Body (JSON) - Optional:</label>
+                <textarea id="body" placeholder='{"name": "John Doe"}'></textarea>
+            </div>
+
+            <details class="form-group">
+                <summary style="cursor: pointer; font-weight: 600; color: var(--text-primary);">
+                    Advanced Options
+                </summary>
+                <div style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label>Context Name (X-Context):</label>
+                        <input type="text" id="context" placeholder="e.g., test-session-1" />
+                        <small style="color: var(--text-secondary);">
+                            Requests with the same context share consistent data
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Backend (X-LLM-Backend):</label>
+                        <input type="text" id="backend" placeholder="ollama, openai, or lmstudio" />
+                        <small style="color: var(--text-secondary);">
+                            Route to a specific configured LLM backend
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Error Code (for testing):</label>
+                        <input type="number" id="errorCode" placeholder="e.g., 404" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Error Message (for testing):</label>
+                        <input type="text" id="errorMessage" placeholder="e.g., Not found" />
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="useStreaming" />
+                            Use Streaming Endpoint (/stream/)
+                        </label>
+                    </div>
+                </div>
+            </details>
+
+            <button onclick="testRequest()" style="width: 100%; padding: 15px; font-size: 1.1em; margin-top: 15px;">
+                🚀 Send Request
+            </button>
+        </div>
+    </div>
+
+    <!-- Right Panel: Results -->
+    <div>
+        <div class="result-panel">
+            <h2>Response</h2>
+
+            <div id="loading" style="display: none; text-align: center; padding: 40px; color: var(--text-secondary);">
+                <div style="font-size: 2em; margin-bottom: 10px;">⏳</div>
+                <div>Sending request...</div>
+            </div>
+
+            <div id="results" style="display: none;">
+                <div style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--primary);">
+                    <strong style="color: var(--text-primary);">Status:</strong> <span id="status" style="padding: 6px 12px; border-radius: 4px; font-weight: 600; margin-left: 10px;"></span>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="code-block-header">
+                        <strong>📡 Request URL</strong>
+                        <button class="copy-button" onclick="copyToClipboard('requestUrl')">📋 Copy</button>
+                    </div>
+                    <div id="requestUrl" class="code-block" style="border-radius: 0 0 8px 8px; word-break: break-all;"></div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="code-block-header">
+                        <strong>📤 Request Headers</strong>
+                        <button class="copy-button" onclick="copyToClipboard('requestHeaders')">📋 Copy</button>
+                    </div>
+                    <pre id="requestHeaders" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0;"></pre>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="code-block-header">
+                        <strong>📥 Response Body</strong>
+                        <button class="copy-button" onclick="copyToClipboard('responseBody')">📋 Copy</button>
+                    </div>
+                    <pre id="responseBody" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0; max-height: 600px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+
+            <div id="placeholder" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                <div style="font-size: 3em; margin-bottom: 15px;">📡</div>
+                <div style="font-size: 1.1em;">Configure and send a request to see results here</div>
+                <div style="margin-top: 10px; font-size: 0.9em;">Try clicking an example above to get started!</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const examples = {
+        'basic': {
+            method: 'GET',
+            path: '/api/mock/users',
+            shape: '',
+            body: '',
+            context: '',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'shape-query': {
+            method: 'GET',
+            path: '/api/mock/products',
+            shape: '{"id": 0, "name": "string", "price": 0.0, "inStock": true}',
+            body: '',
+            context: '',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'shape-header': {
+            method: 'GET',
+            path: '/api/mock/orders',
+            shape: '{"orderId": 0, "customerId": 0, "items": [{"productId": 0, "name": "string", "quantity": 0, "price": 0.0}], "total": 0.0, "status": "string"}',
+            body: '',
+            context: '',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'post-body': {
+            method: 'POST',
+            path: '/api/mock/users',
+            shape: '{"id": 0, "email": "string", "createdAt": "2024-01-01T00:00:00Z"}',
+            body: '{"name": "John Doe", "email": "john@example.com"}',
+            context: '',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'context': {
+            method: 'GET',
+            path: '/api/mock/user/123',
+            shape: '{"id": 0, "name": "string", "email": "string", "preferences": {}}',
+            body: '',
+            context: 'my-session',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'backend': {
+            method: 'GET',
+            path: '/api/mock/creative-content',
+            shape: '{"title": "string", "content": "string", "tags": ["string"]}',
+            body: '',
+            context: '',
+            backend: 'openai',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        },
+        'streaming': {
+            method: 'GET',
+            path: '/api/mock/stream/data',
+            shape: '{"message": "string", "timestamp": "string"}',
+            body: '',
+            context: '',
+            backend: '',
+            errorCode: '',
+            errorMessage: '',
+            streaming: true
+        },
+        'error': {
+            method: 'GET',
+            path: '/api/mock/users/999',
+            shape: '',
+            body: '',
+            context: '',
+            backend: '',
+            errorCode: '404',
+            errorMessage: 'User not found',
+            streaming: false
+        },
+        'complex': {
+            method: 'POST',
+            path: '/api/mock/api/advanced',
+            shape: '{"users": [{"id": 0, "profile": {"name": "string", "avatar": "string"}, "posts": [{"title": "string", "content": "string"}]}], "pagination": {"page": 0, "total": 0}}',
+            body: '{"limit": 10, "includeInactive": false}',
+            context: 'test-session',
+            backend: 'openai',
+            errorCode: '',
+            errorMessage: '',
+            streaming: false
+        }
+    };
+
+    function loadExample(exampleId) {
+        const ex = examples[exampleId];
+        if (!ex) return;
+
+        document.getElementById('method').value = ex.method;
+        document.getElementById('path').value = ex.path;
+        document.getElementById('shape').value = ex.shape;
+        document.getElementById('body').value = ex.body;
+        document.getElementById('context').value = ex.context;
+        document.getElementById('backend').value = ex.backend;
+        document.getElementById('errorCode').value = ex.errorCode;
+        document.getElementById('errorMessage').value = ex.errorMessage;
+        document.getElementById('useStreaming').checked = ex.streaming;
+
+        // Scroll to form
+        document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function testRequest() {
+        const method = document.getElementById('method').value;
+        let path = document.getElementById('path').value;
+        const shape = document.getElementById('shape').value.trim();
+        const body = document.getElementById('body').value.trim();
+        const context = document.getElementById('context').value.trim();
+        const backend = document.getElementById('backend').value.trim();
+        const errorCode = document.getElementById('errorCode').value.trim();
+        const errorMessage = document.getElementById('errorMessage').value.trim();
+        const useStreaming = document.getElementById('useStreaming').checked;
+
+        // Build URL
+        if (useStreaming && !path.includes('/stream/')) {
+            path = path.replace('/api/mock', '/api/mock/stream');
+        }
+
+        const url = new URL(path, window.location.origin);
+
+        // Add query params
+        if (errorCode) {
+            url.searchParams.set('error', errorCode);
+            if (errorMessage) {
+                url.searchParams.set('errorMessage', errorMessage);
+            }
+        }
+
+        // Build headers
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (shape) {
+            headers['X-Shape'] = shape;
+        }
+
+        if (context) {
+            headers['X-Context'] = context;
+        }
+
+        if (backend) {
+            headers['X-LLM-Backend'] = backend;
+        }
+
+        // Build request options
+        const options = {
+            method: method,
+            headers: headers
+        };
+
+        if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+            options.body = body;
+        }
+
+        // Show loading
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        try {
+            // Send request
+            const response = await fetch(url.toString(), options);
+
+            // Read response
+            let responseText;
+            if (useStreaming) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(decoder.decode(value, { stream: true }));
+                }
+
+                responseText = chunks.join('');
+            } else {
+                responseText = await response.text();
+            }
+
+            // Parse and format JSON
+            let formattedBody;
+            try {
+                const json = JSON.parse(responseText);
+                formattedBody = JSON.stringify(json, null, 2);
+            } catch {
+                formattedBody = responseText;
+            }
+
+            // Display results
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = `${response.status} ${response.statusText}`;
+            statusEl.style.background = response.ok ? '#d4edda' : '#f8d7da';
+            statusEl.style.color = response.ok ? '#155724' : '#721c24';
+
+            document.getElementById('requestUrl').textContent = url.toString();
+
+            // Highlight request headers
+            document.getElementById('requestHeaders').innerHTML = highlightJSON(headers);
+
+            // Highlight response body
+            document.getElementById('responseBody').innerHTML = highlightJSON(formattedBody);
+
+        } catch (error) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+
+            document.getElementById('status').textContent = 'Error';
+            document.getElementById('status').style.background = '#f8d7da';
+            document.getElementById('status').style.color = '#721c24';
+
+            document.getElementById('requestUrl').textContent = url.toString();
+            document.getElementById('requestHeaders').textContent = JSON.stringify(headers, null, 2);
+            document.getElementById('responseBody').textContent = `Error: ${error.message}`;
+        }
+    }
+
+    // Theme management
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', newTheme);
+        document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        document.getElementById('themeText').textContent = newTheme === 'dark' ? 'Light' : 'Dark';
+        localStorage.setItem('apiTesterTheme', newTheme);
+    }
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('apiTesterTheme') || 'light';
+    if (savedTheme === 'dark') {
+        toggleTheme();
+    }
+
+    // Copy to clipboard
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent || element.innerText;
+
+        navigator.clipboard.writeText(text).then(() => {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '✓ Copied!';
+            button.style.background = '#28a745';
+
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.background = '';
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+        });
+    }
+
+    // Syntax highlighting for JSON
+    function highlightJSON(json) {
+        if (typeof json !== 'string') {
+            json = JSON.stringify(json, null, 2);
+        }
+
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            let cls = 'number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'key';
+                } else {
+                    cls = 'string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'boolean';
+            } else if (/null/.test(match)) {
+                cls = 'null';
+            }
+            return '<span class="json-' + cls + '">' + match + '</span>';
+        });
+    }
+</script>
+<style>
+    .json-key { color: var(--code-property); font-weight: 600; }
+    .json-string { color: var(--code-string); }
+    .json-number { color: var(--code-number); }
+    .json-boolean { color: var(--code-boolean); }
+    .json-null { color: var(--code-null); }
+</style>
+
+}

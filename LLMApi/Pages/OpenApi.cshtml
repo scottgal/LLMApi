@@ -7,8 +7,38 @@
 
 @section Styles {
     <style>
+        body {
+            overflow: hidden;
+        }
+
         .container {
             grid-template-columns: 2fr 3fr;
+            height: calc(100vh - 200px);
+            align-items: start;
+        }
+
+        .container > div {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .container > div:first-child {
+            padding-right: 10px;
+        }
+
+        .container > div:last-child {
+            padding-left: 10px;
+        }
+
+        .container > div:last-child > .card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container > div:last-child > .card > .spec-list {
+            flex: 1;
+            overflow-y: auto;
         }
 
         .button-group {
@@ -18,7 +48,7 @@
         }
 
         .spec-list {
-            max-height: 500px;
+            max-height: none;
             overflow-y: auto;
         }
 
@@ -44,7 +74,7 @@
 
         .endpoint-list {
             margin-top: 10px;
-            max-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
         }
 
@@ -465,7 +495,7 @@
             const resultDiv = document.getElementById(`result-${specName}-${idx}`);
             resultDiv.style.display = 'block';
             resultDiv.className = 'test-result';
-            resultDiv.innerHTML = '<p>Testing...</p>';
+            resultDiv.innerHTML = '<p>⏳ Testing endpoint...</p>';
 
             try {
                 const response = await fetch('/api/openapi/test', {
@@ -477,21 +507,84 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    const responseData = JSON.parse(data.response);
+                    const responseSchema = inferSchema(responseData);
+
                     resultDiv.className = 'test-result success';
                     resultDiv.innerHTML = `
-                        <p><strong>✓ Success</strong></p>
-                        <pre>${JSON.stringify(JSON.parse(data.response), null, 2)}</pre>
+                        <p><strong>✓ Test Successful</strong></p>
+                        <div style="margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <h5 style="margin: 0; color: #333;">Response Data</h5>
+                                <button class="secondary" style="padding: 3px 8px; font-size: 0.8em;" onclick="toggleSection('schema-${specName}-${idx}')">Show Schema</button>
+                            </div>
+                            <pre style="max-height: 400px; overflow-y: auto;">${JSON.stringify(responseData, null, 2)}</pre>
+                            <div id="schema-${specName}-${idx}" style="display: none; margin-top: 10px;">
+                                <h5 style="margin: 10px 0 5px 0; color: #333;">Inferred Response Schema</h5>
+                                <pre style="background: #1e3a8a; color: #bfdbfe; max-height: 300px; overflow-y: auto;">${JSON.stringify(responseSchema, null, 2)}</pre>
+                            </div>
+                        </div>
                     `;
                 } else {
                     resultDiv.className = 'test-result error';
                     resultDiv.innerHTML = `
-                        <p><strong>✗ Error</strong></p>
+                        <p><strong>✗ Test Failed</strong></p>
+                        <h5 style="margin: 10px 0 5px 0; color: #333;">Error Details</h5>
                         <pre>${JSON.stringify(data, null, 2)}</pre>
                     `;
                 }
             } catch (err) {
                 resultDiv.className = 'test-result error';
-                resultDiv.innerHTML = `<p><strong>✗ Error:</strong> ${err.message}</p>`;
+                resultDiv.innerHTML = `
+                    <p><strong>✗ Test Error</strong></p>
+                    <p style="color: #721c24; margin: 10px 0;">${err.message}</p>
+                `;
+            }
+        }
+
+        function inferSchema(obj, depth = 0) {
+            if (depth > 3) return 'object (max depth)';
+
+            if (obj === null) return { type: 'null' };
+            if (Array.isArray(obj)) {
+                return {
+                    type: 'array',
+                    items: obj.length > 0 ? inferSchema(obj[0], depth + 1) : { type: 'unknown' }
+                };
+            }
+            if (typeof obj === 'object') {
+                const schema = { type: 'object', properties: {} };
+                for (const [key, value] of Object.entries(obj)) {
+                    schema.properties[key] = inferSchema(value, depth + 1);
+                }
+                return schema;
+            }
+            if (typeof obj === 'number') {
+                return { type: Number.isInteger(obj) ? 'integer' : 'number' };
+            }
+            if (typeof obj === 'boolean') {
+                return { type: 'boolean' };
+            }
+            if (typeof obj === 'string') {
+                // Detect common formats
+                if (/^\d{4}-\d{2}-\d{2}/.test(obj)) {
+                    return { type: 'string', format: 'date-time' };
+                }
+                if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(obj)) {
+                    return { type: 'string', format: 'uuid' };
+                }
+                if (/^[\w.-]+@@[\w.-]+\.\w+$/.test(obj)) {
+                    return { type: 'string', format: 'email' };
+                }
+                return { type: 'string' };
+            }
+            return { type: typeof obj };
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = section.style.display === 'none' ? 'block' : 'none';
             }
         }
 
@@ -644,23 +737,32 @@
                 detailsDiv.innerHTML = `
                     <div style="background: white; padding: 15px; border-radius: 4px; margin-top: 10px;">
                         <h4>Shared Data</h4>
-                        <div class="code-block">
-                            ${Object.entries(context.sharedData).map(([k, v]) => `${k}: ${v}`).join('<br />')}
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <pre style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.85em;">${JSON.stringify(context.sharedData, null, 2)}</pre>
                         </div>
 
                         <h4 style="margin-top: 15px;">Recent Calls (last 10)</h4>
-                        ${context.recentCalls.map(call => `
-                            <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px;">
-                                <strong>${call.method} ${call.path}</strong><br />
-                                <small>${new Date(call.timestamp).toLocaleString()}</small>
-                                ${call.requestBody ? `<br /><small>Request: ${call.requestBody.substring(0, 100)}...</small>` : ''}
-                                <br /><small>Response: ${call.responseBody.substring(0, 150)}...</small>
+                        ${context.recentCalls.map((call, idx) => `
+                            <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 3px solid #007bff;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong>${call.method} ${call.path}</strong>
+                                    <button class="secondary" style="padding: 3px 8px; font-size: 0.8em;" onclick="toggleCallDetails('call-${context.name}-${idx}')">Details</button>
+                                </div>
+                                <small style="color: #666;">${new Date(call.timestamp).toLocaleString()}</small>
+                                <div id="call-${context.name}-${idx}" style="display: none; margin-top: 10px;">
+                                    ${call.requestBody ? `
+                                        <h5 style="margin: 10px 0 5px 0; color: #333;">Request Body:</h5>
+                                        <pre style="background: #2d2d2d; color: #f8f8f2; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.8em;">${JSON.stringify(JSON.parse(call.requestBody), null, 2)}</pre>
+                                    ` : ''}
+                                    <h5 style="margin: 10px 0 5px 0; color: #333;">Response Body:</h5>
+                                    <pre style="background: #2d2d2d; color: #f8f8f2; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.8em;">${JSON.stringify(JSON.parse(call.responseBody), null, 2)}</pre>
+                                </div>
                             </div>
                         `).join('')}
 
                         ${context.summary ? `
                             <h4 style="margin-top: 15px;">Earlier Activity Summary</h4>
-                            <div class="code-block">${context.summary.replace(/\n/g, '<br />')}</div>
+                            <pre style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-size: 0.85em;">${context.summary}</pre>
                         ` : ''}
                     </div>
                 `;
@@ -690,6 +792,13 @@
             } catch (err) {
                 console.error('Error clearing context:', err);
                 showNotification(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        function toggleCallDetails(callId) {
+            const detailsDiv = document.getElementById(callId);
+            if (detailsDiv) {
+                detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
             }
         }
 

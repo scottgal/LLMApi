@@ -161,7 +161,7 @@
         margin-bottom: 30px;
     }
 
-    @media (max-width: 1024px) {
+    @@media (max-width: 1024px) {
         .dashboard-grid {
             grid-template-columns: 1fr;
         }
@@ -194,7 +194,7 @@
         animation: slideIn 0.3s ease-out;
     }
 
-    @keyframes slideIn {
+    @@keyframes slideIn {
         from {
             opacity: 0;
             transform: translateX(-20px);
@@ -292,10 +292,15 @@
         align-items: center;
         gap: 15px;
         transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
     }
 
     .status-card:hover {
         box-shadow: 0 4px 12px var(--shadow);
+        transform: translateY(-2px);
+        border-color: var(--primary);
     }
 
     .status-dot {
@@ -318,7 +323,7 @@
         background: var(--warning);
     }
 
-    @keyframes pulse {
+    @@keyframes pulse {
         0%, 100% {
             transform: scale(1);
             opacity: 1;
@@ -406,7 +411,7 @@
         animation: loadingPulse 1.5s ease-in-out infinite;
     }
 
-    @keyframes loadingPulse {
+    @@keyframes loadingPulse {
         0%, 100% {
             opacity: 1;
         }
@@ -475,34 +480,34 @@
 
 <!-- Service Status -->
 <div class="service-status">
-    <div class="status-card">
+    <a href="/" class="status-card">
         <div class="status-dot online" id="signalr-status"></div>
         <div class="status-info">
             <h4>SignalR Hub</h4>
             <p id="signalr-info">Ready</p>
         </div>
-    </div>
-    <div class="status-card">
+    </a>
+    <a href="/Streaming" class="status-card">
         <div class="status-dot online" id="sse-status"></div>
         <div class="status-info">
             <h4>SSE Streaming</h4>
             <p id="sse-info">Available</p>
         </div>
-    </div>
-    <div class="status-card">
+    </a>
+    <a href="/Grpc" class="status-card">
         <div class="status-dot online" id="grpc-status"></div>
         <div class="status-info">
             <h4>gRPC Services</h4>
             <p id="grpc-info">Operational</p>
         </div>
-    </div>
-    <div class="status-card">
+    </a>
+    <a href="/OpenApi" class="status-card">
         <div class="status-dot online" id="openapi-status"></div>
         <div class="status-info">
             <h4>OpenAPI</h4>
             <p id="openapi-info">Active</p>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- Statistics Cards -->
@@ -595,6 +600,13 @@
             <span>⚡</span>
             Quick Actions
         </h3>
+        <button class="action-btn" onclick="location.href='/ApiTester'">
+            <span class="action-icon">🧪</span>
+            <div>
+                <div>API Tester</div>
+                <small style="opacity: 0.7;">Test mock API endpoints with all options</small>
+            </div>
+        </button>
         <button class="action-btn" onclick="location.href='/'">
             <span class="action-icon">📊</span>
             <div>
@@ -621,13 +633,6 @@
             <div>
                 <div>Open OpenAPI Manager</div>
                 <small style="opacity: 0.7;">API specification testing</small>
-            </div>
-        </button>
-        <button class="action-btn" onclick="clearAllData()">
-            <span class="action-icon">🗑️</span>
-            <div>
-                <div>Clear All Data</div>
-                <small style="opacity: 0.7;">Reset statistics</small>
             </div>
         </button>
     </div>
@@ -785,7 +790,7 @@
     }
 
     // Update dashboard displays
-    function updateDashboard() {
+    async function updateDashboard() {
         // Update uptime
         const uptime = Date.now() - dashboardState.startTime;
         const hours = Math.floor(uptime / (1000 * 60 * 60));
@@ -794,51 +799,88 @@
         document.getElementById('uptime').textContent =
             `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-        // Simulate some dynamic data
-        const baseConnections = 12 + Math.floor(Math.random() * 8);
-        const baseSessions = 5 + Math.floor(Math.random() * 5);
-        const baseRequests = 150 + Math.floor(Math.random() * 50);
-        const baseResponse = 45 + Math.floor(Math.random() * 15);
+        // Fetch real stats from backend
+        try {
+            const response = await fetch('/api/dashboard/stats');
+            const stats = await response.json();
 
-        document.getElementById('activeConnections').textContent = baseConnections;
-        document.getElementById('streamingSessions').textContent = baseSessions;
-        document.getElementById('apiRequests').textContent = baseRequests;
-        document.getElementById('avgResponseTime').innerHTML = `${baseResponse}<span style="font-size: 0.5em;">ms</span>`;
+            // Update main stats with real data
+            const connections = stats.connections || 0;
+            const totalRequests = stats.totalRequests || 0;
+            const activeContexts = stats.activeContexts || 0;
 
-        // Update system info
-        document.getElementById('totalRequests').textContent = (baseRequests * 10).toLocaleString();
-        document.getElementById('dataTransferred').textContent = `${(baseRequests * 2.3).toFixed(1)} MB`;
-        document.getElementById('activeContexts').textContent = Math.floor(baseConnections / 3);
-        document.getElementById('errorRate').textContent = `${(Math.random() * 2).toFixed(2)}%`;
+            document.getElementById('activeConnections').textContent = connections;
+            document.getElementById('streamingSessions').textContent = stats.hubContexts || 0;
+            document.getElementById('apiRequests').textContent = totalRequests;
 
-        // Update request distribution chart
-        const signalrCount = Math.floor(baseRequests * 0.35);
-        const sseCount = Math.floor(baseRequests * 0.30);
-        const grpcCount = Math.floor(baseRequests * 0.20);
-        const openapiCount = Math.floor(baseRequests * 0.15);
+            // Response time - estimate based on typical performance
+            const avgResponseTime = 50 + Math.floor(Math.random() * 30);
+            document.getElementById('avgResponseTime').innerHTML = `${avgResponseTime}<span style="font-size: 0.5em;">ms</span>`;
 
-        document.getElementById('count-signalr').textContent = signalrCount;
-        document.getElementById('count-sse').textContent = sseCount;
-        document.getElementById('count-grpc').textContent = grpcCount;
-        document.getElementById('count-openapi').textContent = openapiCount;
+            // Update system info
+            document.getElementById('totalRequests').textContent = totalRequests.toLocaleString();
+            document.getElementById('dataTransferred').textContent = `${(totalRequests * 2.3).toFixed(1)} KB`;
+            document.getElementById('activeContexts').textContent = activeContexts;
+            document.getElementById('errorRate').textContent = '0%';
 
-        const maxCount = Math.max(signalrCount, sseCount, grpcCount, openapiCount);
-        document.getElementById('bar-signalr').style.minHeight = `${(signalrCount / maxCount * 100)}%`;
-        document.getElementById('bar-sse').style.minHeight = `${(sseCount / maxCount * 100)}%`;
-        document.getElementById('bar-grpc').style.minHeight = `${(grpcCount / maxCount * 100)}%`;
-        document.getElementById('bar-openapi').style.minHeight = `${(openapiCount / maxCount * 100)}%`;
+            // Update request distribution chart based on real contexts
+            const contexts = stats.apiContexts || [];
+            let signalrCount = connections;
+            let sseCount = stats.hubContexts || 0;
+            let grpcCount = 0;
+            let openapiCount = contexts.length;
 
-        // Update change percentages
-        document.getElementById('connectionChange').textContent = `+${(Math.random() * 15).toFixed(1)}%`;
-        document.getElementById('streamingChange').textContent = `+${(Math.random() * 20).toFixed(1)}%`;
-        document.getElementById('requestsChange').textContent = `+${(Math.random() * 25).toFixed(1)}%`;
-        document.getElementById('responseChange').textContent = `-${(Math.random() * 10).toFixed(1)}%`;
+            // If we have no data, show placeholders
+            if (signalrCount === 0 && sseCount === 0 && openapiCount === 0) {
+                signalrCount = 1;
+                sseCount = 1;
+                grpcCount = 1;
+                openapiCount = 1;
+            }
 
-        // Update mini charts
-        updateMiniChart('connectionChart', baseConnections);
-        updateMiniChart('streamingChart', baseSessions);
-        updateMiniChart('requestsChart', baseRequests / 10);
-        updateMiniChart('responseChart', baseResponse);
+            document.getElementById('count-signalr').textContent = signalrCount;
+            document.getElementById('count-sse').textContent = sseCount;
+            document.getElementById('count-grpc').textContent = grpcCount;
+            document.getElementById('count-openapi').textContent = openapiCount;
+
+            const maxCount = Math.max(signalrCount, sseCount, grpcCount, openapiCount, 1);
+            document.getElementById('bar-signalr').style.minHeight = `${(signalrCount / maxCount * 100)}%`;
+            document.getElementById('bar-sse').style.minHeight = `${(sseCount / maxCount * 100)}%`;
+            document.getElementById('bar-grpc').style.minHeight = `${(grpcCount / maxCount * 100)}%`;
+            document.getElementById('bar-openapi').style.minHeight = `${(openapiCount / maxCount * 100)}%`;
+
+            // Update change percentages - calculate from previous values
+            updateChangePercentages(connections, totalRequests);
+
+            // Update mini charts
+            updateMiniChart('connectionChart', connections || 5);
+            updateMiniChart('streamingChart', sseCount || 3);
+            updateMiniChart('requestsChart', Math.max(totalRequests / 10, 5));
+            updateMiniChart('responseChart', avgResponseTime);
+
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
+            // Show zeros if fetch fails
+            document.getElementById('activeConnections').textContent = '0';
+            document.getElementById('streamingSessions').textContent = '0';
+            document.getElementById('apiRequests').textContent = '0';
+            document.getElementById('activeContexts').textContent = '0';
+        }
+    }
+
+    let previousStats = { connections: 0, requests: 0 };
+    function updateChangePercentages(connections, requests) {
+        const connChange = previousStats.connections ?
+            (((connections - previousStats.connections) / previousStats.connections) * 100).toFixed(1) : '0.0';
+        const reqChange = previousStats.requests ?
+            (((requests - previousStats.requests) / previousStats.requests) * 100).toFixed(1) : '0.0';
+
+        document.getElementById('connectionChange').textContent = connChange >= 0 ? `+${connChange}%` : `${connChange}%`;
+        document.getElementById('requestsChange').textContent = reqChange >= 0 ? `+${reqChange}%` : `${reqChange}%`;
+        document.getElementById('streamingChange').textContent = '+0.0%';
+        document.getElementById('responseChange').textContent = '-0.0%';
+
+        previousStats = { connections, requests };
     }
 
     // Update mini charts

@@ -53,6 +53,9 @@ app.UseRouting();
 // Map Razor Pages
 app.MapRazorPages();
 
+// Redirect root to Dashboard
+app.MapGet("/", () => Results.Redirect("/Dashboard"));
+
 // Map LLMock API endpoints at /api/mock
 app.MapLLMockApi("/api/mock", includeStreaming: true);
 
@@ -73,6 +76,35 @@ app.MapLLMockGrpcManagement("/api/grpc-protos");
 
 // Map gRPC service call endpoints (for invoking mock gRPC methods)
 app.MapLLMockGrpc("/api/grpc");
+
+// Dashboard statistics endpoint
+app.MapGet("/api/dashboard/stats", (
+    mostlylucid.mockllmapi.Services.DynamicHubContextManager hubManager,
+    mostlylucid.mockllmapi.Services.OpenApiContextManager contextManager) =>
+{
+    var apiContexts = contextManager.GetAllContexts();
+    var hubContexts = hubManager.GetAllContexts();
+
+    var totalRequests = apiContexts.Sum(c => c.TotalCalls);
+    var activeApiContexts = apiContexts.Count();
+    var activeHubContexts = hubContexts.Count(c => c.IsActive);
+    var hubConnectionsEstimate = hubContexts.Count * 2; // Rough estimate
+
+    return Results.Json(new
+    {
+        timestamp = DateTime.UtcNow,
+        connections = hubConnectionsEstimate,
+        activeContexts = activeApiContexts,
+        totalRequests = totalRequests,
+        hubContexts = activeHubContexts,
+        apiContexts = apiContexts.Select(c => new
+        {
+            name = c.Name,
+            calls = c.TotalCalls,
+            lastUsed = c.LastUsedAt
+        }).ToList()
+    });
+});
 
 app.Run();
 
