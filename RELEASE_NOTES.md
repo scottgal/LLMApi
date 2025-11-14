@@ -1,14 +1,137 @@
 # Release Notes
 
-## v2.2.0 (Coming Soon) - Dynamic Context Memory Release
+## v2.2.0 - Pluggable Tools & Pre-Configured APIs
 
-**Focus**: Intelligent, self-managing context memory with automatic expiration and comprehensive field extraction
+**Focus**: MCP-compatible tool system, pre-configured REST APIs, and intelligent context memory
 
-This release transforms context memory from a simple storage mechanism into an intelligent, self-managing system that adapts to your testing workflow. Context memory now automatically expires unused contexts, extracts all response fields dynamically, and requires zero manual cleanup.
+This release introduces a powerful pluggable tools system for calling external APIs and chaining mock endpoints, along with pre-configured REST API definitions that eliminate repetitive configuration. Context memory is now self-managing with automatic expiration and comprehensive field extraction.
 
 ### Major Features
 
-#### 1. Dynamic Context Memory with Automatic Expiration 🔥
+#### 1. Pluggable Tools & Actions System 🔥
+
+**Problem Solved**: No way to call external APIs or chain mock endpoints to create realistic workflows and decision trees.
+
+**Solution**: MCP-compatible tool system with HTTP and Mock tool executors
+
+**Tool Types**:
+
+**HTTP Tools** - Call external REST APIs:
+```json
+{
+  "Name": "getUserData",
+  "Type": "http",
+  "HttpConfig": {
+    "Endpoint": "https://api.example.com/users/{userId}",
+    "Method": "GET",
+    "AuthType": "bearer",
+    "AuthToken": "${API_TOKEN}",  // Environment variable support
+    "ResponsePath": "$.data"       // JSONPath extraction
+  }
+}
+```
+
+**Mock Tools** - Chain mock endpoints for decision trees:
+```json
+{
+  "Name": "getOrderHistory",
+  "Type": "mock",
+  "MockConfig": {
+    "Endpoint": "/api/mock/users/{userId}/orders",
+    "Method": "GET",
+    "QueryParams": { "limit": "10" },
+    "Shape": "{\"orders\":[{\"id\":\"string\",\"total\":0.0}]}"
+  }
+}
+```
+
+**Key Features**:
+- **Template Substitution**: `{paramName}` placeholders in URLs, headers, bodies
+- **Environment Variables**: `${ENV_VAR_NAME}` for secure credential storage
+- **Authentication**: Bearer, Basic, API Key support
+- **JSONPath Extraction**: Extract specific fields from responses
+- **Tool Chaining**: Execute multiple tools in sequence
+- **Safety Limits**: MaxToolChainDepth and MaxConcurrentTools prevent runaway execution
+- **Result Caching**: Cache expensive operations per request
+- **MCP Compatible**: Architecture ready for Model Context Protocol integration
+
+**Execution Modes**:
+- `Disabled`: Tools not available (default)
+- `Explicit`: Call via `?useTool=name` or `X-Use-Tool` header (Phase 1 - current)
+- `LlmDriven`: LLM decides which tools to call (Phase 2 - future)
+
+**Usage Example**:
+```http
+# Execute tool explicitly
+GET /api/mock/user-profile?useTool=getUserData&userId=123
+
+# Chain multiple tools
+GET /api/mock/dashboard?useTool=getUserData,getOrderHistory&userId=123
+
+# Tool results automatically merged into LLM context
+Response: {
+  "user": { /* enriched with real API data */ },
+  "orders": [ /* from tool chain */ ]
+}
+```
+
+**Documentation**: `docs/TOOLS_ACTIONS.md` (500+ lines)
+
+#### 2. Pre-Configured REST APIs 🔥
+
+**Problem Solved**: Repetitive configuration for common API patterns - shape, context, tools, rate limiting, etc.
+
+**Solution**: Define complete API configurations once, call by name
+
+**Configuration Example**:
+```json
+{
+  "RestApis": [
+    {
+      "Name": "user-profile",
+      "Method": "GET",
+      "Path": "profile/{userId}",
+      "Shape": "{\"user\":{},\"orders\":[],\"recommendations\":[]}",
+      "ContextName": "user-session",
+      "Tools": ["getUserData", "getOrderHistory"],
+      "Tags": ["users", "composite"],
+      "CacheCount": 5,
+      "RateLimitDelay": "500-1000"
+    }
+  ]
+}
+```
+
+**Supported Features**:
+- **Shape Specification**: JSON shape or reference to OpenAPI spec
+- **OpenAPI Integration**: `OpenApiSpec` + `OpenApiOperationId` for schema-driven generation
+- **Shared Context**: Automatic context management via `ContextName`
+- **Tool Integration**: Pre-configure which tools to execute
+- **Tags/Groups**: Organize APIs by category
+- **Rate Limiting**: Per-API delay configuration
+- **N-Completions**: Generate multiple variants
+- **Streaming**: Enable SSE streaming
+- **Error Simulation**: Built-in error configuration
+- **Default Parameters**: Query params and headers
+
+**Benefits**:
+- **Zero Repetition**: Configure once, use everywhere
+- **Consistent Testing**: Same shape/context across team
+- **Quick Prototyping**: Call by name instead of building requests
+- **Documentation**: APIs are self-documenting in config
+
+**Usage** (via management endpoints - coming in v2.2.1):
+```http
+# List all configured APIs
+GET /api/configured
+
+# Execute configured API
+GET /api/configured/user-profile?userId=123
+```
+
+**appsettings.Full.json**: 8 complete examples including e-commerce workflows, monitoring APIs, and test scenarios
+
+#### 3. Dynamic Context Memory with Automatic Expiration 🔥
 
 **Problem Solved**: Context memory previously accumulated indefinitely, requiring manual cleanup and potentially causing memory leaks in long-running test sessions or CI/CD pipelines.
 
@@ -106,6 +229,55 @@ The LLM now sees **all** extracted fields in the prompt and maintains consistenc
 
 ### Technical Details
 
+**Pluggable Tools System**:
+
+**ToolConfig** (`Models/ToolConfig.cs`):
+- Comprehensive configuration model for all tool types
+- Support for HTTP, Mock, and extensible tool types
+- Parameter schemas with type validation
+- Timeout and caching configuration
+
+**HttpToolExecutor** (`Services/Tools/HttpToolExecutor.cs`):
+- Template substitution in URLs, headers, bodies using `{paramName}`
+- Environment variable resolution with `${ENV_VAR_NAME}`
+- Authentication: Bearer, Basic, API Key
+- JSONPath response extraction
+- Comprehensive error handling
+
+**MockToolExecutor** (`Services/Tools/MockToolExecutor.cs`):
+- Calls other mock endpoints for decision tree workflows
+- Supports all mock endpoint features (shape, context, etc.)
+- Enables complex multi-step API simulations
+
+**ToolRegistry** (`Services/Tools/ToolRegistry.cs`):
+- Discovers and validates configured tools
+- Extensible executor registration via `IToolExecutor` interface
+- Generates tool definitions for LLM (Phase 2 ready)
+
+**ToolOrchestrator** (`Services/Tools/ToolOrchestrator.cs`):
+- Coordinates tool execution with safety limits
+- MaxToolChainDepth tracking per request (prevents infinite loops)
+- MaxConcurrentTools limit
+- Result caching per request
+- Formats results for LLM context merging
+
+**Pre-Configured REST APIs**:
+
+**RestApiConfig** (`Models/RestApiConfig.cs`):
+- Complete API definition model
+- OpenAPI spec reference support
+- Tool integration, tags, default parameters
+- All mock features: shape, context, rate limiting, streaming, caching
+
+**RestApiRegistry** (`Services/RestApiRegistry.cs`):
+- Loads and validates all configured APIs
+- Thread-safe lookup with `ConcurrentDictionary`
+- Auto-reloads on configuration changes (`IOptionsMonitor`)
+- Tag-based filtering and grouping
+- Validation: required fields, valid HTTP methods, positive values
+
+**Context Memory**:
+
 **MemoryCacheContextStore** (`Services/MemoryCacheContextStore.cs`):
 - Uses `IMemoryCache` with `SlidingExpiration` option
 - Registers `PostEvictionCallback` for automatic cleanup logging
@@ -113,14 +285,19 @@ The LLM now sees **all** extracted fields in the prompt and maintains consistenc
 - Stale entry detection and removal on enumeration
 
 **OpenApiContextManager** (`Services/OpenApiContextManager.cs`):
-- New `ExtractAllFields()` method replaces `ExtractSharedData()`
+- New `ExtractAllFields()` method with recursive extraction
 - Recursive field extraction with configurable depth (default: 2 levels)
 - Handles nested objects, arrays, and primitive values
+- **Truncation fix**: Long strings (>100 chars) now truncated in SharedData to prevent bloat
 - Backward compatible with legacy field extraction
 
 **Configuration** (`LLMockApiOptions.cs`):
+- New `Tools` array for pluggable tool definitions
+- New `ToolExecutionMode` enum (Disabled/Explicit/LlmDriven)
+- New `MaxConcurrentTools` and `MaxToolChainDepth` safety limits
+- New `RestApis` array for pre-configured API definitions
 - New `ContextExpirationMinutes` property (default: 15, range: 5-1440)
-- Passed to `MemoryCacheContextStore` during DI registration
+- All registered in DI via `LLMockApiExtensions.RegisterCoreServices()`
 
 ### Testing
 
@@ -136,15 +313,48 @@ The LLM now sees **all** extracted fields in the prompt and maintains consistenc
 
 ### Documentation Updates
 
+**New Documentation**:
+- `docs/TOOLS_ACTIONS.md` (500+ lines): Complete guide to pluggable tools system
+  - Overview and MCP compatibility
+  - Tool types (HTTP and Mock)
+  - Configuration reference with all options
+  - Authentication methods (Bearer, Basic, API Key)
+  - Usage examples and patterns
+  - Decision tree patterns with mock tools
+  - Advanced scenarios (conditional logic, dynamic endpoints, POST templates)
+  - Phase 2/3 roadmap (LLM-driven tool selection, advanced decision trees)
+  - API reference with TypeScript schemas
+  - Troubleshooting and performance considerations
+
+- `docs/RATE_LIMITING_BATCHING.md`: Comprehensive rate limiting guide
+  - Configuration options and strategies
+  - N-completions with batching
+  - Per-endpoint statistics tracking
+  - Performance testing examples
+
 **Updated Files**:
-- `README.md`: New v2.2.0 section with feature highlights
-- `docs/API-CONTEXTS.md`: Complete rewrite of Context Storage and Shared Data Extraction sections
-  - IMemoryCache architecture explanation
+- `README.md`: New v2.2.0 section with tools and pre-configured APIs
+- `appsettings.Full.json`: Complete examples for:
+  - 5 tool configurations (HTTP and Mock tools)
+  - 8 pre-configured REST API definitions
+  - Tool authentication examples
+  - Decision tree patterns
+- `LLMApi.http`: 20+ new HTTP request examples
+  - Tool execution via query params and headers
+  - Template substitution examples
+  - Tool chaining patterns
+  - Authentication examples
+  - JSONPath extraction
+  - Performance monitoring
+- `docs/API-CONTEXTS.md`: Complete rewrite of Context Storage and Shared Data Extraction
+  - IMemoryCache architecture
   - Sliding expiration behavior
-  - Configuration recommendations
   - Dynamic extraction examples
   - Real-world use cases with nested data
-- `CLAUDE.md`: Added `ContextExpirationMinutes` to configuration options
+- `CLAUDE.md`: Updated with all new configuration options
+  - Tools & Actions configuration
+  - Pre-configured REST APIs
+  - Context expiration settings
 
 ### Breaking Changes
 

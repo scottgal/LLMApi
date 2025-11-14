@@ -31,9 +31,74 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 ## What's New in v2.2.0
 
-**Focus**: Intelligent, self-managing context memory that adapts to your testing needs. Fully backward compatible with v2.1.0.
+**Focus**: Pluggable tools for API integration, pre-configured REST APIs, and intelligent context memory. Fully backward compatible with v2.1.0.
 
-### 1. Dynamic Context Memory Management 🔥
+### 1. Pluggable Tools & Actions System 🔥
+Call external REST APIs or chain mock endpoints to create realistic workflows and decision trees:
+
+**HTTP Tools** - Call any external API:
+```json
+{
+  "Name": "getUserData",
+  "Type": "http",
+  "HttpConfig": {
+    "Endpoint": "https://api.example.com/users/{userId}",
+    "AuthType": "bearer",
+    "AuthToken": "${API_TOKEN}"  // Environment variable support
+  }
+}
+```
+
+**Mock Tools** - Chain mock endpoints:
+```json
+{
+  "Name": "getOrderHistory",
+  "Type": "mock",
+  "MockConfig": {
+    "Endpoint": "/api/mock/users/{userId}/orders",
+    "Shape": "{\"orders\":[{\"id\":\"string\",\"total\":0.0}]}"
+  }
+}
+```
+
+**Key Features**:
+- MCP-compatible architecture ready for LLM-driven tool selection
+- Template substitution (`{param}`) and environment variables (`${ENV_VAR}`)
+- Authentication: Bearer, Basic, API Key
+- JSONPath extraction, tool chaining, result caching
+- Safety limits prevent runaway execution
+
+**Documentation**: [TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)
+
+### 2. Pre-Configured REST APIs 🔥
+Define complete API configurations once, call by name:
+
+```json
+{
+  "RestApis": [
+    {
+      "Name": "user-profile",
+      "Path": "profile/{userId}",
+      "Shape": "{\"user\":{},\"orders\":[]}",
+      "ContextName": "user-session",
+      "Tools": ["getUserData", "getOrderHistory"],
+      "Tags": ["users"],
+      "CacheCount": 5
+    }
+  ]
+}
+```
+
+**Features**:
+- Shape or OpenAPI spec reference
+- Shared context management
+- Tool integration
+- Tags for organization
+- All mock features: rate limiting, streaming, caching, errors
+
+**8 complete examples** in `appsettings.Full.json`
+
+### 3. Dynamic Context Memory Management 🔥
 Context memory is now truly dynamic with automatic lifecycle management:
 
 **Automatic Expiration**
@@ -57,7 +122,7 @@ Context memory is now truly dynamic with automatic lifecycle management:
 }
 ```
 
-### 2. Intelligent Shared Data Extraction
+### 4. Intelligent Shared Data Extraction
 Context memory now automatically extracts **ALL** fields from responses:
 
 **Before (v2.1)**: Only hardcoded fields (`id`, `userId`, `name`, `email`)
@@ -103,13 +168,20 @@ Context memory now automatically extracts **ALL** fields from responses:
 - Nested relationships preserved across API calls
 - Perfect for complex e-commerce, financial, or enterprise scenarios
 
-### 3. Enhanced Context API Documentation
-Comprehensive updates to [API-CONTEXTS.md](./docs/API-CONTEXTS.md):
-- **Memory Management**: IMemoryCache architecture explained
-- **Dynamic Extraction**: How recursive field extraction works
-- **Configuration Guide**: Expiration time recommendations
-- **Performance Impact**: Memory usage and token considerations
-- **Real-World Scenarios**: Updated examples with nested data
+### 5. Enhanced Documentation
+New comprehensive guides:
+- **[TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)**: Complete pluggable tools system guide (500+ lines)
+  - HTTP and Mock tools with examples
+  - Authentication, template substitution, tool chaining
+  - Decision tree patterns and workflows
+  - Phase 2/3 roadmap for LLM-driven tool selection
+- **[RATE_LIMITING_BATCHING.md](./docs/RATE_LIMITING_BATCHING.md)**: Rate limiting and batching guide
+  - N-completions with multiple strategies
+  - Per-endpoint statistics tracking
+- **[API-CONTEXTS.md](./docs/API-CONTEXTS.md)**: Complete rewrite of context memory
+  - IMemoryCache architecture and sliding expiration
+  - Dynamic field extraction with nested objects/arrays
+  - Configuration recommendations and real-world scenarios
 
 **[See RELEASE_NOTES.md for complete details and full version history](./RELEASE_NOTES.md)**
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns

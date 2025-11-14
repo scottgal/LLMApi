@@ -1,55 +1,68 @@
 mostlylucid.mockllmapi — Release Notes
 
 ===============================================================================
+Release 2.2.0 — 2025-01-14
+===============================================================================
+
+Pluggable Tools & Pre-Configured APIs - MCP-Compatible Architecture
+
+1. Pluggable Tools & Actions System
+   - HTTP Tools: Call external REST APIs with Bearer/Basic/API Key auth
+   - Mock Tools: Chain mock endpoints for decision tree workflows
+   - MCP-compatible architecture ready for LLM-driven tool selection
+   - Template substitution: {paramName} + environment variables ${ENV_VAR}
+   - JSONPath response extraction, tool chaining, result caching
+   - Safety limits: MaxToolChainDepth, MaxConcurrentTools
+   - Modes: Disabled (default) | Explicit (v2.2) | LlmDriven (future)
+   - Full guide: docs/TOOLS_ACTIONS.md (500+ lines)
+
+2. Pre-Configured REST APIs
+   - Define complete API configs once, call by name
+   - Shape/OpenAPI spec, shared context, tool integration, tags
+   - All features: rate limiting, n-completions, streaming, caching
+   - 8 examples in appsettings.Full.json
+   - Management endpoints coming in v2.2.1
+
+3. Dynamic Context Memory with Auto-Expiration
+   - IMemoryCache with sliding expiration (default: 15 min)
+   - Zero manual cleanup - contexts auto-expire after inactivity
+   - Configurable: ContextExpirationMinutes (5-1440 range)
+   - Perfect for CI/CD - no state accumulation
+
+4. Enhanced Shared Data Extraction
+   - Recursive extraction captures ALL fields automatically
+   - Nested objects (address.city), arrays (items.length, items[0].id)
+   - Works for any domain: e-commerce, finance, healthcare, etc.
+   - Backward compatible + truncation fix for long strings
+
+Configuration:
+  - 5 tool examples (HTTP + Mock) in appsettings.Full.json
+  - 8 pre-configured API examples (simple → workflows)
+  - 20+ HTTP request examples in LLMApi.http
+
+Technical:
+  - ToolRegistry & ToolOrchestrator services
+  - RestApiRegistry with tag filtering
+  - HttpToolExecutor & MockToolExecutor
+  - DI registration, auto-reload on config changes
+
+Documentation:
+  - NEW: docs/TOOLS_ACTIONS.md (complete tool system guide)
+  - NEW: docs/RATE_LIMITING_BATCHING.md (v2.1.0)
+  - Updated: README.md, appsettings.Full.json, LLMApi.http
+  - Updated: docs/API-CONTEXTS.md (dynamic extraction)
+
+Breaking Changes: None - fully backward compatible
+
+===============================================================================
 Release 2.1.0 — 2025-01-06
 ===============================================================================
 
-NOTE: v2.0.0 was skipped to refine key areas before stable release:
-      - Chunking reliability (array formatting)
-      - Configuration clarity (streamlined appsettings + model reference)
-      - Comprehensive validation suite (70+ HTTP tests)
-      - Complete Swagger documentation for all management endpoints
-
 Quality & Validation Release - Production Ready
 
-1. HTTP Validation Suite (70+ Tests)
-   - Complete coverage in LLMApi.http: OpenAPI, contexts, gRPC, SSE, chunking
-   - Backend selection (X-LLM-Backend header)
-   - Schema validation (includeSchema + X-Response-Schema)
-
-2. Enhanced Chunking Reliability
-   - Explicit array formatting: prevents {...},{...} → ensures [{...},{...}]
-   - Updated PromptBuilder.cs and ChunkingCoordinator.cs
-   - Model/temperature recommendations documented
-
-3. Streamlined Configuration
-   - Clean appsettings.json (removed verbose comments)
-   - NEW docs/OLLAMA_MODELS.md (10+ models, temp guidelines, troubleshooting)
-
-4. Complete Documentation
-   - Full Swagger docs for 25+ management endpoints
-   - NEW docs/BACKEND_API_REFERENCE.md (600+ lines)
-
-Chunking Note: At temperature 1.2+, LLMs may generate comma-separated objects.
-Workarounds: Lower temp to 0.8-1.0, use llama3.2:3b/mistral-nemo, reduce
-count, or set ?autoChunk=false
-
-Fully backward compatible - no breaking changes
-
-===============================================================================
-Previous Releases
-===============================================================================
-
-v2.0.0 (RC only - production release skipped):
-- SSE streaming modes (LlmTokens/CompleteObjects/ArrayItems)
-- Multi-backend load balancing
-- Swagger/OpenAPI UI
-- Per-request backend selection (?backend= or X-LLM-Backend header)
-
-v1.8.0: Auto-chunking for large responses, multiple LLM backends
-v1.7.0: gRPC service mocking with .proto upload, JSON+binary Protobuf
-v1.6.0: Error simulation, API context management
-v1.5.0: API contexts, GraphQL support, Polly resilience
-v1.0-1.2: Initial releases, SignalR streaming, modular architecture
+- HTTP Validation Suite (70+ Tests)
+- Enhanced Chunking Reliability
+- Streamlined Configuration
+- Complete Swagger Documentation
 
 Full history: github.com/ScottGalloway/mostlylucid.mockllmapi/blob/main/RELEASE_NOTES.md
