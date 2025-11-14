@@ -223,6 +223,18 @@ public static class LlMockApiExtensions
             services.AddScoped<LLMockApiService>();
             services.AddScoped<ChunkingCoordinator>(); // Automatic request chunking
 
+            // Tool system (pluggable actions)
+            services.AddHttpClient("ToolExecutor"); // Separate client for tool execution
+            services.AddSingleton<Services.Tools.HttpToolExecutor>();
+            services.AddSingleton<Services.Tools.MockToolExecutor>();
+            services.AddSingleton<Services.Tools.IToolExecutor>(sp => sp.GetRequiredService<Services.Tools.HttpToolExecutor>());
+            services.AddSingleton<Services.Tools.IToolExecutor>(sp => sp.GetRequiredService<Services.Tools.MockToolExecutor>());
+            services.AddSingleton<Services.Tools.ToolRegistry>();
+            services.AddScoped<Services.Tools.ToolOrchestrator>();
+
+            // Pre-configured REST APIs
+            services.AddSingleton<RestApiRegistry>();
+
             // Register context store with configurable automatic expiration
             services.AddSingleton<IContextStore>(sp =>
             {

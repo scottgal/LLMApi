@@ -282,8 +282,10 @@ public class OpenApiContextManager
                     var strValue = property.Value.GetString();
                     if (strValue != null)
                     {
-                        context.SharedData[key] = strValue;
-                        AddLegacyKey(context, property.Name, strValue, depth);
+                        // Truncate long string values to prevent SharedData bloat
+                        var truncatedValue = strValue.Length > 100 ? strValue.Substring(0, 100) + "..." : strValue;
+                        context.SharedData[key] = truncatedValue;
+                        AddLegacyKey(context, property.Name, truncatedValue, depth);
                     }
                     break;
 

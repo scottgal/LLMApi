@@ -424,8 +424,15 @@ public class ErrorHandlingTests
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
         var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(options);
         var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, options, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
+
+        // Tool system (minimal setup for tests)
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
+        var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
+        var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
+
         var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, NullLogger<RegularRequestHandler>.Instance);
+            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");

@@ -4,11 +4,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles non-streaming mock API requests with automatic chunking and rate limiting support
+/// Handles non-streaming mock API requests with automatic chunking, rate limiting, and tool execution support
 /// </summary>
 public class RegularRequestHandler
 {
@@ -23,6 +24,7 @@ public class RegularRequestHandler
     private readonly ChunkingCoordinator _chunkingCoordinator;
     private readonly RateLimitService _rateLimitService;
     private readonly BatchingCoordinator _batchingCoordinator;
+    private readonly ToolOrchestrator _toolOrchestrator;
     private readonly ILogger<RegularRequestHandler> _logger;
 
     private const int MaxSchemaHeaderLength = 4000;
@@ -39,6 +41,7 @@ public class RegularRequestHandler
         ChunkingCoordinator chunkingCoordinator,
         RateLimitService rateLimitService,
         BatchingCoordinator batchingCoordinator,
+        ToolOrchestrator toolOrchestrator,
         ILogger<RegularRequestHandler> logger)
     {
         _options = options.Value;
@@ -52,6 +55,7 @@ public class RegularRequestHandler
         _chunkingCoordinator = chunkingCoordinator;
         _rateLimitService = rateLimitService;
         _batchingCoordinator = batchingCoordinator;
+        _toolOrchestrator = toolOrchestrator;
         _logger = logger;
     }
 
@@ -108,6 +112,33 @@ public class RegularRequestHandler
             ? _contextManager.GetContextForPrompt(contextName)
             : null;
 
+        // Execute tools if requested (Phase 1: Explicit mode)
+        List<ToolResult>? toolResults = null;
+        var requestId = Guid.NewGuid().ToString();
+
+        if (_options.ToolExecutionMode == ToolExecutionMode.Explicit)
+        {
+            var requestedTools = GetRequestedTools(request);
+            if (requestedTools.Count > 0)
+            {
+                _logger.LogInformation("Executing {Count} tools for request: {Tools}",
+                    requestedTools.Count, string.Join(", ", requestedTools));
+
+                var toolParams = ExtractToolParameters(request, body);
+                toolResults = await _toolOrchestrator.ExecuteToolsAsync(
+                    requestedTools, toolParams, requestId, cancellationToken);
+
+                // Merge tool results into context
+                if (toolResults.Count > 0)
+                {
+                    var toolContext = _toolOrchestrator.FormatToolResultsForContext(toolResults);
+                    contextHistory = string.IsNullOrWhiteSpace(contextHistory)
+                        ? toolContext
+                        : contextHistory + "\n\n" + toolContext;
+                }
+            }
+        }
+
         // Execute with automatic chunking if needed
         var content = await _chunkingCoordinator.ExecuteWithChunkingAsync(
             request,
@@ -153,6 +184,26 @@ public class RegularRequestHandler
 
         // Optionally include schema in header
         TryAddSchemaHeader(context, request, shapeInfo.Shape);
+
+        // Optionally include tool results in response
+        if (_options.IncludeToolResultsInResponse && toolResults != null && toolResults.Count > 0)
+        {
+            var contentJson = System.Text.Json.JsonDocument.Parse(content);
+            var wrappedResponse = new
+            {
+                data = contentJson.RootElement,
+                toolResults = toolResults.Select(r => new
+                {
+                    toolName = r.ToolName,
+                    success = r.Success,
+                    data = r.Data != null ? System.Text.Json.JsonDocument.Parse(r.Data).RootElement : (object?)null,
+                    error = r.Error,
+                    executionTimeMs = r.ExecutionTimeMs,
+                    metadata = r.Metadata
+                })
+            };
+            return System.Text.Json.JsonSerializer.Serialize(wrappedResponse, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
 
         return content;
     }
@@ -447,5 +498,80 @@ public class RegularRequestHandler
             _logger.LogError(ex, "Failed to add rate limit headers");
             // Swallow errors to avoid impacting response
         }
+    }
+
+    /// <summary>
+    /// Get list of requested tools from query parameters or headers
+    /// Supports: ?useTool=tool1,tool2 or X-Use-Tool: tool1,tool2
+    /// </summary>
+    private List<string> GetRequestedTools(HttpRequest request)
+    {
+        var tools = new List<string>();
+
+        // Check query parameter first
+        if (request.Query.TryGetValue("useTool", out var queryParam) && queryParam.Count > 0)
+        {
+            var toolNames = queryParam[0]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (toolNames != null)
+            {
+                tools.AddRange(toolNames);
+            }
+        }
+
+        // Check header
+        if (request.Headers.TryGetValue("X-Use-Tool", out var headerParam))
+        {
+            var headerValue = headerParam.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(headerValue))
+            {
+                var toolNames = headerValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                tools.AddRange(toolNames);
+            }
+        }
+
+        return tools.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Extract tool parameters from query string and request body
+    /// </summary>
+    private Dictionary<string, object> ExtractToolParameters(HttpRequest request, string? body)
+    {
+        var parameters = new Dictionary<string, object>();
+
+        // Add all query parameters
+        foreach (var (key, value) in request.Query)
+        {
+            if (key != "useTool" && value.Count > 0)
+            {
+                parameters[key] = value[0] ?? string.Empty;
+            }
+        }
+
+        // Parse body as JSON and add fields as parameters
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                var jsonDoc = System.Text.Json.JsonDocument.Parse(body);
+                foreach (var property in jsonDoc.RootElement.EnumerateObject())
+                {
+                    parameters[property.Name] = property.Value.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                        System.Text.Json.JsonValueKind.Number => property.Value.GetDouble(),
+                        System.Text.Json.JsonValueKind.True => true,
+                        System.Text.Json.JsonValueKind.False => false,
+                        _ => property.Value.GetRawText()
+                    };
+                }
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse request body as JSON for tool parameters");
+            }
+        }
+
+        return parameters;
     }
 }

@@ -934,6 +934,295 @@ Accept: application/json
 ###
 
 ###############################################################################
+# PLUGGABLE TOOLS & ACTIONS (v2.2.0+)
+# Documentation: docs/TOOLS_ACTIONS.md
+# Features:
+# - HTTP tools: Call external APIs with template substitution
+# - Mock tools: Create decision trees by chaining mock endpoints
+# - Tool execution modes: Disabled, Explicit, LlmDriven (Phase 2)
+# - Safety limits: MaxToolChainDepth, MaxConcurrentTools
+# - Parameter substitution: {paramName} in URLs, headers, bodies
+# - Environment variables: ${ENV_VAR_NAME} for secure credentials
+# - Result caching: Cache expensive operations per request
+###############################################################################
+
+### Basic Tool Execution
+# Execute a single HTTP tool explicitly via query param
+# Requires ToolExecutionMode: "Explicit" in appsettings.json
+# Tool "getUserData" must be configured in Tools array
+GET {{LLMApi_HostAddress}}/api/mock/user-profile?useTool=getUserData&userId=1
+Accept: application/json
+
+###
+
+### Tool Execution via Header
+# Alternative way to specify tool execution using X-Use-Tool header
+# Can specify multiple tools: X-Use-Tool: tool1,tool2,tool3
+GET {{LLMApi_HostAddress}}/api/mock/user-profile
+X-Use-Tool: getUserData
+X-Tool-Params: {"userId":"5"}
+Accept: application/json
+
+###
+
+### HTTP Tool with Template Substitution
+# Tool configuration in appsettings.json:
+# {
+#   "Name": "getUserData",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "https://jsonplaceholder.typicode.com/users/{userId}",
+#     "Method": "GET"
+#   }
+# }
+# The {userId} is replaced with the query param or tool parameter
+GET {{LLMApi_HostAddress}}/api/mock/enriched-user?useTool=getUserData&userId=3
+Accept: application/json
+
+###
+
+### POST Tool with Body Template
+# Tool with JSON body template:
+# {
+#   "Name": "createUser",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "https://jsonplaceholder.typicode.com/users",
+#     "Method": "POST",
+#     "BodyTemplate": "{\"name\":\"{userName}\",\"email\":\"{userEmail}\"}"
+#   }
+# }
+POST {{LLMApi_HostAddress}}/api/mock/new-user?useTool=createUser
+Content-Type: application/json
+Accept: application/json
+
+{
+  "userName": "Alice Johnson",
+  "userEmail": "alice@example.com",
+  "department": "Engineering"
+}
+
+###
+
+### Mock Tool - Decision Tree Pattern
+# Call another mock endpoint to create multi-step workflows
+# Tool configuration:
+# {
+#   "Name": "getOrderHistory",
+#   "Type": "mock",
+#   "MockConfig": {
+#     "Endpoint": "/api/mock/users/{userId}/orders",
+#     "Method": "GET",
+#     "QueryParams": { "limit": "10" },
+#     "Shape": "{\"orders\":[{\"id\":\"string\",\"total\":0.0}]}"
+#   }
+# }
+GET {{LLMApi_HostAddress}}/api/mock/user-dashboard?useTool=getOrderHistory&userId=42
+Accept: application/json
+
+###
+
+### Chained Tools - Decision Tree
+# Execute multiple tools in sequence to build complex workflows
+# First tool gets user data, second tool gets order history
+# Results automatically merged into LLM context
+GET {{LLMApi_HostAddress}}/api/mock/complete-profile?useTool=getUserData,getOrderHistory&userId=7
+Accept: application/json
+
+###
+
+### Tool with Authentication - Bearer Token
+# Tool configuration with auth:
+# {
+#   "Name": "getProtectedData",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "https://api.example.com/protected/{resourceId}",
+#     "Method": "GET",
+#     "AuthType": "bearer",
+#     "AuthToken": "${API_TOKEN}"  // From environment variable
+#   }
+# }
+GET {{LLMApi_HostAddress}}/api/mock/protected-resource?useTool=getProtectedData&resourceId=res-123
+Accept: application/json
+
+###
+
+### Tool with Custom Headers
+# Tool with header template substitution:
+# {
+#   "Name": "apiWithHeaders",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "https://api.example.com/data",
+#     "Headers": {
+#       "X-User-ID": "{userId}",
+#       "X-Trace-ID": "{traceId}",
+#       "X-API-Version": "v2"
+#     }
+#   }
+# }
+GET {{LLMApi_HostAddress}}/api/mock/traced-request?useTool=apiWithHeaders&userId=user-456&traceId=trace-789
+Accept: application/json
+
+###
+
+### Tool Result Inclusion in Response
+# Include tool results directly in the API response
+# Requires IncludeToolResultsInResponse: true in appsettings.json
+# Response format:
+# {
+#   "data": { /* LLM generated data */ },
+#   "toolResults": [
+#     {
+#       "toolName": "getUserData",
+#       "success": true,
+#       "data": { /* tool response */ },
+#       "executionTimeMs": 234
+#     }
+#   ]
+# }
+GET {{LLMApi_HostAddress}}/api/mock/debug-user?useTool=getUserData&userId=8
+Accept: application/json
+
+###
+
+### JSONPath Response Extraction
+# Extract specific fields from tool response using JSONPath
+# Tool configuration:
+# {
+#   "Name": "getUserEmail",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "https://jsonplaceholder.typicode.com/users/{userId}",
+#     "ResponsePath": "$.email"  // Only extract email field
+#   }
+# }
+GET {{LLMApi_HostAddress}}/api/mock/user-contact?useTool=getUserEmail&userId=2
+Accept: application/json
+
+###
+
+### Tool with Shape and Context
+# Combine tools with shape specification and context management
+# Tool results merged into context before LLM generates final response
+GET {{LLMApi_HostAddress}}/api/mock/shopping-api/user-recommendations?useTool=getUserData,getOrderHistory&userId=15
+X-Context-Name: shopping-api
+X-Response-Shape: {"recommendations":[{"productId":"string","score":0.0,"reason":"string"}]}
+Accept: application/json
+
+###
+
+### Tool Error Handling
+# If a tool fails, the error is included in context
+# LLM can generate appropriate fallback response
+# Response includes X-Tool-Errors header with count
+GET {{LLMApi_HostAddress}}/api/mock/resilient-endpoint?useTool=getUserData&userId=invalid
+Accept: application/json
+
+###
+
+### Conditional Tool Execution
+# Use mock tools to implement conditional logic
+# Example: Get premium features only if user is premium
+# Tool chain:
+# 1. getUserData -> check user tier
+# 2. If premium, getPremiumFeatures
+# 3. Generate response with appropriate data
+GET {{LLMApi_HostAddress}}/api/mock/features?useTool=getUserData&userId=10
+X-Response-Shape: {"features":["string"],"tier":"string","hasAccess":true}
+Accept: application/json
+
+###
+
+### Multi-Tool POST Example
+# POST request with multiple tool executions
+# Tools can read from request body for parameters
+POST {{LLMApi_HostAddress}}/api/mock/complete-order?useTool=validateInventory,processPayment
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderId": "ORD-12345",
+  "items": [
+    { "sku": "ITEM-001", "quantity": 2 },
+    { "sku": "ITEM-002", "quantity": 1 }
+  ],
+  "paymentMethod": "credit_card",
+  "total": 149.99
+}
+
+###
+
+### Tool Performance Monitoring
+# Check response headers for tool execution statistics:
+# - X-Tool-Count: Number of tools executed
+# - X-Tool-Time: Total tool execution time (ms)
+# - X-Tool-Errors: Number of tool failures
+# - X-Tool-Cached: Number of cached results used
+GET {{LLMApi_HostAddress}}/api/mock/monitored-request?useTool=getUserData,getOrderHistory&userId=20
+Accept: application/json
+
+###
+
+### Tool Caching Example
+# Enable caching to speed up repeated tool calls
+# Tool configuration with EnableCaching: true
+# Cached results reused within same request
+GET {{LLMApi_HostAddress}}/api/mock/cached-profile?useTool=getUserData&userId=25
+Accept: application/json
+
+###
+
+### Complex Decision Tree - Multi-Step Workflow
+# Simulate complex workflow with multiple chained mock endpoints:
+# 1. Get user profile -> extract user tier
+# 2. Based on tier, get appropriate product catalog
+# 3. Get user's order history
+# 4. Generate personalized recommendations
+# 5. Return enriched response with all context
+GET {{LLMApi_HostAddress}}/api/mock/personalized-dashboard?useTool=getUserData,getOrderHistory,getCatalog&userId=30
+X-Context-Name: shopping-api
+X-Response-Shape: {"user":{"name":"string","tier":"string"},"recommendations":[{"productId":"string","score":0.0}],"recentOrders":[{"id":"string","total":0.0}]}
+Accept: application/json
+
+###
+
+### Tool with Environment Variables
+# Use environment variables for secure credential management
+# Tool configuration:
+# {
+#   "Name": "secureApi",
+#   "Type": "http",
+#   "HttpConfig": {
+#     "Endpoint": "${API_BASE_URL}/users/{userId}",
+#     "AuthType": "bearer",
+#     "AuthToken": "${SECRET_API_KEY}"
+#   }
+# }
+# Environment variables resolved at runtime
+GET {{LLMApi_HostAddress}}/api/mock/secure-data?useTool=secureApi&userId=100
+Accept: application/json
+
+###
+
+### Tool Execution with Rate Limiting
+# Combine tools with rate limiting for realistic API simulation
+# Useful for testing timeout and retry strategies with external dependencies
+GET {{LLMApi_HostAddress}}/api/mock/slow-enriched-data?useTool=getUserData&userId=50&rateLimit=1000-2000
+Accept: application/json
+
+###
+
+### Streaming with Tools
+# Tools can be executed in streaming endpoints
+# Tool results available before stream starts
+GET {{LLMApi_HostAddress}}/api/mock/stream/live-profile?useTool=getUserData&userId=60
+Accept: text/event-stream
+
+###
+
+###############################################################################
 # END OF VALIDATION SUITE
 # This file covers:
 # ✅ Basic REST endpoints (GET, POST, PUT, DELETE)
@@ -953,6 +1242,7 @@ Accept: application/json
 # ✅ Schema validation (includeSchema + X-Response-Schema)
 # ✅ Combined feature validation
 # ✅ Rate limiting & batching (v2.1.0+)
+# ✅ Pluggable tools & actions (v2.2.0+)
 #
 # ⚠️  Not included: Binary protobuf (as requested)
 # ⚠️  SignalR WebSocket testing (requires WebSocket client)

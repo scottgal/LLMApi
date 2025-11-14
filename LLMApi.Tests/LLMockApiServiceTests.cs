@@ -275,9 +275,14 @@ public class LLMockApiServiceTests
         var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(opts);
         var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, opts, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
 
+        // Tool system (minimal setup for tests)
+        var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
+        var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
+        var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
+
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, cacheManager, delayHelper,
-            chunkingCoordinator, rateLimitService, batchingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
+            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,

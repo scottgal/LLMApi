@@ -8,9 +8,9 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 **Companion Package:** [mostlylucid.mockllmapi.Testing](./mostlylucid.mockllmapi.Testing/README.md) - Testing utilities with fluent HttpClient integration
 
-**Version 2.2.0 (COMING SOON!)** - Dynamic context memory with automatic expiration and enhanced shared data extraction.
+**Version 2.2.0 (NEW!)** - [Pluggable tools & actions](./docs/TOOLS_ACTIONS.md) with MCP-compatible architecture for HTTP calls, decision trees, and tool chaining. Plus dynamic context memory with automatic expiration.
 
-**Version 2.1.0 (NEW!)** - [Rate limiting and batching support](./docs/RATE_LIMITING_BATCHING.md) with n-completions, per-endpoint statistics, and multiple execution strategies.
+**Version 2.1.0** - [Rate limiting and batching support](./docs/RATE_LIMITING_BATCHING.md) with n-completions, per-endpoint statistics, and multiple execution strategies.
 
 ---
 
@@ -208,6 +208,14 @@ For detailed guides with architecture diagrams, use cases, and implementation de
   - Three batching strategies (Sequential, Parallel, Streaming)
   - Detailed timing headers for performance testing
   - Perfect for testing backoff strategies and timeout scenarios
+
+- **[Pluggable Tools & Actions Guide](./docs/TOOLS_ACTIONS.md)** - NEW in v2.2.0!
+  - MCP-compatible architecture for extensible tool integration
+  - HTTP tools for calling external APIs with authentication
+  - Mock tools for creating decision trees and workflows
+  - Template substitution with environment variable support
+  - Tool chaining with safety limits and result caching
+  - Phase 1 (Explicit), Phase 2 (LLM-driven), Phase 3 (Advanced) roadmap
 
 - **[gRPC Support Guide](./docs/GRPC_SUPPORT.md)** - NEW in v1.7.0!
   - Upload .proto files for automatic gRPC service mocking

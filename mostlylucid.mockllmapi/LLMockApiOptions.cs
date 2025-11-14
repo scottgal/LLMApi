@@ -280,6 +280,55 @@ public class LLMockApiOptions
 
     #endregion
 
+    #region Tools & Actions Options
+
+    /// <summary>
+    /// Tool execution mode (default: Disabled)
+    /// - Disabled: Tools not available
+    /// - Explicit: Tools called via ?useTool=name or X-Use-Tool header
+    /// - LlmDriven: LLM decides which tools to call (Phase 2)
+    /// </summary>
+    public ToolExecutionMode ToolExecutionMode { get; set; } = ToolExecutionMode.Disabled;
+
+    /// <summary>
+    /// Available tools that can be called from mock endpoints
+    /// Supports HTTP calls, mock endpoint calls, and extensible tool types
+    /// MCP-compatible design for future integration
+    /// </summary>
+    public List<ToolConfig> Tools { get; set; } = new();
+
+    /// <summary>
+    /// Maximum concurrent tool executions per request (default: 5)
+    /// Prevents runaway tool chains
+    /// </summary>
+    public int MaxConcurrentTools { get; set; } = 5;
+
+    /// <summary>
+    /// Maximum tool chain depth (default: 3)
+    /// Prevents infinite recursion in decision trees
+    /// </summary>
+    public int MaxToolChainDepth { get; set; } = 3;
+
+    /// <summary>
+    /// Include tool results in response (default: false)
+    /// When true, adds "toolResults" field to response JSON
+    /// Useful for debugging tool chains
+    /// </summary>
+    public bool IncludeToolResultsInResponse { get; set; } = false;
+
+    #endregion
+
+    #region Pre-configured REST APIs
+
+    /// <summary>
+    /// Pre-configured REST API definitions (NEW in v2.2.0)
+    /// Define complete API configurations with shape, context, tools, etc.
+    /// Call by name to apply all settings automatically: /api/configured/{name}
+    /// </summary>
+    public List<RestApiConfig> RestApis { get; set; } = new();
+
+    #endregion
+
     #region Context Options
 
     /// <summary>

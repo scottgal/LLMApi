@@ -356,7 +356,11 @@ public class OpenApiContextManagerTests
         // Assert
         Assert.NotNull(prompt);
         Assert.Contains("...", prompt); // Should be truncated
-        Assert.True(prompt.Length < longResponse.Length + 500); // Significantly shorter
+
+        // The response should be truncated to ~300 chars in the prompt
+        // We check that the full longResponse is NOT in the prompt
+        var fullResponseData = new string('x', 1000);
+        Assert.DoesNotContain(fullResponseData, prompt); // Full data should be truncated
     }
 
     [Fact]
