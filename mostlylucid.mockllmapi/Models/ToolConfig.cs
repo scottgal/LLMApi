@@ -197,6 +197,11 @@ public class ParameterSchema
     /// Allowed values (enum)
     /// </summary>
     public List<object>? Enum { get; set; }
+
+    /// <summary>
+    /// Example value for this parameter
+    /// </summary>
+    public object? Example { get; set; }
 }
 
 /// <summary>

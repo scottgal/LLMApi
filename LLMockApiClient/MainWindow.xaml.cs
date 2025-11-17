@@ -98,6 +98,9 @@ public partial class MainWindow : Window
             case "OpenAPI":
                 ContentFrame.Navigate(new OpenApiPage(_apiService));
                 break;
+            case "OpenAPIGenerator":
+                ContentFrame.Navigate(new OpenApiGeneratorPage(_apiService));
+                break;
             case "gRPC":
                 ContentFrame.Navigate(new GrpcPage(_apiService));
                 break;
@@ -135,6 +138,7 @@ public partial class MainWindow : Window
         {
             "SSE Streaming" => "SSE",
             "OpenAPI Manager" => "OpenAPI",
+            "OpenAPI Generator" => "OpenAPIGenerator",
             "SignalR" => "SignalR",
             "Dashboard" => "Dashboard",
             "gRPC" => "gRPC",

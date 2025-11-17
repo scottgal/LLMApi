@@ -80,6 +80,13 @@
                         </StackPanel>
                     </ListBoxItem>
 
+                    <ListBoxItem x:Name="OpenApiGeneratorNav" Tag="OpenAPIGenerator">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✨" FontSize="16" Margin="0,0,8,0"/>
+                            <TextBlock Text="OpenAPI Generator" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+
                     <ListBoxItem x:Name="GrpcNav" Tag="gRPC">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⚡" FontSize="16" Margin="0,0,8,0"/>

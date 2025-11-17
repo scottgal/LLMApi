@@ -232,6 +232,13 @@ public static class LlMockApiExtensions
             services.AddSingleton<Services.Tools.ToolRegistry>();
             services.AddScoped<Services.Tools.ToolOrchestrator>();
 
+            // Tool fitness testing and RAG optimization
+            services.AddScoped<Services.Tools.ToolFitnessTester>();
+            services.AddSingleton<Services.Tools.ToolFitnessRagStore>();
+
+            // Unit test generation (Pyguin + LLM fallback)
+            services.AddScoped<Services.Tools.UnitTestGenerator>();
+
             // Pre-configured REST APIs
             services.AddSingleton<RestApiRegistry>();
 
@@ -1074,6 +1081,182 @@ public static class LlMockApiExtensions
             .Produces(200, contentType: "application/grpc+proto")
             .Produces(400)
             .Produces(500);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps tool fitness testing and evolution endpoints
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">Base path pattern (default: "/api/tools/fitness")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockToolFitness(
+        this IApplicationBuilder app,
+        string pattern = "/api/tools/fitness")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockToolFitness requires endpoint routing. " +
+                "Ensure you have called app.UseRouting() before calling this method.");
+        }
+
+        var basePattern = pattern.TrimEnd('/');
+
+        // Run comprehensive fitness tests
+        routeBuilder.MapPost($"{basePattern}/test",
+            async (Services.Tools.ToolFitnessTester tester,
+                   Services.Tools.ToolFitnessRagStore ragStore,
+                   ILogger<Services.Tools.ToolFitnessTester> logger,
+                   CancellationToken cancellationToken) =>
+                await ToolFitnessEndpoints.HandleRunFitnessTest(tester, ragStore, logger, cancellationToken))
+            .WithName("LLMockApi-ToolFitness-RunTests")
+            .WithTags("Tool Fitness")
+            .WithSummary("Run comprehensive fitness tests on all tools")
+            .WithDescription("Executes all configured tools with generated dummy data, validates expectations, scores fitness (0-100), and stores results in RAG database.")
+            .Produces<Services.Tools.ToolFitnessReport>(200)
+            .Produces(500);
+
+        // Get fitness history for specific tool
+        routeBuilder.MapGet($"{basePattern}/{{toolName}}",
+            (string toolName, Services.Tools.ToolFitnessRagStore ragStore, int maxResults = 10) =>
+                ToolFitnessEndpoints.HandleGetToolFitnessHistory(toolName, ragStore, maxResults))
+            .WithName("LLMockApi-ToolFitness-GetHistory")
+            .WithTags("Tool Fitness")
+            .WithSummary("Get fitness history for a specific tool")
+            .WithDescription("Returns historical fitness scores and test results for a tool.")
+            .Produces(200)
+            .Produces(404);
+
+        // Get all low-fitness tools
+        routeBuilder.MapGet($"{basePattern}/low",
+            (Services.Tools.ToolFitnessRagStore ragStore, double threshold = 60.0) =>
+                ToolFitnessEndpoints.HandleGetLowFitnessTools(ragStore, threshold))
+            .WithName("LLMockApi-ToolFitness-GetLowFitness")
+            .WithTags("Tool Fitness")
+            .WithSummary("Get all low-fitness tools below threshold")
+            .WithDescription("Returns tools with fitness scores below the specified threshold (default: 60.0).")
+            .Produces(200);
+
+        // Get fitness trends
+        routeBuilder.MapGet($"{basePattern}/trends",
+            (Services.Tools.ToolFitnessRagStore ragStore, int minSnapshots = 3) =>
+                ToolFitnessEndpoints.HandleGetFitnessTrends(ragStore, minSnapshots))
+            .WithName("LLMockApi-ToolFitness-GetTrends")
+            .WithTags("Tool Fitness")
+            .WithSummary("Get fitness trends for all tools")
+            .WithDescription("Returns fitness trend analysis showing improving, declining, and stable tools.")
+            .Produces(200);
+
+        // Trigger evolution for low-fitness tools
+        routeBuilder.MapPost($"{basePattern}/evolve",
+            async (HttpContext ctx,
+                   Services.Tools.ToolFitnessTester tester,
+                   Services.Tools.ToolFitnessRagStore ragStore,
+                   ILogger<Services.Tools.ToolFitnessTester> logger,
+                   CancellationToken cancellationToken) =>
+                await ToolFitnessEndpoints.HandleEvolveTools(ctx, tester, ragStore, logger, cancellationToken))
+            .WithName("LLMockApi-ToolFitness-Evolve")
+            .WithTags("Tool Fitness")
+            .WithSummary("Trigger evolution for low-fitness tools")
+            .WithDescription("Uses god-level LLM to analyze low-fitness tools and provide optimization recommendations. Requires god-level LLM client configuration.")
+            .Produces(200)
+            .Produces(500);
+
+        // Export fitness history
+        routeBuilder.MapGet($"{basePattern}/export",
+            async (Services.Tools.ToolFitnessRagStore ragStore, ILogger<Services.Tools.ToolFitnessRagStore> logger) =>
+                await ToolFitnessEndpoints.HandleExportFitnessHistory(ragStore, logger))
+            .WithName("LLMockApi-ToolFitness-Export")
+            .WithTags("Tool Fitness")
+            .WithSummary("Export complete fitness history")
+            .WithDescription("Exports all fitness data to JSON file for backup or external analysis.")
+            .Produces(200)
+            .Produces(500);
+
+        // Get storage information
+        routeBuilder.MapGet($"{basePattern}/storage",
+            (Services.Tools.ToolFitnessRagStore ragStore) =>
+                ToolFitnessEndpoints.HandleGetStorageInfo(ragStore))
+            .WithName("LLMockApi-ToolFitness-Storage")
+            .WithTags("Tool Fitness")
+            .WithSummary("Get storage directory information")
+            .WithDescription("Returns information about the fitness data storage location and files.")
+            .Produces(200);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps unit test generation endpoints (Pyguin + LLM fallback)
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">Base path pattern (default: "/api/tools")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockUnitTestGeneration(
+        this IApplicationBuilder app,
+        string pattern = "/api/tools")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockUnitTestGeneration requires endpoint routing. " +
+                "Ensure you have called app.UseRouting() before calling this method.");
+        }
+
+        var basePattern = pattern.TrimEnd('/');
+
+        // Generate unit tests for tool
+        routeBuilder.MapPost($"{basePattern}/generate-tests",
+            async (HttpContext ctx,
+                   Services.Tools.UnitTestGenerator generator,
+                   ILogger<Services.Tools.UnitTestGenerator> logger,
+                   CancellationToken cancellationToken) =>
+                await UnitTestEndpoints.HandleGenerateTests(ctx, generator, logger, cancellationToken))
+            .WithName("LLMockApi-Tools-GenerateTests")
+            .WithTags("Unit Test Generation")
+            .WithSummary("Generate unit tests using Pyguin with LLM fallback")
+            .WithDescription("Attempts Pyguin-based test generation first, falls back to LLM if Pyguin fails. Includes comprehensive code review.")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
+
+        // Review code for correctness
+        routeBuilder.MapPost($"{basePattern}/review-code",
+            async (HttpContext ctx,
+                   Services.Tools.UnitTestGenerator generator,
+                   ILogger<Services.Tools.UnitTestGenerator> logger,
+                   CancellationToken cancellationToken) =>
+                await UnitTestEndpoints.HandleReviewCode(ctx, generator, logger, cancellationToken))
+            .WithName("LLMockApi-Tools-ReviewCode")
+            .WithTags("Code Review")
+            .WithSummary("Review code for correctness using LLM")
+            .WithDescription("Uses LLM to analyze code for bugs, security issues, and best practices violations.")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
+
+        // Get test output directory info
+        routeBuilder.MapGet($"{basePattern}/test-output",
+            (Services.Tools.UnitTestGenerator generator) =>
+                UnitTestEndpoints.HandleGetTestOutput(generator))
+            .WithName("LLMockApi-Tools-TestOutput")
+            .WithTags("Unit Test Generation")
+            .WithSummary("Get generated test output directory info")
+            .WithDescription("Returns information about generated test files.")
+            .Produces(200);
+
+        // Download generated test file
+        routeBuilder.MapGet($"{basePattern}/test-output/{{fileName}}",
+            (string fileName, Services.Tools.UnitTestGenerator generator) =>
+                UnitTestEndpoints.HandleDownloadTestFile(fileName, generator))
+            .WithName("LLMockApi-Tools-DownloadTest")
+            .WithTags("Unit Test Generation")
+            .WithSummary("Download a generated test file")
+            .WithDescription("Downloads a specific generated test file by name.")
+            .Produces(200)
+            .Produces(404);
 
         return app;
     }

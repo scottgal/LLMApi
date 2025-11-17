@@ -77,6 +77,12 @@ app.MapLLMockGrpcManagement("/api/grpc-protos");
 // Map gRPC service call endpoints (for invoking mock gRPC methods)
 app.MapLLMockGrpc("/api/grpc");
 
+// Map Tool Fitness testing and evolution endpoints
+app.MapLLMockToolFitness("/api/tools/fitness");
+
+// Map Unit Test Generation endpoints (Pyguin + LLM fallback)
+app.MapLLMockUnitTestGeneration("/api/tools");
+
 // Dashboard statistics endpoint
 app.MapGet("/api/dashboard/stats", (
     mostlylucid.mockllmapi.Services.DynamicHubContextManager hubManager,
