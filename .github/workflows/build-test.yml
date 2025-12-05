@@ -27,13 +27,23 @@ jobs:
           9.0.x
 
     - name: Restore dependencies
-      run: dotnet restore LLMApi.sln
+      run: |
+        dotnet restore mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
+        dotnet restore mostlylucid.mockllmapi.Testing/mostlylucid.mockllmapi.Testing.csproj
+        dotnet restore mostlylucid.mockllmapi.Testing.Examples/mostlylucid.mockllmapi.Testing.Examples.csproj
+        dotnet restore LLMApi/LLMApi.csproj
+        dotnet restore LLMApi.Tests/LLMApi.Tests.csproj
 
-    - name: Build solution
-      run: dotnet build LLMApi.sln --configuration Release --no-restore
+    - name: Build projects
+      run: |
+        dotnet build mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj --configuration Release --no-restore
+        dotnet build mostlylucid.mockllmapi.Testing/mostlylucid.mockllmapi.Testing.csproj --configuration Release --no-restore
+        dotnet build mostlylucid.mockllmapi.Testing.Examples/mostlylucid.mockllmapi.Testing.Examples.csproj --configuration Release --no-restore
+        dotnet build LLMApi/LLMApi.csproj --configuration Release --no-restore
+        dotnet build LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-restore
 
     - name: Run tests
-      run: dotnet test LLMApi.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+      run: dotnet test LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 
     - name: Publish test results
       uses: dorny/test-reporter@v1
