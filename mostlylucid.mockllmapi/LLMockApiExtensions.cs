@@ -242,6 +242,9 @@ public static class LlMockApiExtensions
             // Pre-configured REST APIs
             services.AddSingleton<RestApiRegistry>();
 
+            // OpenApiContextManager is needed by all request handlers (REST, Streaming, GraphQL, gRPC)
+            services.AddSingleton<OpenApiContextManager>();
+
             // Register context store with configurable automatic expiration
             services.AddSingleton<IContextStore>(sp =>
             {
@@ -295,7 +298,8 @@ public static class LlMockApiExtensions
             services.AddScoped<OpenApiSchemaConverter>();
             services.AddScoped<OpenApiRequestHandler>();
             services.AddSingleton<DynamicOpenApiManager>();
-            services.AddSingleton<OpenApiContextManager>();
+            // Note: OpenApiContextManager is now registered in RegisterCoreServices
+            // since all request handlers depend on it
             services.AddSignalR(); // Ensure SignalR is registered for OpenApiHub
         }
     }

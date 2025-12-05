@@ -40,17 +40,16 @@ Configuration:
   - 8 pre-configured API examples (simple → workflows)
   - 20+ HTTP request examples in LLMApi.http
 
-Technical:
-  - ToolRegistry & ToolOrchestrator services
-  - RestApiRegistry with tag filtering
-  - HttpToolExecutor & MockToolExecutor
-  - DI registration, auto-reload on config changes
+Technical: ToolRegistry, ToolOrchestrator, RestApiRegistry with DI + auto-reload
 
-Documentation:
-  - NEW: docs/TOOLS_ACTIONS.md (complete tool system guide)
-  - NEW: docs/RATE_LIMITING_BATCHING.md (v2.1.0)
-  - Updated: README.md, appsettings.Full.json, LLMApi.http
-  - Updated: docs/API-CONTEXTS.md (dynamic extraction)
+Docs: TOOLS_ACTIONS.md, RATE_LIMITING_BATCHING.md, API-CONTEXTS.md updated
+
+Bug Fixes:
+  - Fixed OpenApiContextManager dependency in AddLLMockApi()
+  - Improved token estimation accuracy (JSON vs text content ratio)
+  - Added thread-safety to context management with proper locking
+  - Fixed greedy JSON extraction (balanced bracket matching)
+  - Added error logging to streaming chunk parsing
 
 Breaking Changes: None - fully backward compatible
 

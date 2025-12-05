@@ -1,4 +1,6 @@
 using mostlylucid.mockllmapi;
+using Microsoft.OpenApi.Readers;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -112,7 +114,7 @@ app.MapGet("/api/dashboard/stats", (
     });
 });
 
-// OpenAPI specification generator endpoint
+// OpenAPI specification generator endpoint with validation and retry
 app.MapPost("/api/openapi/generate", async (
     HttpRequest request,
     mostlylucid.mockllmapi.Services.LlmClient llmClient,
@@ -135,33 +137,75 @@ app.MapPost("/api/openapi/generate", async (
             specName = GenerateContextName(requestData.Description);
         }
 
-        // Build prompt for LLM to generate OpenAPI spec
-        var prompt = BuildOpenApiGenerationPrompt(requestData.Description, requestData.BasePath ?? "/api/v1");
-
         logger.LogInformation("Generating OpenAPI spec for: {Description}", requestData.Description);
 
-        // Call LLM to generate the spec - using named parameters for clarity
-        var llmResponse = await llmClient.GetCompletionAsync(
-            prompt: prompt,
-            maxTokens: 4000,
-            request: request);
+        // Try up to 3 times to generate a valid OpenAPI spec
+        const int maxAttempts = 3;
+        string? specJson = null;
+        OpenApiDocument? validatedSpec = null;
+        string? lastError = null;
 
-        // Parse the response as JSON
-        var specJson = ExtractJsonFromResponse(llmResponse);
-        if (string.IsNullOrWhiteSpace(specJson))
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            return Results.Json(new { error = "Failed to generate valid OpenAPI specification" }, statusCode: 500);
+            logger.LogInformation("OpenAPI generation attempt {Attempt}/{MaxAttempts}", attempt, maxAttempts);
+
+            // Build prompt (include validation errors from previous attempt)
+            var prompt = attempt == 1
+                ? BuildOpenApiGenerationPrompt(requestData.Description, requestData.BasePath ?? "/api/v1")
+                : BuildOpenApiFixPrompt(requestData.Description, requestData.BasePath ?? "/api/v1", specJson!, lastError!);
+
+            // Call LLM to generate the spec
+            var llmResponse = await llmClient.GetCompletionAsync(
+                prompt: prompt,
+                maxTokens: 4000,
+                request: request);
+
+            // Extract JSON from response
+            specJson = mostlylucid.mockllmapi.Services.JsonExtractor.ExtractJson(llmResponse);
+            if (string.IsNullOrWhiteSpace(specJson))
+            {
+                lastError = "Failed to extract JSON from LLM response";
+                logger.LogWarning("Attempt {Attempt}: {Error}", attempt, lastError);
+                continue;
+            }
+
+            // Validate JSON syntax
+            try
+            {
+                System.Text.Json.JsonDocument.Parse(specJson);
+            }
+            catch (Exception ex)
+            {
+                lastError = $"Invalid JSON syntax: {ex.Message}";
+                logger.LogWarning("Attempt {Attempt}: {Error}", attempt, lastError);
+                continue;
+            }
+
+            // Validate OpenAPI specification
+            var (isValid, openApiDoc, validationErrors) = ValidateOpenApiSpec(specJson);
+            if (isValid && openApiDoc != null)
+            {
+                validatedSpec = openApiDoc;
+                logger.LogInformation("Successfully generated and validated OpenAPI spec on attempt {Attempt}", attempt);
+                break;
+            }
+            else
+            {
+                lastError = $"OpenAPI validation failed: {string.Join("; ", validationErrors)}";
+                logger.LogWarning("Attempt {Attempt}: {Error}", attempt, lastError);
+            }
         }
 
-        // Validate JSON
-        try
+        // Check if we succeeded
+        if (validatedSpec == null || string.IsNullOrWhiteSpace(specJson))
         {
-            System.Text.Json.JsonDocument.Parse(specJson);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Generated invalid JSON");
-            return Results.Json(new { error = "Generated invalid JSON specification" }, statusCode: 500);
+            logger.LogError("Failed to generate valid OpenAPI spec after {MaxAttempts} attempts. Last error: {Error}", maxAttempts, lastError);
+            return Results.Json(new
+            {
+                error = $"Failed to generate valid OpenAPI specification after {maxAttempts} attempts",
+                lastError = lastError,
+                attempts = maxAttempts
+            }, statusCode: 500);
         }
 
         var result = new
@@ -253,33 +297,108 @@ Requirements:
 - Use RESTful conventions
 - Make the API comprehensive and production-ready
 
-IMPORTANT: Return ONLY the JSON specification, no additional text or explanation. The response must be valid JSON.";
+CRITICAL OUTPUT RULES:
+1. Return ONLY valid JSON - no markdown code blocks, no explanations, no comments
+2. Do NOT use escape characters like backslashes in property names
+3. Do NOT include ellipsis (...) anywhere in the JSON
+4. Ensure all quotes are properly matched
+5. Do NOT add trailing commas before closing brackets
+6. Start your response with {{ and end with }}
+7. Test that your output is valid JSON before responding
+
+IMPORTANT: Your ENTIRE response must be ONLY the JSON specification, nothing else.";
 }
 
-static string ExtractJsonFromResponse(string response)
+static string BuildOpenApiFixPrompt(string description, string basePath, string previousSpec, string validationError)
 {
-    // Try to extract JSON from the response
-    // LLMs sometimes wrap JSON in code blocks
-    var trimmed = response.Trim();
+    return $@"You previously generated an OpenAPI 3.0.0 specification that has validation errors.
 
-    // Remove markdown code blocks if present
-    if (trimmed.StartsWith("```"))
+ORIGINAL REQUEST:
+{description}
+
+YOUR PREVIOUS SPECIFICATION (with errors):
+{previousSpec}
+
+VALIDATION ERRORS FOUND:
+{validationError}
+
+TASK: Fix the OpenAPI specification to address ALL validation errors listed above.
+
+Requirements:
+- Use OpenAPI 3.0.0 specification format
+- Base path should be: {basePath}
+- Fix all validation errors mentioned above
+- Ensure the specification is valid according to OpenAPI 3.0.0 standard
+- Keep all the good parts from your previous attempt
+- Only fix what's broken
+
+CRITICAL OUTPUT RULES:
+1. Return ONLY valid JSON - no markdown code blocks, no explanations, no comments
+2. Do NOT use escape characters like backslashes in property names
+3. Do NOT include ellipsis (...) anywhere in the JSON
+4. Ensure all quotes are properly matched
+5. Do NOT add trailing commas before closing brackets
+6. Start your response with {{ and end with }}
+7. Fix the specific validation errors mentioned above
+
+IMPORTANT: Your ENTIRE response must be ONLY the corrected JSON specification, nothing else.";
+}
+
+static (bool isValid, OpenApiDocument? document, List<string> errors) ValidateOpenApiSpec(string specJson)
+{
+    var errors = new List<string>();
+
+    try
     {
-        var lines = trimmed.Split('\n');
-        var jsonLines = lines.Skip(1).TakeWhile(line => !line.Trim().Equals("```")).ToList();
-        trimmed = string.Join('\n', jsonLines);
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(specJson));
+        var reader = new OpenApiStreamReader();
+        var diagnostic = new Microsoft.OpenApi.Readers.OpenApiDiagnostic();
+
+        var document = reader.Read(stream, out diagnostic);
+
+        if (diagnostic.Errors.Any())
+        {
+            errors.AddRange(diagnostic.Errors.Select(e => $"[{e.Pointer}] {e.Message}"));
+        }
+
+        if (diagnostic.Warnings.Any())
+        {
+            // Log warnings but don't fail validation
+            foreach (var warning in diagnostic.Warnings)
+            {
+                // We'll be lenient with warnings for now
+            }
+        }
+
+        // Additional validation checks
+        if (document == null)
+        {
+            errors.Add("Failed to parse OpenAPI document");
+            return (false, null, errors);
+        }
+
+        if (document.Paths == null || !document.Paths.Any())
+        {
+            errors.Add("No paths defined in the specification");
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Info?.Title))
+        {
+            errors.Add("Missing required field: info.title");
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Info?.Version))
+        {
+            errors.Add("Missing required field: info.version");
+        }
+
+        return (errors.Count == 0, document, errors);
     }
-
-    // Find the first { and last }
-    var firstBrace = trimmed.IndexOf('{');
-    var lastBrace = trimmed.LastIndexOf('}');
-
-    if (firstBrace >= 0 && lastBrace > firstBrace)
+    catch (Exception ex)
     {
-        return trimmed.Substring(firstBrace, lastBrace - firstBrace + 1);
+        errors.Add($"Exception during validation: {ex.Message}");
+        return (false, null, errors);
     }
-
-    return trimmed;
 }
 
 app.Run();

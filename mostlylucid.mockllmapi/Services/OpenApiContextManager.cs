@@ -15,9 +15,15 @@ public class OpenApiContextManager
     private readonly ILogger<OpenApiContextManager> _logger;
     private readonly LLMockApiOptions _options;
     private readonly IContextStore _contextStore;
+    private readonly object _contextLock = new object(); // Global lock for thread safety
     private const int MaxRecentCalls = 15;
     private const int SummarizeThreshold = 20;
-    private const int EstimatedTokensPerChar = 4; // Rough estimate: 1 token ≈ 4 characters
+
+    // Token estimation constants - more accurate than simple character division
+    // Based on OpenAI's tokenization patterns: avg ~4 chars per token for English
+    // but JSON/code tends to be ~3 chars per token due to punctuation and keywords
+    private const double TokensPerCharForJson = 0.33; // ~3 chars per token for JSON
+    private const double TokensPerCharForText = 0.25; // ~4 chars per token for natural text
 
     public OpenApiContextManager(
         ILogger<OpenApiContextManager> logger,
@@ -62,17 +68,22 @@ public class OpenApiContextManager
             ResponseBody = responseBody
         };
 
-        lock (context.RecentCalls)
+        // Use a more comprehensive lock that covers both RecentCalls and SharedData
+        // to prevent race conditions when extracting data while building prompts
+        lock (_contextLock)
         {
-            context.RecentCalls.Add(call);
-
-            // Extract shared data (IDs, names, etc.)
-            ExtractSharedData(context, responseBody);
-
-            // If we have too many calls, summarize older ones
-            if (context.RecentCalls.Count > MaxRecentCalls)
+            lock (context.RecentCalls)
             {
-                SummarizeOldCalls(context);
+                context.RecentCalls.Add(call);
+
+                // Extract shared data (IDs, names, etc.) - now also protected by _contextLock
+                ExtractSharedData(context, responseBody);
+
+                // If we have too many calls, summarize older ones
+                if (context.RecentCalls.Count > MaxRecentCalls)
+                {
+                    SummarizeOldCalls(context);
+                }
             }
         }
 
@@ -100,17 +111,24 @@ public class OpenApiContextManager
             sb.AppendLine(context.ContextSummary);
         }
 
-        // Add shared data
-        if (context.SharedData.Count > 0)
+        // Add shared data - take a snapshot under lock for thread safety
+        List<KeyValuePair<string, string>> sharedDataSnapshot;
+        lock (_contextLock)
+        {
+            sharedDataSnapshot = context.SharedData.Take(20).ToList();
+        }
+
+        if (sharedDataSnapshot.Count > 0)
         {
             sb.AppendLine("\nShared data to maintain consistency:");
-            foreach (var kvp in context.SharedData.Take(20)) // Limit to prevent context explosion
+            foreach (var kvp in sharedDataSnapshot)
             {
                 sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
             }
         }
 
         // Add recent calls with dynamic truncation based on MaxInputTokens
+        lock (_contextLock)
         lock (context.RecentCalls)
         {
             if (context.RecentCalls.Count > 0)
@@ -181,11 +199,40 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Estimates token count from text (rough approximation: 1 token ≈ 4 characters)
+    /// Estimates token count from text using a more accurate algorithm.
+    /// JSON/code typically has ~3 chars per token due to punctuation,
+    /// while natural text averages ~4 chars per token.
+    /// This method analyzes the content type for better accuracy.
     /// </summary>
     private int EstimateTokens(string text)
     {
-        return string.IsNullOrEmpty(text) ? 0 : text.Length / EstimatedTokensPerChar;
+        if (string.IsNullOrEmpty(text))
+            return 0;
+
+        // Count JSON-like characters to determine content type ratio
+        var jsonChars = 0;
+        var totalChars = text.Length;
+
+        foreach (var c in text)
+        {
+            if (c == '{' || c == '}' || c == '[' || c == ']' || c == ':' || c == ',' || c == '"')
+                jsonChars++;
+        }
+
+        // Calculate ratio of JSON to total content
+        var jsonRatio = (double)jsonChars / totalChars;
+
+        // Use weighted average based on content type
+        // High JSON ratio (>10%) uses JSON tokenization, otherwise use text tokenization
+        var tokensPerChar = jsonRatio > 0.1 ? TokensPerCharForJson : TokensPerCharForText;
+
+        // Add extra tokens for special patterns that tokenize separately:
+        // - Numbers often become 1-2 tokens each
+        // - Punctuation can be separate tokens
+        var estimatedTokens = (int)(totalChars * tokensPerChar);
+
+        // Add buffer for safety (10% overhead)
+        return (int)(estimatedTokens * 1.1);
     }
 
     /// <summary>
