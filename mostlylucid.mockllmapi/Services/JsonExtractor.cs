@@ -50,23 +50,151 @@ public static class JsonExtractor
             return match.Groups[1].Value.Trim();
         }
 
-        // Try to find JSON object or array in the text
-        var jsonObjectPattern = @"\{[\s\S]*\}";
+        // Try to find JSON object or array in the text using bracket matching
+        // This avoids greedy regex issues where text like "here is {a} and {b}" would capture "a} and {b"
+        var extractedJson = ExtractBalancedJson(response);
+        if (!string.IsNullOrEmpty(extractedJson))
+        {
+            return extractedJson;
+        }
+
+        // Fallback to non-greedy regex patterns
+        // Use *? for non-greedy matching - but this may not find the complete JSON
+        var jsonObjectPattern = @"\{[\s\S]*?\}";
         var objectMatch = Regex.Match(response, jsonObjectPattern);
         if (objectMatch.Success)
         {
-            return objectMatch.Value.Trim();
+            // Validate it's actually valid JSON before returning
+            try
+            {
+                JsonDocument.Parse(objectMatch.Value);
+                return objectMatch.Value.Trim();
+            }
+            catch
+            {
+                // Not valid JSON, continue
+            }
         }
 
-        var jsonArrayPattern = @"\[[\s\S]*\]";
+        var jsonArrayPattern = @"\[[\s\S]*?\]";
         var arrayMatch = Regex.Match(response, jsonArrayPattern);
         if (arrayMatch.Success)
         {
-            return arrayMatch.Value.Trim();
+            try
+            {
+                JsonDocument.Parse(arrayMatch.Value);
+                return arrayMatch.Value.Trim();
+            }
+            catch
+            {
+                // Not valid JSON, continue
+            }
         }
 
         // Return as-is if no patterns matched
         return trimmed;
+    }
+
+    /// <summary>
+    /// Extracts JSON using balanced bracket matching.
+    /// This is more accurate than regex for finding complete JSON structures.
+    /// </summary>
+    private static string? ExtractBalancedJson(string text)
+    {
+        // Find the first { or [ that starts a JSON structure
+        var objectStart = text.IndexOf('{');
+        var arrayStart = text.IndexOf('[');
+
+        int start;
+        char openBracket, closeBracket;
+
+        if (objectStart == -1 && arrayStart == -1)
+            return null;
+        else if (objectStart == -1)
+        {
+            start = arrayStart;
+            openBracket = '[';
+            closeBracket = ']';
+        }
+        else if (arrayStart == -1)
+        {
+            start = objectStart;
+            openBracket = '{';
+            closeBracket = '}';
+        }
+        else
+        {
+            // Use whichever comes first
+            if (objectStart < arrayStart)
+            {
+                start = objectStart;
+                openBracket = '{';
+                closeBracket = '}';
+            }
+            else
+            {
+                start = arrayStart;
+                openBracket = '[';
+                closeBracket = ']';
+            }
+        }
+
+        // Now do balanced bracket matching
+        var depth = 0;
+        var inString = false;
+        var escape = false;
+
+        for (var i = start; i < text.Length; i++)
+        {
+            var c = text[i];
+
+            if (escape)
+            {
+                escape = false;
+                continue;
+            }
+
+            if (c == '\\' && inString)
+            {
+                escape = true;
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString)
+                continue;
+
+            if (c == openBracket)
+            {
+                depth++;
+            }
+            else if (c == closeBracket)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    var json = text.Substring(start, i - start + 1);
+                    // Validate it's actually valid JSON
+                    try
+                    {
+                        JsonDocument.Parse(json);
+                        return json;
+                    }
+                    catch
+                    {
+                        // Not valid JSON, maybe mixed brackets, continue searching
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null; // Unbalanced brackets
     }
 
     /// <summary>

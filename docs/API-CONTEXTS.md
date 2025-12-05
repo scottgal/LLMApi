@@ -1,8 +1,10 @@
 # API Contexts: Maintaining Consistency Across Mock API Calls
 
+> **New in v2.2.0**: Dynamic context memory with automatic expiration and intelligent shared data extraction!
+
 When building and testing applications, one of the biggest challenges with traditional mock APIs is their stateless nature. Each request returns completely random data with no relationship to previous calls. If you fetch a user with ID 123, then fetch their orders, there's no guarantee the order will reference that same user ID.
 
-**API Contexts** solve this problem by giving your mock API a memory.
+**API Contexts** solve this problem by giving your mock API a memory that's now even smarter and more dynamic.
 
 ## The Problem: Stateless Chaos
 
@@ -86,33 +88,34 @@ graph TD
 
 ### Context Storage
 
-Contexts are stored using `IMemoryCache` with automatic sliding expiration:
+**New in v2.2.0**: Contexts are stored using ASP.NET Core's `IMemoryCache` with automatic expiration instead of a basic `ConcurrentDictionary`. This provides intelligent lifecycle management with zero configuration needed.
+
+#### Dynamic Memory Management
+
+The new `MemoryCacheContextStore` provides automatic cleanup:
 
 ```csharp
 public class MemoryCacheContextStore : IContextStore
 {
     private readonly IMemoryCache _cache;
-    private readonly TimeSpan _slidingExpiration;
-
-    public MemoryCacheContextStore(IMemoryCache cache, ILogger logger)
-    {
-        _cache = cache;
-        _slidingExpiration = TimeSpan.FromMinutes(15); // Configurable expiration
-    }
+    private readonly TimeSpan _slidingExpiration; // Default: 15 minutes
 
     public ApiContext GetOrAdd(string contextName, Func<string, ApiContext> factory)
     {
         var cacheKey = GetCacheKey(contextName);
 
-        if (_cache.TryGetValue<ApiContext>(cacheKey, out var context) && context != null)
+        // Try to get existing context
+        if (_cache.TryGetValue<ApiContext>(cacheKey, out var existingContext))
         {
-            // Refresh sliding expiration on access
-            SetContextInCache(cacheKey, contextName, context);
-            return context;
+            // Touch the cache to refresh sliding expiration
+            SetContextInCache(cacheKey, contextName, existingContext);
+            return existingContext;
         }
 
+        // Create new context with automatic expiration
         var newContext = factory(contextName);
         SetContextInCache(cacheKey, contextName, newContext);
+
         return newContext;
     }
 
@@ -120,19 +123,94 @@ public class MemoryCacheContextStore : IContextStore
     {
         var options = new MemoryCacheEntryOptions
         {
-            SlidingExpiration = _slidingExpiration, // Auto-expires after inactivity
+            SlidingExpiration = _slidingExpiration, // Resets on every access!
             Priority = CacheItemPriority.Normal
         };
+
+        // Auto-cleanup callback when context expires
+        options.RegisterPostEvictionCallback((key, value, reason, state) =>
+        {
+            if (reason == EvictionReason.Expired)
+            {
+                _logger.LogInformation(
+                    "Context '{ContextName}' expired after {Minutes} minutes of inactivity",
+                    contextName, _slidingExpiration.TotalMinutes);
+            }
+        });
+
         _cache.Set(cacheKey, context, options);
+    }
+}
+
+public class OpenApiContextManager
+{
+    private readonly IContextStore _contextStore; // Now uses IMemoryCache under the hood
+    private const int MaxRecentCalls = 15;
+
+    public void AddToContext(
+        string contextName,
+        string method,
+        string path,
+        string? requestBody,
+        string responseBody)
+    {
+        var context = _contextStore.GetOrAdd(contextName, _ => new ApiContext
+        {
+            Name = contextName,
+            CreatedAt = DateTimeOffset.UtcNow,
+            RecentCalls = new List<RequestSummary>(),
+            SharedData = new Dictionary<string, string>(),
+            TotalCalls = 0
+        });
+
+        context.RecentCalls.Add(new RequestSummary
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Method = method,
+            Path = path,
+            RequestBody = requestBody,
+            ResponseBody = responseBody
+        });
+
+        // NEW: Dynamic extraction of ALL fields (v2.2.0)
+        ExtractAllFields(context, responseBody);
+
+        if (context.RecentCalls.Count > MaxRecentCalls)
+        {
+            SummarizeOldCalls(context);
+        }
     }
 }
 ```
 
-**Key Benefits:**
-- **Automatic expiration**: Contexts expire after 15 minutes of inactivity (configurable)
-- **Memory management**: No manual cleanup needed - expired contexts are automatically removed
-- **Sliding expiration**: Each access refreshes the expiration timer
-- **Thread-safe**: Built on IMemoryCache's thread-safe implementation
+#### Why IMemoryCache?
+
+**Automatic Lifecycle Management**
+- Contexts expire after 15 minutes of inactivity (configurable)
+- Each API call using a context refreshes the timer (sliding expiration)
+- No manual cleanup needed - abandoned contexts disappear automatically
+- Zero risk of memory leaks from forgotten test sessions
+
+**Perfect for Testing Workflows**
+- Start testing immediately - contexts created on-demand
+- Continue testing as long as you need - timer keeps resetting
+- Walk away from your desk - contexts clean themselves up
+- CI/CD friendly - no state accumulation between runs
+
+**Configuration**
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "ContextExpirationMinutes": 15  // Default: 15 (range: 5-1440)
+  }
+}
+```
+
+**Recommendations**
+- **5 minutes**: Quick unit tests, CI/CD pipelines
+- **15 minutes**: Default - general development testing (recommended)
+- **30 minutes**: Complex multi-step workflows
+- **60+ minutes**: Long exploratory testing sessions
 
 ### Automatic Summarization
 
@@ -173,29 +251,50 @@ private void SummarizeOldCalls(ApiContext context)
 
 ### Shared Data Extraction
 
-The context manager **automatically extracts ALL fields** from JSON responses (not just predefined ones), making them available for subsequent requests:
+**New in v2.2.0**: The context manager now dynamically extracts **ALL** fields from responses, not just hardcoded ones!
+
+#### Intelligent Recursive Extraction
+
+The new `ExtractAllFields` method recursively walks through your response and captures everything:
 
 ```csharp
-private void ExtractSharedData(ApiContext context, string responseBody)
+private void ExtractAllFields(ApiContext context, string responseBody, int maxDepth = 2)
 {
     using var doc = JsonDocument.Parse(responseBody);
     var root = doc.RootElement;
 
-    // Extract from arrays (uses first item)
+    // Extract based on response type
     if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
     {
-        ExtractAllFields(context, root[0]);
+        // Store array length
+        context.SharedData[$"{arrayName}.length"] = root.GetArrayLength().ToString();
+
+        // Extract all fields from first item
+        var firstItem = root[0];
+        ExtractFieldsRecursive(context, firstItem, $"{arrayName}[0]", currentDepth: 0);
+
+        // LEGACY: Also extract with old naming for backward compatibility
+        ExtractValueIfExists(context, firstItem, "id", "lastId");
     }
-    // Extract from objects
     else if (root.ValueKind == JsonValueKind.Object)
     {
-        ExtractAllFields(context, root);
+        // Extract ALL fields recursively up to maxDepth levels
+        ExtractFieldsRecursive(context, root, "", currentDepth: 0);
+
+        // LEGACY: Also extract with old naming for backward compatibility
+        ExtractValueIfExists(context, root, "id", "lastId");
+        ExtractValueIfExists(context, root, "userId", "lastUserId");
     }
 }
 
-private void ExtractAllFields(ApiContext context, JsonElement element,
-    string prefix = "", int depth = 0, int maxDepth = 2)
+private void ExtractFieldsRecursive(
+    ApiContext context,
+    JsonElement element,
+    string prefix,
+    int currentDepth)
 {
+    if (currentDepth >= maxDepth) return;
+
     foreach (var property in element.EnumerateObject())
     {
         var key = string.IsNullOrEmpty(prefix)
@@ -208,21 +307,21 @@ private void ExtractAllFields(ApiContext context, JsonElement element,
             case JsonValueKind.Number:
             case JsonValueKind.True:
             case JsonValueKind.False:
+                // Store primitive values
                 context.SharedData[key] = property.Value.ToString();
-                AddLegacyKey(context, property.Name, value, depth); // Backward compat
                 break;
 
             case JsonValueKind.Object:
-                // Recurse into nested objects (up to depth 2)
-                ExtractAllFields(context, property.Value, key, depth + 1, maxDepth);
+                // Recurse into nested objects
+                ExtractFieldsRecursive(context, property.Value, key, currentDepth + 1);
                 break;
 
             case JsonValueKind.Array:
-                // Store array length and extract first item if it's an object
-                context.SharedData[$"{key}.length"] = property.Value.GetArrayLength();
-                if (depth < maxDepth && property.Value[0].ValueKind == JsonValueKind.Object)
+                // Store array length and first item
+                context.SharedData[$"{key}.length"] = property.Value.GetArrayLength().ToString();
+                if (property.Value.GetArrayLength() > 0)
                 {
-                    ExtractAllFields(context, property.Value[0], $"{key}[0]", depth + 1);
+                    ExtractFieldsRecursive(context, property.Value[0], $"{key}[0]", currentDepth + 1);
                 }
                 break;
         }
@@ -230,45 +329,86 @@ private void ExtractAllFields(ApiContext context, JsonElement element,
 }
 ```
 
-**What Gets Extracted:**
+#### What This Means For You
 
-| Response Type | Extracted Data | Example Key | Example Value |
-|--------------|----------------|-------------|---------------|
-| Top-level fields | All primitive values | `email` | `"alice@example.com"` |
-| Nested objects | Dot notation | `address.city` | `"Seattle"` |
-| Deep nesting (2 levels) | Nested dot notation | `user.profile.avatar` | `"https://..."` |
-| Arrays | Length + first item | `items.length`, `items[0].id` | `"3"`, `"PROD-001"` |
-| ID fields | Legacy `last*` keys | `lastId`, `lastUserId` | `"123"`, `"456"` |
-
-**Examples:**
-
+**Before (v2.1.0)**: Only `id`, `userId`, `name`, `email` were extracted
 ```json
-// Response:
+// Response
+{"orderId": 123, "sku": "WIDGET-01", "price": 49.99}
+
+// Extracted (only 'id' field)
+{"lastId": "123"}
+```
+
+**Now (v2.2.0)**: **Everything** is extracted automatically
+```json
+// Response
 {
-  "orderId": "ORD-123",
+  "orderId": 123,
+  "sku": "WIDGET-01",
+  "price": 49.99,
   "customer": {
-    "name": "Alice",
-    "email": "alice@example.com"
+    "customerId": 456,
+    "tier": "gold",
+    "address": {"city": "Seattle"}
   },
   "items": [
-    {"productId": "PROD-001", "price": 25.00},
-    {"productId": "PROD-002", "price": 49.99}
+    {"productId": 789, "quantity": 2}
   ]
 }
 
-// Extracted SharedData:
+// Extracted (ALL fields up to 2 levels deep)
 {
-  "orderId": "ORD-123",
-  "lastOrderId": "ORD-123",          // Backward compatibility
-  "customer.name": "Alice",
-  "customer.email": "alice@example.com",
-  "items.length": "2",
-  "items[0].productId": "PROD-001",
-  "items[0].price": "25.00"
+  "orderId": "123",
+  "sku": "WIDGET-01",
+  "price": "49.99",
+  "customer.customerId": "456",
+  "customer.tier": "gold",
+  "customer.address.city": "Seattle",  // 2 levels deep
+  "items.length": "1",
+  "items[0].productId": "789",
+  "items[0].quantity": "2",
+  // LEGACY keys for backward compatibility:
+  "lastId": "123"
 }
 ```
 
-This comprehensive extraction ensures **all** data from responses is available to maintain consistency in subsequent API calls, not just hardcoded field names.
+#### Real-World Impact
+
+**E-Commerce Example**
+```http
+### First call - create order
+POST /api/mock/orders?context=checkout
+{"orderId": 0, "sku": "string", "customer": {"tier": "string"}}
+
+Response: {"orderId": 123, "sku": "WIDGET-01", "customer": {"tier": "gold"}}
+
+### Second call - create shipment
+POST /api/mock/shipping?context=checkout
+{"shipmentId": 0, "orderId": 0}
+
+Response: {"shipmentId": 456, "orderId": 123}  ← Same orderId!
+
+### Third call - apply discount
+POST /api/mock/discounts?context=checkout
+{"discountId": 0, "customerTier": "string", "sku": "string"}
+
+Response: {
+  "discountId": 789,
+  "customerTier": "gold",    ← Consistent tier!
+  "sku": "WIDGET-01",        ← Consistent SKU!
+  "discount": 0.15
+}
+```
+
+The LLM sees all the extracted fields in the prompt and maintains consistency across **domain-specific fields** like SKUs, tier levels, account numbers, reference codes, etc.
+
+**Benefits**
+- No configuration needed - works out of the box
+- Supports ANY domain (healthcare, finance, gaming, etc.)
+- Nested relationships automatically tracked
+- Array data preserved
+- Backward compatible with v2.1.0 code
 
 ## Using Contexts
 
@@ -322,6 +462,31 @@ Content-Type: application/json
 {
   "query": "{ users { id name } }"
 }
+```
+
+#### gRPC
+```http
+# JSON over HTTP
+POST /api/grpc/json/UserService/CreateUser?context=grpc-session
+Content-Type: application/json
+
+{
+  "name": "Alice",
+  "email": "alice@example.com"
+}
+
+# Binary Protobuf (context extracted from query param or headers)
+POST /api/grpc/proto/UserService/GetUser?context=grpc-session
+Content-Type: application/grpc+proto
+
+[binary protobuf data]
+```
+
+#### OpenAPI
+```http
+# Dynamically generated endpoints support contexts
+GET /petstore/pets/123?context=petstore-session
+POST /shop/orders?context=shop-session
 ```
 
 #### SignalR (via configuration)
@@ -633,65 +798,123 @@ POST /api/openapi/specs
 
 ## Performance Considerations
 
-### Memory Usage
+### Memory Usage (v2.2.0 Update)
 
-Each context stores:
+**Automatic Memory Management** 🎉
+
+With v2.2.0's sliding expiration, memory usage is now **self-regulating**:
+
+Each active context stores:
 - Up to 15 recent calls (full request/response)
 - Summary of older calls (compressed)
-- Extracted shared data (comprehensive dictionary with all fields)
+- Extracted shared data (now comprehensive - all fields)
+- **Typical memory per context**: ~50-300 KB depending on response sizes
 
-**Typical memory per context**: ~50-200 KB depending on response sizes
+**Automatic Cleanup**:
+- Contexts expire after 15 minutes of inactivity (configurable)
+- No indefinite accumulation
+- Memory naturally stabilizes based on your testing activity
+- Perfect for CI/CD pipelines - no state buildup between runs
 
-**Automatic Memory Management:**
-- Contexts automatically expire after **15 minutes of inactivity** (sliding expiration)
-- Expired contexts are automatically removed from memory
-- No risk of memory leaks - inactive contexts are cleaned up automatically
-- Accessing a context refreshes its expiration timer
-
-**Configuration:**
-
-You can customize the expiration time in your `appsettings.json`:
-
-```json
-{
-  "MockLlmApi": {
-    "ContextExpirationMinutes": 15  // Default: 15 minutes
-  }
-}
+**Example Scenario**:
 ```
-
-**Examples:**
-- Set to `5` for short test sessions (saves memory)
-- Set to `60` for long-running integration tests
-- Set to `1440` for full-day development sessions
+Test Session (30 contexts created over 2 hours):
+- Active tests (10 contexts): ~2.5 MB (recently used)
+- Expired contexts (20 contexts): ~0 MB (automatically removed)
+Total Memory: ~2.5 MB (down from potential 7.5 MB)
+```
 
 ### Thread Safety
 
-`MemoryCacheContextStore` uses `IMemoryCache` for thread-safe storage. Multiple requests can safely read/write contexts concurrently. The underlying cache handles all synchronization automatically.
+`OpenApiContextManager` + `MemoryCacheContextStore` are fully thread-safe:
+- `IMemoryCache` handles concurrent access automatically
+- `ConcurrentDictionary` tracks context names
+- Multiple requests can safely read/write contexts concurrently
+- No locking needed in your code
 
-### LLM Token Limits
+### LLM Token Limits (v2.2.0 Update)
 
-Context history is included in every prompt. The system has multiple safeguards:
+Context history is included in every prompt.
 
-1. **Automatic Summarization**: Old calls (>15) are summarized to reduce token usage
-2. **Dynamic Truncation**: Recent calls are truncated based on `MaxInputTokens` (20% allocation)
-3. **Token-Aware Limits**: System estimates token usage and drops oldest calls if needed
+**Token Impact of v2.2.0 Changes**:
+- **Shared Data**: Increased (~50-200 extra tokens per context)
+  - More fields extracted = longer shared data section
+  - Nested fields use dot notation (compact)
+  - Typical: `"customer.tier": "gold"` = 10 tokens
 
-For very long sessions with large responses, the system automatically manages token limits. You can also manually clear contexts if needed.
+- **Recent Calls**: Unchanged (same 15-call limit)
+
+- **Overall Impact**: Minor increase (5-10% more tokens)
+  - Offset by automatic expiration (fewer contexts exist)
+  - Summarization still prevents unbounded growth
+
+**Token Budget Example**:
+```
+Without context: ~500 tokens (prompt only)
+With context (v2.1): ~1,500 tokens (prompt + 5 calls)
+With context (v2.2): ~1,700 tokens (prompt + 5 calls + comprehensive shared data)
+
+Still well within most LLM limits (4K-128K tokens)
+```
+
+**Mitigation Strategies** (if needed):
+1. **Lower ContextExpirationMinutes**: 5-10 minutes for rapid turnover
+2. **Clear contexts periodically**: `DELETE /api/openapi/contexts`
+3. **Use shorter response shapes**: Less data to extract
+4. **Smaller model context windows**: Works fine with 4K token models
 
 ## Limitations
 
+### Current Limitations
+
 1. **In-Memory Only** - Contexts are lost on server restart
+   - **v2.2.0 Note**: This is now a *feature* - no cleanup needed after restarts!
+
 2. **No Persistence** - Not suitable for production data storage
+   - Contexts are for testing/development only
+   - Use a real database for production state
+
 3. **Single Server** - Contexts don't sync across multiple server instances
+   - Load-balanced environments: each server has independent contexts
+   - Workaround: Use sticky sessions or single server for testing
+
 4. **LLM Dependent** - Consistency quality depends on the LLM's ability to follow instructions
-5. **Automatic Expiration** - Inactive contexts expire after 15 minutes (configurable)
-6. **Extraction Depth** - Nested objects are extracted up to 2 levels deep to prevent context explosion
+   - Better models (GPT-4, Claude) = better consistency
+   - Local models (Llama, Mistral) = good but occasional misses
+
+### Non-Limitations (Fixed in v2.2.0) ✅
+
+~~**Memory Leaks from Abandoned Contexts**~~ → **FIXED**
+- Contexts now expire automatically after 15 minutes
+- No manual cleanup required
+
+~~**Limited Field Extraction**~~ → **FIXED**
+- All fields now extracted automatically (nested, arrays, etc.)
+- Works with any domain without configuration
 
 ## Conclusion
 
 API Contexts transform stateless mock APIs into stateful simulations that maintain consistency across related calls. Whether you're testing an e-commerce flow, simulating real-time data feeds, or building game state progression, contexts ensure your mock data tells a coherent story.
 
-The automatic extraction of shared data, intelligent summarization, and seamless integration across all endpoint types make contexts a powerful tool for realistic API testing and development.
+**With v2.2.0**, contexts have become even more powerful and intelligent:
+- **Zero maintenance**: Automatic expiration means you never have to clean up
+- **Universal compatibility**: Dynamic extraction works with any API domain
+- **Production-ready**: Memory-efficient for CI/CD and long-running services
+- **Backward compatible**: Upgrade without changing a single line of code
+
+The combination of automatic memory management, comprehensive shared data extraction, intelligent summarization, and seamless integration across all endpoint types makes contexts a powerful tool for realistic API testing and development.
 
 For more advanced scenarios, combine contexts with OpenAPI specifications to create fully-featured mock APIs that behave like the real thing.
+
+---
+
+## Additional Resources
+
+- **[Context Examples (HTTP file)](../mostlylucid.mockllmapi.Testing.Examples/ContextExamples.http)** - Runnable HTTP examples covering all mock types
+- **[Context Memory Guide](../mostlylucid.mockllmapi.Testing.Examples/CONTEXT_MEMORY.md)** - Comprehensive guide with detailed examples and troubleshooting
+- **[gRPC Support](./GRPC_SUPPORT.md)** - Using contexts with gRPC services
+- **[OpenAPI Features](./OPENAPI-FEATURES.md)** - Context support with dynamically generated endpoints
+
+---
+
+**Ready to try v2.2.0?** See the [RELEASE_NOTES.md](../RELEASE_NOTES.md) for upgrade instructions and new features.

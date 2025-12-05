@@ -52,6 +52,7 @@ public class OpenApiSchemaConverter
 
     /// <summary>
     /// Converts an OpenAPI schema to a JSON shape template.
+    /// Properly handles $ref references that have been resolved by ResolveReferences().
     /// </summary>
     private string ConvertSchemaToShape(OpenApiSchema schema, int depth = 0)
     {
@@ -63,13 +64,47 @@ public class OpenApiSchemaConverter
             return "\"...\"";
         }
 
-        // Handle references
+        // After calling ResolveReferences(), schemas with $ref should have their content populated
+        // However, the Reference property might still be set. We should check for actual content first.
+
+        // Check if this is an unresolved reference (has Reference but no content)
         if (schema.Reference != null)
         {
-            _logger.LogDebug("Resolving schema reference: {Reference}", schema.Reference.Id);
-            // The reference should already be resolved by OpenApiStreamReader
-            // If not, we'll use a placeholder
-            return $"\"<{schema.Reference.Id}>\"";
+            // If the reference is resolved, it should have type/properties/items
+            var isResolved = !string.IsNullOrEmpty(schema.Type) ||
+                           schema.Properties?.Count > 0 ||
+                           schema.Items != null ||
+                           schema.AllOf?.Count > 0 ||
+                           schema.AnyOf?.Count > 0 ||
+                           schema.OneOf?.Count > 0;
+
+            if (!isResolved)
+            {
+                _logger.LogWarning("Unresolved schema reference: {Reference}. Ensure ResolveReferences() was called.", schema.Reference.Id);
+                return $"\"<{schema.Reference.Id}>\"";
+            }
+
+            _logger.LogDebug("Processing resolved reference: {Reference}", schema.Reference.Id);
+        }
+
+        // Handle allOf (used when $ref is combined with other properties)
+        if (schema.AllOf?.Count > 0)
+        {
+            return ConvertAllOfSchema(schema, depth);
+        }
+
+        // Handle anyOf (union types)
+        if (schema.AnyOf?.Count > 0)
+        {
+            // Use first option for mock data
+            return ConvertSchemaToShape(schema.AnyOf[0], depth + 1);
+        }
+
+        // Handle oneOf (discriminated unions)
+        if (schema.OneOf?.Count > 0)
+        {
+            // Use first option for mock data
+            return ConvertSchemaToShape(schema.OneOf[0], depth + 1);
         }
 
         // Handle different schema types
@@ -84,6 +119,57 @@ public class OpenApiSchemaConverter
             null when schema.Items != null => ConvertArraySchema(schema, depth), // Infer array from items
             _ => $"\"{schema.Type ?? "unknown"}\""
         };
+    }
+
+    private string ConvertAllOfSchema(OpenApiSchema schema, int depth)
+    {
+        // allOf is used to merge schemas (commonly for $ref + additional properties)
+        // We'll merge all properties from all schemas in allOf
+        var mergedProperties = new Dictionary<string, OpenApiSchema>();
+
+        foreach (var subSchema in schema.AllOf)
+        {
+            if (subSchema.Properties != null)
+            {
+                foreach (var prop in subSchema.Properties)
+                {
+                    mergedProperties[prop.Key] = prop.Value;
+                }
+            }
+        }
+
+        // Also include any properties from the main schema
+        if (schema.Properties != null)
+        {
+            foreach (var prop in schema.Properties)
+            {
+                mergedProperties[prop.Key] = prop.Value;
+            }
+        }
+
+        if (mergedProperties.Count == 0)
+        {
+            return "{}";
+        }
+
+        var sb = new StringBuilder();
+        sb.Append('{');
+
+        var properties = mergedProperties.ToList();
+        for (int i = 0; i < properties.Count; i++)
+        {
+            var prop = properties[i];
+            sb.Append($"\"{prop.Key}\":");
+            sb.Append(ConvertSchemaToShape(prop.Value, depth + 1));
+
+            if (i < properties.Count - 1)
+            {
+                sb.Append(',');
+            }
+        }
+
+        sb.Append('}');
+        return sb.ToString();
     }
 
     private string ConvertObjectSchema(OpenApiSchema schema, int depth)

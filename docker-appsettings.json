@@ -1,0 +1,22 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "MockLlmApi": {
+    "BaseUrl": "http://ollama:11434/v1/",
+    "ModelName": "llama3",
+    "Temperature": 1.2,
+    "TimeoutSeconds": 30,
+    "MaxContextWindow": 8192,
+    "EnableVerboseLogging": false,
+    "EnableAutoChunking": true,
+    "MaxItems": 1000,
+    "ContextExpirationMinutes": 15,
+    "SseMode": "LlmTokens",
+    "EnableCacheStatistics": true
+  }
+}

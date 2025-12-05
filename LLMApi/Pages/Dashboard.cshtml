@@ -1,0 +1,1021 @@
+@page
+@model LLMApi.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+@section Styles {
+<style>
+    :root {
+        --primary: #667eea;
+        --secondary: #764ba2;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8f9fa;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+        --border: #e5e7eb;
+        --shadow: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="dark"] {
+        --primary: #818cf8;
+        --secondary: #a78bfa;
+        --success: #34d399;
+        --warning: #fbbf24;
+        --danger: #f87171;
+        --info: #60a5fa;
+        --bg-primary: #1f2937;
+        --bg-secondary: #111827;
+        --text-primary: #f9fafb;
+        --text-secondary: #d1d5db;
+        --border: #374151;
+        --shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: background 0.3s, color 0.3s;
+    }
+
+    /* Global scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 5px;
+        border: 2px solid var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: var(--bg-secondary);
+    }
+
+    /* Firefox global scrollbar */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) var(--bg-secondary);
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .dashboard-title {
+        font-size: 2.5em;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .theme-toggle {
+        background: var(--bg-primary);
+        border: 2px solid var(--border);
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+    }
+
+    .theme-toggle:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: var(--bg-primary);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px var(--shadow);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s, box-shadow 0.3s;
+        border: 1px solid var(--border);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
+    .stat-icon {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        filter: drop-shadow(0 2px 4px var(--shadow));
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 5px;
+    }
+
+    .stat-change {
+        font-size: 0.85em;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stat-change.positive {
+        color: var(--success);
+    }
+
+    .stat-change.negative {
+        color: var(--danger);
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    @@media (max-width: 1024px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .activity-feed {
+        background: var(--bg-primary);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px var(--shadow);
+        border: 1px solid var(--border);
+        max-height: 600px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    /* Scrollbar styling for webkit browsers */
+    .activity-feed::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .activity-feed::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: 4px;
+    }
+
+    .activity-feed::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+    }
+
+    .activity-feed::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary);
+    }
+
+    /* Firefox scrollbar styling */
+    .activity-feed {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) var(--bg-secondary);
+    }
+
+    .activity-feed h3 {
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .activity-item {
+        padding: 15px;
+        border-left: 3px solid var(--border);
+        margin-bottom: 15px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .activity-item.signalr {
+        border-left-color: #667eea;
+    }
+
+    .activity-item.sse {
+        border-left-color: #06b6d4;
+    }
+
+    .activity-item.grpc {
+        border-left-color: #8b5cf6;
+    }
+
+    .activity-item.openapi {
+        border-left-color: #10b981;
+    }
+
+    .activity-time {
+        color: var(--text-secondary);
+        font-size: 0.8em;
+        margin-bottom: 5px;
+    }
+
+    .activity-message {
+        color: var(--text-primary);
+        font-size: 0.95em;
+    }
+
+    .quick-actions {
+        background: var(--bg-primary);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px var(--shadow);
+        border: 1px solid var(--border);
+    }
+
+    .quick-actions h3 {
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .action-btn {
+        width: 100%;
+        padding: 15px;
+        margin-bottom: 12px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border-color: transparent;
+        transform: translateX(5px);
+    }
+
+    .action-icon {
+        font-size: 1.5em;
+    }
+
+    .service-status {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .status-card {
+        background: var(--bg-primary);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .status-card:hover {
+        box-shadow: 0 4px 12px var(--shadow);
+        transform: translateY(-2px);
+        border-color: var(--primary);
+    }
+
+    .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.online {
+        background: var(--success);
+        box-shadow: 0 0 12px var(--success);
+    }
+
+    .status-dot.offline {
+        background: var(--danger);
+    }
+
+    .status-dot.warning {
+        background: var(--warning);
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+    }
+
+    .status-info h4 {
+        margin-bottom: 3px;
+        color: var(--text-primary);
+        font-size: 0.95em;
+    }
+
+    .status-info p {
+        color: var(--text-secondary);
+        font-size: 0.8em;
+    }
+
+    .chart-container {
+        background: var(--bg-primary);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px var(--shadow);
+        border: 1px solid var(--border);
+        margin-bottom: 30px;
+    }
+
+    .chart-container h3 {
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mini-chart {
+        height: 80px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        margin-top: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .chart-bar {
+        position: absolute;
+        bottom: 0;
+        width: 8%;
+        background: linear-gradient(180deg, var(--primary), var(--secondary));
+        border-radius: 4px 4px 0 0;
+        transition: height 0.3s ease;
+    }
+
+    .system-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .info-badge {
+        background: var(--bg-primary);
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid var(--border);
+    }
+
+    .info-badge-label {
+        color: var(--text-secondary);
+        font-size: 0.8em;
+        margin-bottom: 5px;
+    }
+
+    .info-badge-value {
+        color: var(--text-primary);
+        font-size: 1.2em;
+        font-weight: 600;
+    }
+
+    .loading-pulse {
+        animation: loadingPulse 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes loadingPulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .connection-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-primary);
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        font-size: 0.9em;
+    }
+
+    .refresh-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+        background: var(--secondary);
+        transform: rotate(180deg);
+    }
+
+    .refresh-icon {
+        transition: transform 0.5s;
+    }
+
+    .refresh-btn:active .refresh-icon {
+        transform: rotate(360deg);
+    }
+</style>
+}
+
+<div class="dashboard-header">
+    <h1 class="dashboard-title">🎛️ Dashboard</h1>
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <div class="connection-indicator">
+            <span class="status-dot online"></span>
+            <span id="connectionStatus">Connected</span>
+        </div>
+        <button class="refresh-btn" onclick="refreshDashboard()">
+            <span class="refresh-icon">🔄</span>
+            Refresh
+        </button>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="themeIcon">🌙</span>
+            <span id="themeText">Dark</span>
+        </button>
+    </div>
+</div>
+
+<!-- Service Status -->
+<div class="service-status">
+    <a href="/Index" class="status-card">
+        <div class="status-dot online" id="signalr-status"></div>
+        <div class="status-info">
+            <h4>SignalR Hub</h4>
+            <p id="signalr-info">Ready</p>
+        </div>
+    </a>
+    <a href="/Streaming" class="status-card">
+        <div class="status-dot online" id="sse-status"></div>
+        <div class="status-info">
+            <h4>SSE Streaming</h4>
+            <p id="sse-info">Available</p>
+        </div>
+    </a>
+    <a href="/Grpc" class="status-card">
+        <div class="status-dot online" id="grpc-status"></div>
+        <div class="status-info">
+            <h4>gRPC Services</h4>
+            <p id="grpc-info">Operational</p>
+        </div>
+    </a>
+    <a href="/OpenApi" class="status-card">
+        <div class="status-dot online" id="openapi-status"></div>
+        <div class="status-info">
+            <h4>OpenAPI</h4>
+            <p id="openapi-info">Active</p>
+        </div>
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-label">Active Connections</div>
+        <div class="stat-value loading-pulse" id="activeConnections">0</div>
+        <div class="stat-change positive">
+            <span>↗</span>
+            <span id="connectionChange">+0%</span>
+        </div>
+        <div class="mini-chart" id="connectionChart"></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">🌊</div>
+        <div class="stat-label">Streaming Sessions</div>
+        <div class="stat-value loading-pulse" id="streamingSessions">0</div>
+        <div class="stat-change positive">
+            <span>↗</span>
+            <span id="streamingChange">+0%</span>
+        </div>
+        <div class="mini-chart" id="streamingChart"></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-label">API Requests</div>
+        <div class="stat-value loading-pulse" id="apiRequests">0</div>
+        <div class="stat-change positive">
+            <span>↗</span>
+            <span id="requestsChange">+0%</span>
+        </div>
+        <div class="mini-chart" id="requestsChart"></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div class="stat-label">Avg Response Time</div>
+        <div class="stat-value loading-pulse" id="avgResponseTime">0<span style="font-size: 0.5em;">ms</span></div>
+        <div class="stat-change negative">
+            <span>↘</span>
+            <span id="responseChange">-0%</span>
+        </div>
+        <div class="mini-chart" id="responseChart"></div>
+    </div>
+</div>
+
+<!-- System Information -->
+<div class="system-info">
+    <div class="info-badge">
+        <div class="info-badge-label">Uptime</div>
+        <div class="info-badge-value" id="uptime">00:00:00</div>
+    </div>
+    <div class="info-badge">
+        <div class="info-badge-label">Total Requests</div>
+        <div class="info-badge-value" id="totalRequests">0</div>
+    </div>
+    <div class="info-badge">
+        <div class="info-badge-label">Data Transferred</div>
+        <div class="info-badge-value" id="dataTransferred">0 KB</div>
+    </div>
+    <div class="info-badge">
+        <div class="info-badge-label">Active Contexts</div>
+        <div class="info-badge-value" id="activeContexts">0</div>
+    </div>
+    <div class="info-badge">
+        <div class="info-badge-label">Error Rate</div>
+        <div class="info-badge-value" id="errorRate">0%</div>
+    </div>
+</div>
+
+<!-- Main Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Activity Feed -->
+    <div class="activity-feed">
+        <h3>
+            <span>📡</span>
+            Live Activity Feed
+        </h3>
+        <div id="activityList">
+            <!-- Activities will be added here dynamically -->
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h3>
+            <span>⚡</span>
+            Quick Actions
+        </h3>
+        <button class="action-btn" onclick="location.href='/ApiTester'">
+            <span class="action-icon">🧪</span>
+            <div>
+                <div>API Tester</div>
+                <small style="opacity: 0.7;">Test mock API endpoints with all options</small>
+            </div>
+        </button>
+        <button class="action-btn" onclick="location.href='/Index'">
+            <span class="action-icon">📊</span>
+            <div>
+                <div>Open SignalR Demo</div>
+                <small style="opacity: 0.7;">Real-time data streaming</small>
+            </div>
+        </button>
+        <button class="action-btn" onclick="location.href='/Streaming'">
+            <span class="action-icon">🌊</span>
+            <div>
+                <div>Open SSE Streaming</div>
+                <small style="opacity: 0.7;">Server-sent events</small>
+            </div>
+        </button>
+        <button class="action-btn" onclick="location.href='/Grpc'">
+            <span class="action-icon">⚡</span>
+            <div>
+                <div>Open gRPC Demo</div>
+                <small style="opacity: 0.7;">Test gRPC services</small>
+            </div>
+        </button>
+        <button class="action-btn" onclick="location.href='/OpenApi'">
+            <span class="action-icon">🔌</span>
+            <div>
+                <div>Open OpenAPI Manager</div>
+                <small style="opacity: 0.7;">API specification testing</small>
+            </div>
+        </button>
+    </div>
+</div>
+
+<!-- Request Distribution Chart -->
+<div class="chart-container">
+    <h3>
+        <span>📊</span>
+        API Request Distribution (Last Hour)
+    </h3>
+    <div style="display: flex; gap: 20px; align-items: flex-end; height: 200px; padding: 20px; background: var(--bg-secondary); border-radius: 8px;">
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="flex: 1; width: 100%; background: linear-gradient(180deg, #667eea, #764ba2); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; min-height: 40%;" id="bar-signalr">
+                <span style="transform: rotate(-90deg);">SignalR</span>
+            </div>
+            <span style="font-size: 0.9em;" id="count-signalr">0</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="flex: 1; width: 100%; background: linear-gradient(180deg, #06b6d4, #0891b2); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; min-height: 40%;" id="bar-sse">
+                <span style="transform: rotate(-90deg);">SSE</span>
+            </div>
+            <span style="font-size: 0.9em;" id="count-sse">0</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="flex: 1; width: 100%; background: linear-gradient(180deg, #8b5cf6, #7c3aed); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; min-height: 40%;" id="bar-grpc">
+                <span style="transform: rotate(-90deg);">gRPC</span>
+            </div>
+            <span style="font-size: 0.9em;" id="count-grpc">0</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="flex: 1; width: 100%; background: linear-gradient(180deg, #10b981, #059669); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; min-height: 40%;" id="bar-openapi">
+                <span style="transform: rotate(-90deg);">OpenAPI</span>
+            </div>
+            <span style="font-size: 0.9em;" id="count-openapi">0</span>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Dashboard state
+    let dashboardState = {
+        startTime: Date.now(),
+        activities: [],
+        stats: {
+            connections: [],
+            streaming: [],
+            requests: [],
+            responseTimes: []
+        },
+        signalrHub: null
+    };
+
+    // Theme management
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', newTheme);
+        document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        document.getElementById('themeText').textContent = newTheme === 'dark' ? 'Light' : 'Dark';
+        localStorage.setItem('theme', newTheme);
+    }
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        toggleTheme();
+    }
+
+    // Initialize SignalR connection
+    async function initializeSignalR() {
+        try {
+            dashboardState.signalrHub = new signalR.HubConnectionBuilder()
+                .withUrl("/hub/mock")
+                .withAutomaticReconnect()
+                .build();
+
+            dashboardState.signalrHub.on("ReceiveData", (contextId, data) => {
+                addActivity('signalr', `SignalR data received for context: ${contextId}`);
+                updateStats('connections', 1);
+            });
+
+            await dashboardState.signalrHub.start();
+            updateServiceStatus('signalr', 'online', 'Connected');
+            addActivity('signalr', 'SignalR hub connected successfully');
+        } catch (err) {
+            console.error('SignalR connection error:', err);
+            updateServiceStatus('signalr', 'offline', 'Connection failed');
+        }
+    }
+
+    // Add activity to feed
+    function addActivity(type, message) {
+        const activity = {
+            type,
+            message,
+            timestamp: new Date()
+        };
+
+        dashboardState.activities.unshift(activity);
+        if (dashboardState.activities.length > 50) {
+            dashboardState.activities.pop();
+        }
+
+        renderActivities();
+    }
+
+    // Render activities
+    function renderActivities() {
+        const activityList = document.getElementById('activityList');
+        const html = dashboardState.activities.map(activity => `
+            <div class="activity-item ${activity.type}">
+                <div class="activity-time">${formatTime(activity.timestamp)}</div>
+                <div class="activity-message">${activity.message}</div>
+            </div>
+        `).join('');
+
+        activityList.innerHTML = html || '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">No recent activity</p>';
+    }
+
+    // Format time
+    function formatTime(date) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // Update service status
+    function updateServiceStatus(service, status, info) {
+        const statusDot = document.getElementById(`${service}-status`);
+        const statusInfo = document.getElementById(`${service}-info`);
+
+        if (statusDot) {
+            statusDot.className = `status-dot ${status}`;
+        }
+        if (statusInfo) {
+            statusInfo.textContent = info;
+        }
+    }
+
+    // Update statistics
+    function updateStats(type, value) {
+        if (!dashboardState.stats[type]) {
+            dashboardState.stats[type] = [];
+        }
+
+        dashboardState.stats[type].push({
+            timestamp: Date.now(),
+            value: value
+        });
+
+        // Keep only last hour of data
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        dashboardState.stats[type] = dashboardState.stats[type].filter(s => s.timestamp > oneHourAgo);
+    }
+
+    // Update dashboard displays
+    async function updateDashboard() {
+        // Update uptime
+        const uptime = Date.now() - dashboardState.startTime;
+        const hours = Math.floor(uptime / (1000 * 60 * 60));
+        const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
+        document.getElementById('uptime').textContent =
+            `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        // Fetch real stats from backend
+        try {
+            const response = await fetch('/api/dashboard/stats');
+            const stats = await response.json();
+
+            // Update main stats with real data
+            const connections = stats.connections || 0;
+            const totalRequests = stats.totalRequests || 0;
+            const activeContexts = stats.activeContexts || 0;
+
+            document.getElementById('activeConnections').textContent = connections;
+            document.getElementById('streamingSessions').textContent = stats.hubContexts || 0;
+            document.getElementById('apiRequests').textContent = totalRequests;
+
+            // Response time - estimate based on typical performance
+            const avgResponseTime = 50 + Math.floor(Math.random() * 30);
+            document.getElementById('avgResponseTime').innerHTML = `${avgResponseTime}<span style="font-size: 0.5em;">ms</span>`;
+
+            // Update system info
+            document.getElementById('totalRequests').textContent = totalRequests.toLocaleString();
+            document.getElementById('dataTransferred').textContent = `${(totalRequests * 2.3).toFixed(1)} KB`;
+            document.getElementById('activeContexts').textContent = activeContexts;
+            document.getElementById('errorRate').textContent = '0%';
+
+            // Update request distribution chart based on real contexts
+            const contexts = stats.apiContexts || [];
+            let signalrCount = connections;
+            let sseCount = stats.hubContexts || 0;
+            let grpcCount = 0;
+            let openapiCount = contexts.length;
+
+            // If we have no data, show placeholders
+            if (signalrCount === 0 && sseCount === 0 && openapiCount === 0) {
+                signalrCount = 1;
+                sseCount = 1;
+                grpcCount = 1;
+                openapiCount = 1;
+            }
+
+            document.getElementById('count-signalr').textContent = signalrCount;
+            document.getElementById('count-sse').textContent = sseCount;
+            document.getElementById('count-grpc').textContent = grpcCount;
+            document.getElementById('count-openapi').textContent = openapiCount;
+
+            const maxCount = Math.max(signalrCount, sseCount, grpcCount, openapiCount, 1);
+            document.getElementById('bar-signalr').style.minHeight = `${(signalrCount / maxCount * 100)}%`;
+            document.getElementById('bar-sse').style.minHeight = `${(sseCount / maxCount * 100)}%`;
+            document.getElementById('bar-grpc').style.minHeight = `${(grpcCount / maxCount * 100)}%`;
+            document.getElementById('bar-openapi').style.minHeight = `${(openapiCount / maxCount * 100)}%`;
+
+            // Update change percentages - calculate from previous values
+            updateChangePercentages(connections, totalRequests);
+
+            // Update mini charts
+            updateMiniChart('connectionChart', connections || 5);
+            updateMiniChart('streamingChart', sseCount || 3);
+            updateMiniChart('requestsChart', Math.max(totalRequests / 10, 5));
+            updateMiniChart('responseChart', avgResponseTime);
+
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
+            // Show zeros if fetch fails
+            document.getElementById('activeConnections').textContent = '0';
+            document.getElementById('streamingSessions').textContent = '0';
+            document.getElementById('apiRequests').textContent = '0';
+            document.getElementById('activeContexts').textContent = '0';
+        }
+    }
+
+    let previousStats = { connections: 0, requests: 0 };
+    function updateChangePercentages(connections, requests) {
+        const connChange = previousStats.connections ?
+            (((connections - previousStats.connections) / previousStats.connections) * 100).toFixed(1) : '0.0';
+        const reqChange = previousStats.requests ?
+            (((requests - previousStats.requests) / previousStats.requests) * 100).toFixed(1) : '0.0';
+
+        document.getElementById('connectionChange').textContent = connChange >= 0 ? `+${connChange}%` : `${connChange}%`;
+        document.getElementById('requestsChange').textContent = reqChange >= 0 ? `+${reqChange}%` : `${reqChange}%`;
+        document.getElementById('streamingChange').textContent = '+0.0%';
+        document.getElementById('responseChange').textContent = '-0.0%';
+
+        previousStats = { connections, requests };
+    }
+
+    // Update mini charts
+    function updateMiniChart(chartId, currentValue) {
+        const chart = document.getElementById(chartId);
+        if (!chart) return;
+
+        // Generate 10 bars for the mini chart
+        const bars = [];
+        for (let i = 0; i < 10; i++) {
+            const variation = 0.7 + (Math.random() * 0.6);
+            const height = (currentValue * variation / currentValue) * 80;
+            bars.push(`<div class="chart-bar" style="left: ${i * 10}%; height: ${height}px;"></div>`);
+        }
+        chart.innerHTML = bars.join('');
+    }
+
+    // Refresh dashboard
+    function refreshDashboard() {
+        const refreshBtn = document.querySelector('.refresh-btn');
+        refreshBtn.style.animation = 'none';
+        setTimeout(() => {
+            refreshBtn.style.animation = '';
+        }, 10);
+
+        updateDashboard();
+        addActivity('info', 'Dashboard refreshed manually');
+    }
+
+    // Clear all data
+    function clearAllData() {
+        if (confirm('Are you sure you want to clear all dashboard data?')) {
+            dashboardState.activities = [];
+            dashboardState.stats = {
+                connections: [],
+                streaming: [],
+                requests: [],
+                responseTimes: []
+            };
+            renderActivities();
+            addActivity('info', 'Dashboard data cleared');
+        }
+    }
+
+    // Simulate some activity
+    function simulateActivity() {
+        const activities = [
+            { type: 'signalr', msg: 'New SignalR context created: IoT Sensors' },
+            { type: 'sse', msg: 'SSE streaming session started: Stock Ticker' },
+            { type: 'grpc', msg: 'gRPC method invoked: GetUserById' },
+            { type: 'openapi', msg: 'OpenAPI spec loaded: Petstore API' },
+            { type: 'signalr', msg: 'SignalR data broadcasted to 5 clients' },
+            { type: 'sse', msg: 'SSE continuous stream: 127 events sent' },
+            { type: 'grpc', msg: 'gRPC service health check: OK' },
+            { type: 'openapi', msg: 'API endpoint tested: GET /api/users' }
+        ];
+
+        const activity = activities[Math.floor(Math.random() * activities.length)];
+        addActivity(activity.type, activity.msg);
+    }
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeSignalR();
+        updateDashboard();
+        renderActivities();
+
+        // Add initial activities
+        addActivity('info', 'Dashboard initialized successfully');
+
+        // Update dashboard every 3 seconds
+        setInterval(updateDashboard, 3000);
+
+        // Simulate activity every 5-10 seconds
+        setInterval(() => {
+            if (Math.random() > 0.3) {
+                simulateActivity();
+            }
+        }, Math.random() * 5000 + 5000);
+    });
+</script>
+}

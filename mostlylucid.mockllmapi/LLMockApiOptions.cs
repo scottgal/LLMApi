@@ -280,6 +280,55 @@ public class LLMockApiOptions
 
     #endregion
 
+    #region Tools & Actions Options
+
+    /// <summary>
+    /// Tool execution mode (default: Disabled)
+    /// - Disabled: Tools not available
+    /// - Explicit: Tools called via ?useTool=name or X-Use-Tool header
+    /// - LlmDriven: LLM decides which tools to call (Phase 2)
+    /// </summary>
+    public ToolExecutionMode ToolExecutionMode { get; set; } = ToolExecutionMode.Disabled;
+
+    /// <summary>
+    /// Available tools that can be called from mock endpoints
+    /// Supports HTTP calls, mock endpoint calls, and extensible tool types
+    /// MCP-compatible design for future integration
+    /// </summary>
+    public List<ToolConfig> Tools { get; set; } = new();
+
+    /// <summary>
+    /// Maximum concurrent tool executions per request (default: 5)
+    /// Prevents runaway tool chains
+    /// </summary>
+    public int MaxConcurrentTools { get; set; } = 5;
+
+    /// <summary>
+    /// Maximum tool chain depth (default: 3)
+    /// Prevents infinite recursion in decision trees
+    /// </summary>
+    public int MaxToolChainDepth { get; set; } = 3;
+
+    /// <summary>
+    /// Include tool results in response (default: false)
+    /// When true, adds "toolResults" field to response JSON
+    /// Useful for debugging tool chains
+    /// </summary>
+    public bool IncludeToolResultsInResponse { get; set; } = false;
+
+    #endregion
+
+    #region Pre-configured REST APIs
+
+    /// <summary>
+    /// Pre-configured REST API definitions (NEW in v2.2.0)
+    /// Define complete API configurations with shape, context, tools, etc.
+    /// Call by name to apply all settings automatically: /api/configured/{name}
+    /// </summary>
+    public List<RestApiConfig> RestApis { get; set; } = new();
+
+    #endregion
+
     #region Context Options
 
     /// <summary>
@@ -289,6 +338,52 @@ public class LLMockApiOptions
     /// Set higher for long-running test sessions, lower to reduce memory usage.
     /// </summary>
     public int ContextExpirationMinutes { get; set; } = 15;
+
+    #endregion
+
+    #region Rate Limiting & Batching Options
+
+    /// <summary>
+    /// Enable rate limiting simulation (default: false)
+    /// When enabled, adds artificial delays to responses to simulate rate-limited APIs.
+    /// Useful for testing backoff strategies, timeouts, and concurrent request handling.
+    /// </summary>
+    public bool EnableRateLimiting { get; set; } = false;
+
+    /// <summary>
+    /// Delay range in milliseconds for rate limiting (default: null = disabled)
+    /// Format: "min-max" (e.g., "500-4000") or "max" to match measured LLM response time.
+    /// - "500-4000": Random delay between 500ms and 4000ms
+    /// - "max": Delay matches actual LLM response time (doubles total response time)
+    /// - null: No delay (same as EnableRateLimiting=false)
+    /// Can be overridden per-request with ?rateLimit=500-4000 query parameter or X-Rate-Limit-Delay header.
+    /// </summary>
+    public string? RateLimitDelayRange { get; set; }
+
+    /// <summary>
+    /// Rate limiting strategy for n-completions (default: Auto)
+    /// - Auto: System chooses optimal strategy based on request parameters
+    /// - Sequential: Complete one request, delay, start next (predictable but slower)
+    /// - Parallel: Start all requests simultaneously, stagger responses (faster but more resource-intensive)
+    /// - Streaming: Stream results as ready with rate-limited delays (best for real-time UIs)
+    /// Can be overridden per-request with ?strategy=parallel query parameter or X-Rate-Limit-Strategy header.
+    /// </summary>
+    public RateLimitStrategy RateLimitStrategy { get; set; } = RateLimitStrategy.Auto;
+
+    /// <summary>
+    /// Enable per-endpoint rate limit statistics tracking (default: true)
+    /// Tracks moving average of LLM response times per endpoint path.
+    /// Used for calculating realistic rate limits and auto-delay calculations.
+    /// Statistics exposed via X-LLMApi-Avg-Time response header.
+    /// </summary>
+    public bool EnableRateLimitStatistics { get; set; } = true;
+
+    /// <summary>
+    /// Window size for calculating moving average response times (default: 10)
+    /// Higher values = smoother average but slower to adapt to changes.
+    /// Lower values = more responsive to recent performance but more volatile.
+    /// </summary>
+    public int RateLimitStatsWindowSize { get; set; } = 10;
 
     #endregion
 }

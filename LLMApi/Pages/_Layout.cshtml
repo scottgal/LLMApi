@@ -280,7 +280,13 @@
                 @{
                     var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
                 }
-                <a href="/" class="nav-button @(currentPage == "/Index" || currentPage == "" ? "active" : "")">
+                <a href="/Dashboard" class="nav-button @(currentPage == "/Dashboard" ? "active" : "")">
+                    🎛️ Dashboard
+                </a>
+                <a href="/ApiTester" class="nav-button @(currentPage == "/ApiTester" ? "active" : "")">
+                    🧪 API Tester
+                </a>
+                <a href="/Index" class="nav-button @(currentPage == "/Index" ? "active" : "")">
                     📊 SignalR Demo
                 </a>
                 <a href="/Streaming" class="nav-button @(currentPage == "/Streaming" ? "active" : "")">
@@ -288,6 +294,9 @@
                 </a>
                 <a href="/OpenApi" class="nav-button @(currentPage == "/OpenApi" ? "active" : "")">
                     🔌 OpenAPI Manager
+                </a>
+                <a href="/OpenApiGenerator" class="nav-button @(currentPage == "/OpenApiGenerator" ? "active" : "")">
+                    ✨ OpenAPI Generator
                 </a>
                 <a href="/Grpc" class="nav-button @(currentPage == "/Grpc" ? "active" : "")">
                     ⚡ gRPC Demo

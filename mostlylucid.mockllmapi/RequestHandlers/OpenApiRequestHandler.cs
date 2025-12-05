@@ -189,9 +189,23 @@ public class OpenApiRequestHandler
                 }
             }
         }
-        catch
+        catch (JsonException ex)
         {
-            // Skip malformed chunks
+            // Log malformed JSON chunks for debugging
+            _logger.LogDebug(ex, "Malformed JSON chunk in streaming response: {Payload}",
+                payload.Length > 100 ? payload.Substring(0, 100) + "..." : payload);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            // Log missing properties - can happen with non-standard LLM responses
+            _logger.LogDebug(ex, "Missing expected property in streaming chunk: {Payload}",
+                payload.Length > 100 ? payload.Substring(0, 100) + "..." : payload);
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected errors but don't crash
+            _logger.LogWarning(ex, "Unexpected error parsing streaming chunk: {Payload}",
+                payload.Length > 100 ? payload.Substring(0, 100) + "..." : payload);
         }
         return null;
     }

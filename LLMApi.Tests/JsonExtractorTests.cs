@@ -376,4 +376,78 @@ public class JsonExtractorTests
     }
 
     #endregion
+
+    #region Greedy Regex Fix Tests
+
+    [Fact]
+    public void ExtractJson_MultipleJsonObjectsInText_ExtractsFirst()
+    {
+        // Arrange - This was a bug where greedy regex would match from first { to last }
+        // capturing everything in between as invalid JSON
+        var input = "Here is the first response: {\"id\": 1} and here is another one {\"id\": 2}";
+
+        // Act
+        var result = JsonExtractor.ExtractJson(input);
+
+        // Assert - Should extract the first complete valid JSON object
+        Assert.Contains("\"id\"", result);
+        // The result should be valid JSON
+        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        Assert.NotNull(parsed);
+    }
+
+    [Fact]
+    public void ExtractJson_TextWithBracesBeforeJson_ExtractsCorrectJson()
+    {
+        // Arrange - Text has curly braces that aren't JSON
+        var input = "Use the function like {this} but the actual response is {\"data\": \"value\"}";
+
+        // Act
+        var result = JsonExtractor.ExtractJson(input);
+
+        // Assert - Should extract the actual JSON, not get confused by {this}
+        Assert.Contains("\"data\"", result);
+        Assert.Contains("\"value\"", result);
+    }
+
+    [Fact]
+    public void ExtractJson_BalancedBracketsWithEscapedQuotes_HandlesCorrectly()
+    {
+        // Arrange - Complex JSON with escaped quotes that could confuse simple parsing
+        var input = """
+        Prefix {
+            "text": "He said \"hello\" and she said \"goodbye\"",
+            "count": 5
+        } suffix
+        """;
+
+        // Act
+        var result = JsonExtractor.ExtractJson(input);
+
+        // Assert
+        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        Assert.NotNull(parsed);
+        Assert.Contains("\"text\"", result);
+        Assert.Contains("\\\"hello\\\"", result);
+    }
+
+    [Fact]
+    public void ExtractJson_ArraysWithMultipleObjects_ExtractsComplete()
+    {
+        // Arrange
+        var input = """
+        The response is: [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+        End of response.
+        """;
+
+        // Act
+        var result = JsonExtractor.ExtractJson(input);
+
+        // Assert - Should extract the complete array, not just first object
+        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, parsed.RootElement.ValueKind);
+        Assert.Equal(2, parsed.RootElement.GetArrayLength());
+    }
+
+    #endregion
 }

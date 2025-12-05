@@ -1,4 +1,4 @@
-# mostlylucid.mockllmapi v2.1.0
+# mostlylucid.mockllmapi v2.2.0
 
 A comprehensive, production-ready ASP.NET Core mocking platform for generating realistic mock API responses using multiple LLM backends. Add intelligent mock endpoints to any project with just 2 lines of code!
 
@@ -6,13 +6,17 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
-**Version 2.1.0** - Enhanced reliability, comprehensive validation, and streamlined configuration.
+**Companion Package:** [mostlylucid.mockllmapi.Testing](./mostlylucid.mockllmapi.Testing/README.md) - Testing utilities with fluent HttpClient integration
+
+**Version 2.2.0 (NEW!)** - [Pluggable tools & actions](./docs/TOOLS_ACTIONS.md) with MCP-compatible architecture for HTTP calls, decision trees, and tool chaining. Plus dynamic context memory with automatic expiration.
+
+**Version 2.1.0** - [Rate limiting and batching support](./docs/RATE_LIMITING_BATCHING.md) with n-completions, per-endpoint statistics, and multiple execution strategies.
 
 ---
 
 ## Table of Contents
 
-- [What's New in v2.1.0](#whats-new-in-v210)
+- [What's New in v2.2.0](#whats-new-in-v220)
 - [Features Overview](#features)
 - [Quick Start](#quick-start)
 - [Feature Documentation](#feature-documentation)
@@ -25,42 +29,163 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 ---
 
-## What's New in v2.1.0
+## What's New in v2.2.0
 
-**Focus**: Enhanced reliability, comprehensive testing, and improved developer experience. Fully backward compatible with v2.0.
+**Focus**: Pluggable tools for API integration, pre-configured REST APIs, and intelligent context memory. Fully backward compatible with v2.1.0.
 
-### 1. Comprehensive HTTP Validation Suite
-Complete validation coverage with 70+ ready-to-run test cases:
-- **Complete Coverage**: OpenAPI, contexts, gRPC, SSE, chunking, errors
-- **Backend Selection**: Validation for X-LLM-Backend header
-- **Schema Validation**: includeSchema + X-Response-Schema testing
-- **[Ready-to-Run Tests](./LLMApi/LLMApi.http)**
+### 1. Pluggable Tools & Actions System 🔥
+Call external REST APIs or chain mock endpoints to create realistic workflows and decision trees:
 
-### 2. Enhanced Chunking Reliability
-Improved instruction following for large array generation:
-- **Explicit Array Formatting**: Prevents comma-separated objects
-- **Better Prompts**: Ultra-clear instructions for LLMs
-- **Model Recommendations**: Documented temperature/model combinations
-- **[Chunking Guide](./CHUNKING_AND_CACHING.md)**
+**HTTP Tools** - Call any external API:
+```json
+{
+  "Name": "getUserData",
+  "Type": "http",
+  "HttpConfig": {
+    "Endpoint": "https://api.example.com/users/{userId}",
+    "AuthType": "bearer",
+    "AuthToken": "${API_TOKEN}"  // Environment variable support
+  }
+}
+```
 
-### 3. Streamlined Configuration
-Clean, reference-based configuration:
-- **Clean appsettings.json**: Removed verbose comments
-- **OLLAMA_MODELS.md**: Comprehensive 10+ model configurations
-- **Hardware Requirements**: GPU/RAM guidance for each model
-- **Temperature Guidelines**: Optimized settings per use case
-- **[Model Reference Guide](./docs/OLLAMA_MODELS.md)**
+**Mock Tools** - Chain mock endpoints:
+```json
+{
+  "Name": "getOrderHistory",
+  "Type": "mock",
+  "MockConfig": {
+    "Endpoint": "/api/mock/users/{userId}/orders",
+    "Shape": "{\"orders\":[{\"id\":\"string\",\"total\":0.0}]}"
+  }
+}
+```
 
-### 4. Complete Swagger Documentation
-All 25+ management endpoints fully documented:
-- **Tags Organization**: Logical endpoint grouping
-- **Request/Response Examples**: Complete samples
-- **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)**
+**Key Features**:
+- MCP-compatible architecture ready for LLM-driven tool selection
+- Template substitution (`{param}`) and environment variables (`${ENV_VAR}`)
+- Authentication: Bearer, Basic, API Key
+- JSONPath extraction, tool chaining, result caching
+- Safety limits prevent runaway execution
 
-**Note**: v2.0.0 was skipped to refine these critical areas before stable release.
+**Documentation**: [TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)
+
+### 2. Pre-Configured REST APIs 🔥
+Define complete API configurations once, call by name:
+
+```json
+{
+  "RestApis": [
+    {
+      "Name": "user-profile",
+      "Path": "profile/{userId}",
+      "Shape": "{\"user\":{},\"orders\":[]}",
+      "ContextName": "user-session",
+      "Tools": ["getUserData", "getOrderHistory"],
+      "Tags": ["users"],
+      "CacheCount": 5
+    }
+  ]
+}
+```
+
+**Features**:
+- Shape or OpenAPI spec reference
+- Shared context management
+- Tool integration
+- Tags for organization
+- All mock features: rate limiting, streaming, caching, errors
+
+**8 complete examples** in `appsettings.Full.json`
+
+### 3. Dynamic Context Memory Management 🔥
+Context memory is now truly dynamic with automatic lifecycle management:
+
+**Automatic Expiration**
+- **Sliding Expiration**: Contexts expire after 15 minutes of inactivity (configurable)
+- **No Memory Leaks**: Automatic cleanup prevents indefinite memory growth
+- **Smart Touch**: Each access refreshes the expiration timer
+- **Configurable Duration**: Set from 5 minutes to 24 hours based on your needs
+
+**Benefits**
+- Start testing immediately - no manual cleanup needed
+- Long-running test sessions stay active as long as you're using them
+- Abandoned contexts automatically disappear
+- Memory-efficient for CI/CD pipelines
+
+**Configuration Example**
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "ContextExpirationMinutes": 15  // Default: 15 (range: 5-1440)
+  }
+}
+```
+
+### 4. Intelligent Shared Data Extraction
+Context memory now automatically extracts **ALL** fields from responses:
+
+**Before (v2.1)**: Only hardcoded fields (`id`, `userId`, `name`, `email`)
+**Now (v2.2)**: Every field at any nesting level!
+
+**New Capabilities**
+- **Nested Objects**: Extracts `address.city`, `payment.cardNumber`, etc.
+- **Array Tracking**: Stores array lengths (e.g., `items.length: 5`)
+- **First Item Data**: Captures `items[0].productId` automatically
+- **Custom Fields**: Any domain-specific field is now tracked
+- **Backward Compatible**: Legacy `lastId`, `lastUserId` keys still work
+
+**Example**
+```json
+// Response from GET /orders/123
+{
+  "orderId": 123,
+  "customer": {
+    "customerId": 456,
+    "tier": "gold"
+  },
+  "items": [
+    {"productId": 789, "sku": "WIDGET-01"}
+  ]
+}
+
+// Automatically extracted shared data:
+{
+  "orderId": "123",
+  "customer.customerId": "456",
+  "customer.tier": "gold",
+  "items.length": "1",
+  "items[0].productId": "789",
+  "items[0].sku": "WIDGET-01",
+  // Legacy keys for compatibility:
+  "lastId": "123"
+}
+```
+
+**Why This Matters**
+- No more manual specification of which fields to track
+- Domain-specific data (SKUs, account numbers, reference codes) automatically tracked
+- Nested relationships preserved across API calls
+- Perfect for complex e-commerce, financial, or enterprise scenarios
+
+### 5. Enhanced Documentation
+New comprehensive guides:
+- **[TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)**: Complete pluggable tools system guide (500+ lines)
+  - HTTP and Mock tools with examples
+  - Authentication, template substitution, tool chaining
+  - Decision tree patterns and workflows
+  - Phase 2/3 roadmap for LLM-driven tool selection
+- **[RATE_LIMITING_BATCHING.md](./docs/RATE_LIMITING_BATCHING.md)**: Rate limiting and batching guide
+  - N-completions with multiple strategies
+  - Per-endpoint statistics tracking
+- **[API-CONTEXTS.md](./docs/API-CONTEXTS.md)**: Complete rewrite of context memory
+  - IMemoryCache architecture and sliding expiration
+  - Dynamic field extraction with nested objects/arrays
+  - Configuration recommendations and real-world scenarios
 
 **[See RELEASE_NOTES.md for complete details and full version history](./RELEASE_NOTES.md)**
 - See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
+- See [API-CONTEXTS.md](./docs/API-CONTEXTS.md) for context memory deep dive
 
 ---
 
@@ -115,12 +240,20 @@ This package provides **six independent features** - use any combination you nee
 - **NuGet Package**: Easy to add to existing projects
 - **API Contexts**: Maintain consistency across related requests - **[Complete Guide](./docs/API-CONTEXTS.md)**
 - **Error Simulation**: Comprehensive error testing with 4xx/5xx status codes, custom messages, and multiple configuration methods
+- **Testing Utilities**: Companion package `mostlylucid.mockllmapi.Testing` for easy HttpClient integration in tests - **[See Testing Section](#testing)**
 
 ---
 
 ## Feature Documentation
 
 For detailed guides with architecture diagrams, use cases, and implementation details:
+
+- **[Docker Deployment Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and deployment
+  - Quick start with Docker Compose + Ollama
+  - End-to-end example with llama3
+  - Configuration methods (env vars, volume mapping, .env files)
+  - GPU support, multi-backend setup
+  - Production considerations and troubleshooting
 
 - **[Backend API Reference](./docs/BACKEND_API_REFERENCE.md)** - Complete management endpoint documentation
   - OpenAPI management endpoints
@@ -140,6 +273,21 @@ For detailed guides with architecture diagrams, use cases, and implementation de
   - E-commerce flows, stock tickers, game state examples
   - Token management and intelligent truncation
   - Mermaid architecture diagrams
+
+- **[Rate Limiting & Batching Guide](./docs/RATE_LIMITING_BATCHING.md)** - NEW in v2.1.0!
+  - N-completions support for generating multiple response variants
+  - Per-endpoint statistics tracking with moving averages
+  - Three batching strategies (Sequential, Parallel, Streaming)
+  - Detailed timing headers for performance testing
+  - Perfect for testing backoff strategies and timeout scenarios
+
+- **[Pluggable Tools & Actions Guide](./docs/TOOLS_ACTIONS.md)** - NEW in v2.2.0!
+  - MCP-compatible architecture for extensible tool integration
+  - HTTP tools for calling external APIs with authentication
+  - Mock tools for creating decision trees and workflows
+  - Template substitution with environment variable support
+  - Tool chaining with safety limits and result caching
+  - Phase 1 (Explicit), Phase 2 (LLM-driven), Phase 3 (Advanced) roadmap
 
 - **[gRPC Support Guide](./docs/GRPC_SUPPORT.md)** - NEW in v1.7.0!
   - Upload .proto files for automatic gRPC service mocking
@@ -174,11 +322,48 @@ For detailed guides with architecture diagrams, use cases, and implementation de
 
 ### Installation
 
+**Main Package:**
 ```bash
 dotnet add package mostlylucid.mockllmapi
 ```
 
-### Prerequisites
+**Testing Utilities (Optional):**
+```bash
+dotnet add package mostlylucid.mockllmapi.Testing
+```
+> Provides fluent API for easy HttpClient configuration in tests. [See Testing Section](#testing) for details.
+
+### Quick Start with Docker (Recommended)
+
+The fastest way to get started - no .NET or Ollama installation required!
+
+```bash
+# Clone the repository
+git clone https://github.com/scottgal/LLMApi.git
+cd LLMApi
+
+# Start everything with Docker Compose (includes Ollama + llama3)
+docker compose up -d
+
+# Wait for model download (first run only, ~4.7GB)
+docker compose logs -f ollama
+
+# Test the API
+curl "http://localhost:5116/api/mock/users?shape={\"id\":0,\"name\":\"\",\"email\":\"\"}"
+```
+
+**That's it!** The API is running at `http://localhost:5116` with Ollama backend.
+
+See the **[Complete Docker Guide](./docs/DOCKER_GUIDE.md)** for:
+- Configuration options (env vars, volume mapping)
+- Using different models (gemma3:4b, mistral-nemo)
+- GPU support
+- Production deployment
+- Troubleshooting
+
+### Prerequisites (Local Development)
+
+If not using Docker:
 
 1. Install [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 2. Install [Ollama](https://ollama.ai/) and pull a model:
@@ -1515,7 +1700,32 @@ See the complete [management.http](LLMApi/management.http) file for 20+ ready-to
 
 ### Demo Applications
 
-The package includes two complete demo applications with interactive web interfaces featuring full context management:
+The package includes complete demo applications with interactive interfaces featuring full context management:
+
+#### Windows Desktop Client (`LLMockApiClient/`) — WPF Application (In Development)
+
+> **⚠️ DEVELOPMENT STATUS**: The Windows desktop client is currently under active development. While many features are functional, some functionality may be incomplete or subject to change. Use for testing and development purposes.
+
+A comprehensive WPF desktop application for interacting with the LLMock API:
+
+**Features:**
+- **Dashboard**: Real-time connection status and system monitoring
+- **SignalR Real-Time**: Create contexts and subscribe to live data streams
+- **SSE Streaming**: Three streaming modes (tokens, objects, array items)
+- **OpenAPI Manager**: Load specs from URL/JSON, test endpoints
+- **gRPC Services**: Upload .proto files, test gRPC methods
+- **Play with APIs**: Interactive HTTP testing playground
+- **Multi-Backend Support**: Configure and switch between multiple backends
+- **Traffic Monitor**: Live HTTP request/response logging
+- **Dark/Light Theme**: Toggle between themes with smooth transitions
+
+**Documentation:** [LLMockApiClient README](./LLMockApiClient/README.md)
+
+**Perfect for:** Desktop testing workflows, visual API exploration, development and debugging
+
+---
+
+#### Web-Based Demos
 
 #### SignalR Demo (`/`) — Real-Time Data Streaming with Management UI
 
@@ -1873,12 +2083,79 @@ Notes
 
 ## Testing
 
+### Testing Utilities Package (NEW!)
+
+**mostlylucid.mockllmapi.Testing** - A companion NuGet package that makes testing with the mock API even easier!
+
+```bash
+dotnet add package mostlylucid.mockllmapi.Testing
+```
+
+**Quick Example:**
+```csharp
+using mostlylucid.mockllmapi.Testing;
+
+// Create a configured HttpClient for testing
+var client = HttpClientExtensions.CreateMockLlmClient(
+    baseAddress: "http://localhost:5116",
+    pathPattern: "/users",
+    configure: endpoint => endpoint
+        .WithShape(new { id = 0, name = "", email = "" })
+        .WithCache(5)
+        .WithError(404) // Simulate errors easily
+);
+
+// Use in your tests
+var response = await client.GetAsync("/users");
+var users = await response.Content.ReadFromJsonAsync<User[]>();
+```
+
+**Key Features:**
+- **Fluent API**: Easy configuration with `WithShape()`, `WithError()`, `WithCache()`, etc.
+- **HttpClient Integration**: Works seamlessly with `HttpClient` and `IHttpClientFactory`
+- **Multiple Endpoints**: Configure different behaviors for different paths
+- **Error Simulation**: Test error handling with various status codes
+- **Streaming Support**: Test SSE streaming endpoints
+- **Dependency Injection**: Built-in support for typed and named clients
+
+**Configuration Examples:**
+```csharp
+// Multiple endpoints with different configurations
+var client = HttpClientExtensions.CreateMockLlmClient(
+    "http://localhost:5116",
+    configure: handler => handler
+        .ForEndpoint("/users", config => config
+            .WithShape(new { id = 0, name = "", email = "" })
+            .WithCache(10))
+        .ForEndpoint("/posts", config => config
+            .WithShape(new { id = 0, title = "", content = "" })
+            .WithStreaming()
+            .WithSseMode("CompleteObjects"))
+        .ForEndpoint("/error", config => config
+            .WithError(500, "Internal server error"))
+);
+
+// Dependency Injection support
+services.AddMockLlmHttpClient<IUserApiClient>(
+    baseApiPath: "/api/mock",
+    configure: handler => handler
+        .ForEndpoint("/users", config => config.WithShape(...))
+);
+```
+
+**How It Works:**
+The `MockLlmHttpHandler` is a `DelegatingHandler` that intercepts HTTP requests and automatically applies your configuration via query parameters and headers before forwarding to the mock API. This means you can use real `HttpClient` instances in your tests while controlling mock behavior declaratively.
+
+**See the [Testing Package README](./mostlylucid.mockllmapi.Testing/README.md) for complete documentation and examples.**
+
+### HTTP File Testing
+
 Use the included `LLMApi.http` file with:
 - Visual Studio / Rider HTTP client
 - VS Code REST Client extension
 - Any HTTP client
 
-## Testing
+### Unit Tests
 
 The project includes comprehensive unit tests:
 

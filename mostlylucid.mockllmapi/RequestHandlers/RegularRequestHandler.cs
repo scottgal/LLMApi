@@ -1,13 +1,15 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles non-streaming mock API requests with automatic chunking support
+/// Handles non-streaming mock API requests with automatic chunking, rate limiting, and tool execution support
 /// </summary>
 public class RegularRequestHandler
 {
@@ -20,6 +22,9 @@ public class RegularRequestHandler
     private readonly CacheManager _cacheManager;
     private readonly DelayHelper _delayHelper;
     private readonly ChunkingCoordinator _chunkingCoordinator;
+    private readonly RateLimitService _rateLimitService;
+    private readonly BatchingCoordinator _batchingCoordinator;
+    private readonly ToolOrchestrator _toolOrchestrator;
     private readonly ILogger<RegularRequestHandler> _logger;
 
     private const int MaxSchemaHeaderLength = 4000;
@@ -34,6 +39,9 @@ public class RegularRequestHandler
         CacheManager cacheManager,
         DelayHelper delayHelper,
         ChunkingCoordinator chunkingCoordinator,
+        RateLimitService rateLimitService,
+        BatchingCoordinator batchingCoordinator,
+        ToolOrchestrator toolOrchestrator,
         ILogger<RegularRequestHandler> logger)
     {
         _options = options.Value;
@@ -45,11 +53,14 @@ public class RegularRequestHandler
         _cacheManager = cacheManager;
         _delayHelper = delayHelper;
         _chunkingCoordinator = chunkingCoordinator;
+        _rateLimitService = rateLimitService;
+        _batchingCoordinator = batchingCoordinator;
+        _toolOrchestrator = toolOrchestrator;
         _logger = logger;
     }
 
     /// <summary>
-    /// Handles a regular (non-streaming) request with automatic chunking support
+    /// Handles a regular (non-streaming) request with automatic chunking and rate limiting support
     /// </summary>
     public async Task<string> HandleRequestAsync(
         string method,
@@ -59,6 +70,9 @@ public class RegularRequestHandler
         HttpContext context,
         CancellationToken cancellationToken = default)
     {
+        // Start overall timing
+        var overallStopwatch = Stopwatch.StartNew();
+
         // Apply random request delay if configured
         await _delayHelper.ApplyRequestDelayAsync(cancellationToken);
 
@@ -74,6 +88,22 @@ public class RegularRequestHandler
             return shapeInfo.ErrorConfig.ToJson();
         }
 
+        // Check for n-completions parameter
+        var nCompletions = GetNCompletionsParameter(request);
+
+        // Check for rate limiting parameters
+        var rateLimitDelay = GetRateLimitDelayParameter(request);
+        var rateLimitStrategy = GetRateLimitStrategyParameter(request);
+
+        // If n-completions and rate limiting are requested, use BatchingCoordinator
+        if (nCompletions > 1 && (_options.EnableRateLimiting || rateLimitDelay != null))
+        {
+            return await HandleBatchedRequestAsync(
+                method, fullPathWithQuery, body, request, context,
+                nCompletions, rateLimitDelay, rateLimitStrategy,
+                overallStopwatch, cancellationToken);
+        }
+
         // Extract context name
         var contextName = _contextExtractor.ExtractContextName(request, body);
 
@@ -81,6 +111,33 @@ public class RegularRequestHandler
         var contextHistory = !string.IsNullOrWhiteSpace(contextName)
             ? _contextManager.GetContextForPrompt(contextName)
             : null;
+
+        // Execute tools if requested (Phase 1: Explicit mode)
+        List<ToolResult>? toolResults = null;
+        var requestId = Guid.NewGuid().ToString();
+
+        if (_options.ToolExecutionMode == ToolExecutionMode.Explicit)
+        {
+            var requestedTools = GetRequestedTools(request);
+            if (requestedTools.Count > 0)
+            {
+                _logger.LogInformation("Executing {Count} tools for request: {Tools}",
+                    requestedTools.Count, string.Join(", ", requestedTools));
+
+                var toolParams = ExtractToolParameters(request, body);
+                toolResults = await _toolOrchestrator.ExecuteToolsAsync(
+                    requestedTools, toolParams, requestId, cancellationToken);
+
+                // Merge tool results into context
+                if (toolResults.Count > 0)
+                {
+                    var toolContext = _toolOrchestrator.FormatToolResultsForContext(toolResults);
+                    contextHistory = string.IsNullOrWhiteSpace(contextHistory)
+                        ? toolContext
+                        : contextHistory + "\n\n" + toolContext;
+                }
+            }
+        }
 
         // Execute with automatic chunking if needed
         var content = await _chunkingCoordinator.ExecuteWithChunkingAsync(
@@ -127,6 +184,26 @@ public class RegularRequestHandler
 
         // Optionally include schema in header
         TryAddSchemaHeader(context, request, shapeInfo.Shape);
+
+        // Optionally include tool results in response
+        if (_options.IncludeToolResultsInResponse && toolResults != null && toolResults.Count > 0)
+        {
+            var contentJson = System.Text.Json.JsonDocument.Parse(content);
+            var wrappedResponse = new
+            {
+                data = contentJson.RootElement,
+                toolResults = toolResults.Select(r => new
+                {
+                    toolName = r.ToolName,
+                    success = r.Success,
+                    data = r.Data != null ? System.Text.Json.JsonDocument.Parse(r.Data).RootElement : (object?)null,
+                    error = r.Error,
+                    executionTimeMs = r.ExecutionTimeMs,
+                    metadata = r.Metadata
+                })
+            };
+            return System.Text.Json.JsonSerializer.Serialize(wrappedResponse, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
 
         return content;
     }
@@ -253,5 +330,248 @@ public class RegularRequestHandler
             return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
         }
         return _options.IncludeShapeInResponse;
+    }
+
+    /// <summary>
+    /// Extracts n-completions parameter from query string
+    /// </summary>
+    private int GetNCompletionsParameter(HttpRequest request)
+    {
+        if (request.Query.TryGetValue("n", out var nParam) && nParam.Count > 0)
+        {
+            if (int.TryParse(nParam[0], out var n) && n > 0)
+            {
+                return n;
+            }
+        }
+        return 1;
+    }
+
+    /// <summary>
+    /// Extracts rate limit delay parameter from query string or header
+    /// </summary>
+    private string? GetRateLimitDelayParameter(HttpRequest request)
+    {
+        // Check query parameter first
+        if (request.Query.TryGetValue("rateLimit", out var queryParam) && queryParam.Count > 0)
+        {
+            return queryParam[0];
+        }
+
+        // Check header
+        if (request.Headers.TryGetValue("X-Rate-Limit-Delay", out var headerParam))
+        {
+            return headerParam.FirstOrDefault();
+        }
+
+        // Fall back to config
+        return _options.RateLimitDelayRange;
+    }
+
+    /// <summary>
+    /// Extracts rate limit strategy parameter from query string or header
+    /// </summary>
+    private RateLimitStrategy GetRateLimitStrategyParameter(HttpRequest request)
+    {
+        // Check query parameter first
+        if (request.Query.TryGetValue("strategy", out var queryParam) && queryParam.Count > 0)
+        {
+            if (Enum.TryParse<RateLimitStrategy>(queryParam[0], true, out var strategy))
+            {
+                return strategy;
+            }
+        }
+
+        // Check header
+        if (request.Headers.TryGetValue("X-Rate-Limit-Strategy", out var headerParam))
+        {
+            var headerValue = headerParam.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(headerValue) &&
+                Enum.TryParse<RateLimitStrategy>(headerValue, true, out var strategy))
+            {
+                return strategy;
+            }
+        }
+
+        // Fall back to config
+        return _options.RateLimitStrategy;
+    }
+
+    /// <summary>
+    /// Handles a batched request with n-completions and rate limiting
+    /// </summary>
+    private async Task<string> HandleBatchedRequestAsync(
+        string method,
+        string fullPathWithQuery,
+        string? body,
+        HttpRequest request,
+        HttpContext context,
+        int nCompletions,
+        string? rateLimitDelay,
+        RateLimitStrategy strategy,
+        Stopwatch overallStopwatch,
+        CancellationToken cancellationToken)
+    {
+        // Extract shape info for prompt building
+        var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
+
+        // Build prompt
+        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false);
+
+        // Execute batched completions
+        var result = await _batchingCoordinator.GetBatchedCompletionsAsync(
+            prompt,
+            nCompletions,
+            strategy,
+            rateLimitDelay,
+            request.Path,
+            request,
+            cancellationToken);
+
+        overallStopwatch.Stop();
+
+        // Add rate limiting headers
+        AddRateLimitHeaders(context, request.Path, result);
+
+        // Return JSON array of completions
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            completions = result.Completions.Select(c => new
+            {
+                index = c.Index,
+                content = System.Text.Json.JsonSerializer.Deserialize<object>(c.Content),
+                timing = new
+                {
+                    requestTimeMs = c.RequestTimeMs,
+                    delayAppliedMs = c.DelayAppliedMs
+                }
+            }),
+            meta = new
+            {
+                strategy = result.Strategy.ToString(),
+                totalRequestTimeMs = result.TotalRequestTimeMs,
+                totalDelayMs = result.TotalDelayMs,
+                totalElapsedMs = result.TotalElapsedMs,
+                averageRequestTimeMs = result.AverageRequestTimeMs
+            }
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>
+    /// Adds rate limiting headers to the response
+    /// </summary>
+    private void AddRateLimitHeaders(HttpContext context, string endpointPath, BatchCompletionResult? batchResult = null)
+    {
+        try
+        {
+            if (!_options.EnableRateLimitStatistics && batchResult == null)
+                return;
+
+            var headers = _rateLimitService.CalculateRateLimitHeaders(
+                endpointPath,
+                batchResult?.AverageRequestTimeMs);
+
+            context.Response.Headers["X-RateLimit-Limit"] = headers.Limit.ToString();
+            context.Response.Headers["X-RateLimit-Remaining"] = headers.Remaining.ToString();
+            context.Response.Headers["X-RateLimit-Reset"] = headers.Reset.ToString();
+
+            if (batchResult != null)
+            {
+                context.Response.Headers["X-LLMApi-Request-Time"] = batchResult.AverageRequestTimeMs.ToString();
+                context.Response.Headers["X-LLMApi-Total-Elapsed"] = batchResult.TotalElapsedMs.ToString();
+
+                if (batchResult.TotalDelayMs > 0)
+                {
+                    context.Response.Headers["X-LLMApi-Delay-Applied"] = batchResult.TotalDelayMs.ToString();
+                }
+            }
+
+            // Add endpoint average if available
+            var stats = _rateLimitService.GetEndpointStats(endpointPath);
+            if (stats != null)
+            {
+                context.Response.Headers["X-LLMApi-Avg-Time"] = stats.AverageResponseTimeMs.ToString();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add rate limit headers");
+            // Swallow errors to avoid impacting response
+        }
+    }
+
+    /// <summary>
+    /// Get list of requested tools from query parameters or headers
+    /// Supports: ?useTool=tool1,tool2 or X-Use-Tool: tool1,tool2
+    /// </summary>
+    private List<string> GetRequestedTools(HttpRequest request)
+    {
+        var tools = new List<string>();
+
+        // Check query parameter first
+        if (request.Query.TryGetValue("useTool", out var queryParam) && queryParam.Count > 0)
+        {
+            var toolNames = queryParam[0]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (toolNames != null)
+            {
+                tools.AddRange(toolNames);
+            }
+        }
+
+        // Check header
+        if (request.Headers.TryGetValue("X-Use-Tool", out var headerParam))
+        {
+            var headerValue = headerParam.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(headerValue))
+            {
+                var toolNames = headerValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                tools.AddRange(toolNames);
+            }
+        }
+
+        return tools.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Extract tool parameters from query string and request body
+    /// </summary>
+    private Dictionary<string, object> ExtractToolParameters(HttpRequest request, string? body)
+    {
+        var parameters = new Dictionary<string, object>();
+
+        // Add all query parameters
+        foreach (var (key, value) in request.Query)
+        {
+            if (key != "useTool" && value.Count > 0)
+            {
+                parameters[key] = value[0] ?? string.Empty;
+            }
+        }
+
+        // Parse body as JSON and add fields as parameters
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                var jsonDoc = System.Text.Json.JsonDocument.Parse(body);
+                foreach (var property in jsonDoc.RootElement.EnumerateObject())
+                {
+                    parameters[property.Name] = property.Value.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                        System.Text.Json.JsonValueKind.Number => property.Value.GetDouble(),
+                        System.Text.Json.JsonValueKind.True => true,
+                        System.Text.Json.JsonValueKind.False => false,
+                        _ => property.Value.GetRawText()
+                    };
+                }
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse request body as JSON for tool parameters");
+            }
+        }
+
+        return parameters;
     }
 }

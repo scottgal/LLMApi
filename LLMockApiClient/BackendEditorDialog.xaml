@@ -1,0 +1,96 @@
+<Window x:Class="LLMockApiClient.BackendEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        ui:WindowHelper.UseModernWindowStyle="True"
+        Title="Backend Configuration" Height="550" Width="600"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="🔧 Configure Backend" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+            <TextBlock Text="Set up your API backend with model selection" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+        </StackPanel>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Name -->
+                <TextBlock Text="Backend Name" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                <TextBox x:Name="NameTextBox" Margin="0,0,0,16"
+                         ui:ControlHelper.PlaceholderText="e.g., My Ollama Server"/>
+
+                <!-- Provider -->
+                <TextBlock Text="Provider Type" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                <ComboBox x:Name="ProviderComboBox" Margin="0,0,0,16" SelectionChanged="Provider_SelectionChanged">
+                    <ComboBoxItem Content="Ollama (Local LLM)" Tag="ollama"/>
+                    <ComboBoxItem Content="LM Studio (Local LLM)" Tag="lmstudio"/>
+                    <ComboBoxItem Content="OpenAI (Cloud API)" Tag="openai"/>
+                    <ComboBoxItem Content="Custom HTTP Endpoint" Tag="custom"/>
+                </ComboBox>
+
+                <!-- Base URL -->
+                <TextBlock Text="Base URL" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                <TextBox x:Name="BaseUrlTextBox" Margin="0,0,0,16"
+                         ui:ControlHelper.PlaceholderText="e.g., http://localhost:11434"/>
+
+                <!-- API Key -->
+                <TextBlock Text="API Key (Optional)" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                <PasswordBox x:Name="ApiKeyPasswordBox" Margin="0,0,0,16"
+                             ui:ControlHelper.PlaceholderText="Leave blank if not required"/>
+
+                <!-- Model Selection Section -->
+                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        CornerRadius="8" Padding="16" Margin="0,8,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="Model Selection" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                            <Button x:Name="DiscoverModelsButton" Content="🔍 Refresh Models"
+                                    Click="DiscoverModels_Click"
+                                    Margin="12,0,0,0" Padding="12,4"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Select Model" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                        <ComboBox x:Name="ModelComboBox" Margin="0,0,0,12" SelectionChanged="Model_SelectionChanged" DisplayMemberPath="Name">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="ToolTip">
+                                        <Setter.Value>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding ModelInfo, Mode=OneWay}" FontSize="11"/>
+                                            </StackPanel>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                        </ComboBox>
+
+                        <TextBlock x:Name="ModelStatusText" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Context Length Override -->
+                <TextBlock Text="Context Length Override (Optional)" FontWeight="SemiBold" Margin="0,0,0,4" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                <TextBox x:Name="ContextLengthTextBox" Margin="0,0,0,16"
+                         ui:ControlHelper.PlaceholderText="Leave blank to use model default"/>
+
+                <!-- Enabled -->
+                <CheckBox x:Name="EnabledCheckBox" Content="Enable this backend" IsChecked="True" Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="💾 Save" Click="Save_Click" Padding="20,8" Margin="0,0,12,0"
+                    Style="{StaticResource AccentButtonStyle}"/>
+            <Button Content="Cancel" Click="Cancel_Click" Padding="20,8"/>
+        </StackPanel>
+    </Grid>
+</Window>

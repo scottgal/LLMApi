@@ -75,6 +75,18 @@ public class OpenApiSpecLoader
                     _logger.LogWarning("OpenAPI spec has errors: {Errors}", errors);
                 }
 
+                // Resolve all $ref references in the document
+                // This walks the document and replaces reference objects with their resolved schemas
+                try
+                {
+                    document.ResolveReferences();
+                    _logger.LogDebug("Successfully resolved all $ref references in OpenAPI spec");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to resolve some references in OpenAPI spec, continuing anyway");
+                }
+
                 // Cache the parsed document
                 _specCache[source] = document;
 

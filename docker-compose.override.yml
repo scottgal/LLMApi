@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  llmapi:
+    volumes:
+      # Volume map appsettings.json for easy configuration changes
+      - ./docker-appsettings.json:/app/appsettings.json:ro
+    environment:
+      # Override any settings here for local development
+      - MockLlmApi__EnableVerboseLogging=true

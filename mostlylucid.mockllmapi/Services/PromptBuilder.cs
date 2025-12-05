@@ -87,10 +87,45 @@ Body: {body ?? "none"}";
 
         if (isArrayShape)
         {
-            return $"\nSHAPE: Strictly match this JSON array shape.\n{shape}\n\nCRITICAL FORMATTING RULES FOR ARRAYS:\n- Your FIRST character MUST be: [\n- Your LAST character MUST be: ]\n- Separate objects with commas INSIDE the array: [{{...}},{{...}},{{...}}]\n- NEVER output: {{...}},{{...}} (this is WRONG)\n- ALWAYS output: [{{...}},{{...}}] (this is CORRECT)\n";
+            return $@"
+SHAPE: You MUST strictly match this JSON array shape.
+{shape}
+
+CRITICAL SHAPE CONFORMITY RULES:
+1. EXACT FIELD NAMES: Use the EXACT field names from the shape. Do NOT rename, rephrase, or use snake_case/camelCase variations.
+   - If shape has ""customerId"", output MUST have ""customerId"" (NOT ""customer_id"" or ""CustomerID"")
+   - If shape has ""productId"", output MUST have ""productId"" (NOT ""product_id"")
+2. EXACT DATA TYPES: Match the exact data types shown in the shape.
+   - If shape shows ""customerId"": 0, output MUST be a number
+   - If shape shows ""name"": ""string"", output MUST be a string
+3. EXACT STRUCTURE: Include ALL fields from the shape, in the same nested structure.
+4. ARRAY FORMATTING:
+   - Your FIRST character MUST be: [
+   - Your LAST character MUST be: ]
+   - Separate objects with commas INSIDE the array: [{{...}},{{...}},{{...}}]
+   - NEVER output: {{...}},{{...}} (this is WRONG)
+   - ALWAYS output: [{{...}},{{...}}] (this is CORRECT)
+5. NO EXTRA FIELDS: Only include fields that exist in the shape.
+";
         }
 
-        return $"\nSHAPE: Strictly match this JSON shape. Keep property names/types consistent.\n{shape}\n";
+        return $@"
+SHAPE: You MUST strictly match this JSON shape.
+{shape}
+
+CRITICAL SHAPE CONFORMITY RULES:
+1. EXACT FIELD NAMES: Use the EXACT field names from the shape. Do NOT rename, rephrase, or use snake_case/camelCase variations.
+   - If shape has ""customerId"", output MUST have ""customerId"" (NOT ""customer_id"" or ""CustomerID"")
+   - If shape has ""productId"", output MUST have ""productId"" (NOT ""product_id"")
+   - If shape has ""orderId"", output MUST have ""orderId"" (NOT ""order_id"")
+2. EXACT DATA TYPES: Match the exact data types shown in the shape.
+   - If shape shows ""customerId"": 0, output MUST be a number (e.g., 12345)
+   - If shape shows ""name"": ""string"", output MUST be a string (e.g., ""John Doe"")
+   - If shape shows ""price"": 0.0, output MUST be a decimal number (e.g., 29.99)
+   - If shape shows ""quantity"": 0, output MUST be an integer (e.g., 5)
+3. EXACT STRUCTURE: Include ALL fields from the shape, in the same nested structure.
+4. NO EXTRA FIELDS: Only include fields that exist in the shape. Do not add fields like ""id"", ""timestamp"", ""status"", ""message"" unless they are in the shape.
+";
     }
 
     private string BuildJsonSchemaConstraint(string jsonSchema) =>

@@ -1,0 +1,303 @@
+# Context Memory Examples
+#
+# Context memory maintains consistency across related API requests by storing
+# previous interactions and reusing IDs, names, and other data.
+#
+# Context names can be specified in 3 ways (precedence order):
+# 1. Query parameter: ?context=name or ?api-context=name
+# 2. Header: X-Api-Context: name
+# 3. Body property: {"context": "name"} or {"apiContext": "name"}
+
+@baseUrl = http://localhost:5116
+
+###############################################################################
+# REST API with Context Memory
+###############################################################################
+
+### 1. Create a user (establishes context)
+POST {{baseUrl}}/api/mock/users?context=test-session
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": "string",
+    "name": "string",
+    "email": "string"
+  }
+}
+
+### 2. Get user orders (reuses user data from context)
+# The LLM will maintain consistency with the user created above
+GET {{baseUrl}}/api/mock/orders?context=test-session
+X-Shape: {"userId": "string", "items": [{"productId": "string", "quantity": "number"}]}
+
+### 3. Get user profile (consistent with previous requests)
+GET {{baseUrl}}/api/mock/users/profile?context=test-session
+X-Shape: {"id": "string", "name": "string", "email": "string", "orders": ["string"]}
+
+###############################################################################
+# GraphQL with Context Memory (Nested Queries)
+###############################################################################
+
+### 4. Create a post with author (establishes GraphQL context)
+POST {{baseUrl}}/graphql?context=blog-session
+Content-Type: application/json
+
+{
+  "query": "mutation { createPost(input: { title: \"Hello\" }) { id title author { id name } } }"
+}
+
+### 5. Query posts with nested author data (reuses author from context)
+# The author details will be consistent with the previous mutation
+POST {{baseUrl}}/graphql?context=blog-session
+Content-Type: application/json
+
+{
+  "query": "{ posts { id title author { id name email posts { id title } } } }"
+}
+
+### 6. Query author with nested posts (maintains consistency)
+POST {{baseUrl}}/graphql
+Content-Type: application/json
+X-Api-Context: blog-session
+
+{
+  "query": "{ author(id: \"1\") { id name email posts { id title comments { id text author { name } } } } }"
+}
+
+###############################################################################
+# OpenAPI with Context Memory
+###############################################################################
+
+### 7. Create a pet (OpenAPI context)
+# First, upload the petstore spec:
+# curl -X POST http://localhost:5116/api/management/openapi \
+#   -F "name=petstore" \
+#   -F "mountPath=/petstore" \
+#   -F "specFile=@OpenApiSpecs/petstore-simple.yaml"
+
+POST {{baseUrl}}/petstore/pets
+Content-Type: application/json
+X-Api-Context: petstore-session
+
+{
+  "name": "Fluffy",
+  "status": "available"
+}
+
+### 8. Get the pet by ID (consistent with created pet)
+GET {{baseUrl}}/petstore/pets/1?context=petstore-session
+
+### 9. Create an order for the pet (maintains pet consistency)
+POST {{baseUrl}}/petstore/pets
+Content-Type: application/json
+
+{
+  "context": "petstore-session",
+  "name": "Another Pet",
+  "tag": "cat"
+}
+
+###############################################################################
+# E-Commerce OpenAPI with Complex Context
+###############################################################################
+
+### 10. Create a customer (e-commerce context)
+# First, upload the e-commerce spec:
+# curl -X POST http://localhost:5116/api/management/openapi \
+#   -F "name=ecommerce" \
+#   -F "mountPath=/shop" \
+#   -F "specFile=@OpenApiSpecs/ecommerce-api.yaml"
+
+POST {{baseUrl}}/shop/customers?context=shop-session
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "name": "John Doe"
+}
+
+### 11. Browse products (establishes product catalog)
+GET {{baseUrl}}/shop/products?category=electronics&context=shop-session
+
+### 12. Create order (references customer and products from context)
+POST {{baseUrl}}/shop/orders?context=shop-session
+Content-Type: application/json
+
+{
+  "customerId": "string",
+  "items": [
+    {
+      "productId": "string",
+      "quantity": 2
+    }
+  ]
+}
+
+### 13. Get customer details with order history (full consistency)
+GET {{baseUrl}}/shop/customers/cust-123?context=shop-session
+
+###############################################################################
+# gRPC with Context Memory
+###############################################################################
+
+### 14. Upload a proto definition
+# curl -X POST http://localhost:5116/api/management/grpc \
+#   -F "name=userservice" \
+#   -F "protoFile=@UserService.proto"
+
+### 15. Create user (gRPC with context - JSON format)
+POST {{baseUrl}}/api/grpc/json/UserService/CreateUser?context=grpc-session
+Content-Type: application/json
+
+{
+  "name": "Alice Smith",
+  "email": "alice@example.com"
+}
+
+### 16. Get user (consistent with created user)
+POST {{baseUrl}}/api/grpc/json/UserService/GetUser?context=grpc-session
+Content-Type: application/json
+
+{
+  "userId": "user-123"
+}
+
+### 17. List users (includes previously created users)
+POST {{baseUrl}}/api/grpc/json/UserService/ListUsers
+Content-Type: application/json
+X-Api-Context: grpc-session
+
+{
+  "pageSize": 10
+}
+
+###############################################################################
+# SignalR Hub with Context Memory
+###############################################################################
+
+### 18. Configure SignalR hub with context
+# SignalR contexts are configured via HubContextConfig in code:
+#
+# builder.Services.AddMockLlmApi(options =>
+# {
+#     options.SignalRHubs = new List<HubContextConfig>
+#     {
+#         new HubContextConfig
+#         {
+#             Name = "chatHub",
+#             Path = "/hubs/chat",
+#             ApiContextName = "chat-session",  // Context name for this hub
+#             Methods = new List<HubMethodConfig>
+#             {
+#                 new HubMethodConfig
+#                 {
+#                     Name = "SendMessage",
+#                     ResponseShape = "{\"messageId\": \"string\", \"timestamp\": \"string\"}"
+#                 },
+#                 new HubMethodConfig
+#                 {
+#                     Name = "GetHistory",
+#                     ResponseShape = "{\"messages\": [{\"id\": \"string\", \"user\": \"string\", \"text\": \"string\"}]}"
+#                 }
+#             }
+#         }
+#     };
+# });
+#
+# All hub methods will automatically maintain consistency within the same hub context.
+
+###############################################################################
+# Streaming Endpoints with Context
+###############################################################################
+
+### 19. Stream data with context
+GET {{baseUrl}}/api/mock/stream/events?context=stream-session
+Accept: text/event-stream
+X-Shape: {"eventId": "string", "type": "string", "data": "object"}
+
+### 20. Follow-up stream request (consistent event IDs)
+GET {{baseUrl}}/api/mock/stream/events?context=stream-session
+Accept: text/event-stream
+X-Shape: {"eventId": "string", "type": "string", "relatedEvents": ["string"]}
+
+###############################################################################
+# Cross-API Context (Advanced)
+###############################################################################
+
+### 21. Create entity in REST API
+POST {{baseUrl}}/api/mock/entities?context=cross-api
+Content-Type: application/json
+
+{
+  "shape": {
+    "id": "string",
+    "name": "string",
+    "type": "string"
+  }
+}
+
+### 22. Query same entity via GraphQL (maintains consistency)
+POST {{baseUrl}}/graphql?context=cross-api
+Content-Type: application/json
+
+{
+  "query": "{ entity(id: \"1\") { id name type relatedEntities { id name } } }"
+}
+
+### 23. gRPC call referencing the entity (full consistency)
+POST {{baseUrl}}/api/grpc/json/EntityService/GetEntity?context=cross-api
+Content-Type: application/json
+
+{
+  "entityId": "ent-123"
+}
+
+###############################################################################
+# Context Expiration
+###############################################################################
+
+# Contexts automatically expire after inactivity (default: 15 minutes)
+# Configure via appsettings.json:
+#
+# {
+#   "MockLlmApi": {
+#     "ContextExpirationMinutes": 15
+#   }
+# }
+#
+# Tips:
+# - Set to 60+ for long test sessions
+# - Set to 5 for memory-constrained environments
+# - Contexts are cleaned up automatically
+
+###############################################################################
+# Best Practices
+###############################################################################
+
+# 1. Use descriptive context names: "user-registration-test", "checkout-flow"
+# 2. Create separate contexts for unrelated test scenarios
+# 3. Use consistent context names across related requests
+# 4. Context applies to: REST, GraphQL, OpenAPI, gRPC, SignalR
+# 5. Query parameter is most explicit: ?context=name
+# 6. Headers work well for programmatic clients
+# 7. Body property useful when shape is also in body
+
+###############################################################################
+# Troubleshooting
+###############################################################################
+
+# Problem: Data not consistent across requests
+# Solution: Verify same context name is used in all requests
+
+# Problem: Context seems to expire too quickly
+# Solution: Increase ContextExpirationMinutes in configuration
+
+# Problem: Context not working for SignalR
+# Solution: Set ApiContextName in HubContextConfig, not per-request
+
+# Problem: Too much data returned (referencing old context)
+# Solution: Use a new context name or wait for expiration
+
+# Problem: Context not extracted from body
+# Solution: Ensure property is named "context" or "apiContext" (case-insensitive)
