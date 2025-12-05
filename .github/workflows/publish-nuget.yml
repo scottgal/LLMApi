@@ -30,14 +30,16 @@ jobs:
           9.0.x
         dotnet-quality: 'ga'  # Use generally available (stable) versions
 
-    - name: Restore dependencies
-      run: dotnet restore LLMApi.sln
+    - name: Restore NuGet package
+      run: dotnet restore mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
 
-    - name: Build solution
-      run: dotnet build LLMApi.sln --configuration Release --no-restore
+    - name: Build NuGet package
+      run: dotnet build mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj --configuration Release --no-restore
 
-    - name: Run tests
-      run: dotnet test LLMApi.sln --configuration Release --no-build --verbosity normal
+    - name: Restore and run tests
+      run: |
+        dotnet build LLMApi.Tests/LLMApi.Tests.csproj --configuration Release
+        dotnet test LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-build --verbosity normal
 
     - name: Extract version from tag or input
       id: get_version
