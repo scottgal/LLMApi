@@ -26,21 +26,14 @@ jobs:
           8.0.x
           9.0.x
 
-    - name: Restore dependencies
-      run: |
-        dotnet restore mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
-        dotnet restore mostlylucid.mockllmapi.Testing/mostlylucid.mockllmapi.Testing.csproj
-        dotnet restore mostlylucid.mockllmapi.Testing.Examples/mostlylucid.mockllmapi.Testing.Examples.csproj
-        dotnet restore LLMApi/LLMApi.csproj
-        dotnet restore LLMApi.Tests/LLMApi.Tests.csproj
+    - name: Restore NuGet package
+      run: dotnet restore mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj
 
-    - name: Build projects
-      run: |
-        dotnet build mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj --configuration Release --no-restore
-        dotnet build mostlylucid.mockllmapi.Testing/mostlylucid.mockllmapi.Testing.csproj --configuration Release --no-restore
-        dotnet build mostlylucid.mockllmapi.Testing.Examples/mostlylucid.mockllmapi.Testing.Examples.csproj --configuration Release --no-restore
-        dotnet build LLMApi/LLMApi.csproj --configuration Release --no-restore
-        dotnet build LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-restore
+    - name: Build NuGet package
+      run: dotnet build mostlylucid.mockllmapi/mostlylucid.mockllmapi.csproj --configuration Release --no-restore
+
+    - name: Restore and build tests
+      run: dotnet build LLMApi.Tests/LLMApi.Tests.csproj --configuration Release
 
     - name: Run tests
       run: dotnet test LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
