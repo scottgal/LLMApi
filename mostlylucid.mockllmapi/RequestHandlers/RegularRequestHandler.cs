@@ -16,7 +16,10 @@ public class RegularRequestHandler
     private readonly LLMockApiOptions _options;
     private readonly ShapeExtractor _shapeExtractor;
     private readonly ContextExtractor _contextExtractor;
+    private readonly JourneyExtractor _journeyExtractor;
     private readonly OpenApiContextManager _contextManager;
+    private readonly JourneySessionManager _journeySessionManager;
+    private readonly JourneyPromptInfluencer _journeyPromptInfluencer;
     private readonly PromptBuilder _promptBuilder;
     private readonly LlmClient _llmClient;
     private readonly CacheManager _cacheManager;
@@ -33,7 +36,10 @@ public class RegularRequestHandler
         IOptions<LLMockApiOptions> options,
         ShapeExtractor shapeExtractor,
         ContextExtractor contextExtractor,
+        JourneyExtractor journeyExtractor,
         OpenApiContextManager contextManager,
+        JourneySessionManager journeySessionManager,
+        JourneyPromptInfluencer journeyPromptInfluencer,
         PromptBuilder promptBuilder,
         LlmClient llmClient,
         CacheManager cacheManager,
@@ -47,7 +53,10 @@ public class RegularRequestHandler
         _options = options.Value;
         _shapeExtractor = shapeExtractor;
         _contextExtractor = contextExtractor;
+        _journeyExtractor = journeyExtractor;
         _contextManager = contextManager;
+        _journeySessionManager = journeySessionManager;
+        _journeyPromptInfluencer = journeyPromptInfluencer;
         _promptBuilder = promptBuilder;
         _llmClient = llmClient;
         _cacheManager = cacheManager;
@@ -111,6 +120,120 @@ public class RegularRequestHandler
         var contextHistory = !string.IsNullOrWhiteSpace(contextName)
             ? _contextManager.GetContextForPrompt(contextName)
             : null;
+
+        // Extract journey parameters
+        var journeyName = _journeyExtractor.ExtractJourneyName(request, body);
+        var journeyIdFromRequest = _journeyExtractor.ExtractJourneyId(request, body);
+        var journeyRandom = _journeyExtractor.ExtractJourneyRandom(request);
+        var journeyModalityStr = _journeyExtractor.ExtractJourneyModality(request);
+        JourneyModality? journeyModality = null;
+        if (!string.IsNullOrWhiteSpace(journeyModalityStr) &&
+            Enum.TryParse<JourneyModality>(journeyModalityStr, true, out var parsedModality))
+        {
+            journeyModality = parsedModality;
+        }
+
+        // Get journey instance if applicable
+        // Multiple journeys can run concurrently using different journeyIds
+        JourneyInstance? journeyInstance = null;
+        string? journeyInfluenceText = null;
+        string? journeyId = null;
+
+        if (!string.IsNullOrWhiteSpace(journeyName) || !string.IsNullOrWhiteSpace(journeyIdFromRequest) || journeyRandom)
+        {
+            // Determine journey ID:
+            // 1. Use explicit journeyId from request if provided
+            // 2. Generate new ID if starting a new journey
+            // 3. Try to restore from context if journeyId matches stored journey
+            var contextSharedData = !string.IsNullOrWhiteSpace(contextName)
+                ? _contextManager.GetSharedData(contextName)
+                : null;
+
+            journeyId = journeyIdFromRequest;
+
+            // If no explicit ID but we have a journey name, check if there's an existing journey for this context
+            if (string.IsNullOrWhiteSpace(journeyId) && contextSharedData != null)
+            {
+                // Try to find existing journey ID in context
+                contextSharedData.TryGetValue("journey.id", out journeyId);
+            }
+
+            // If starting a new journey (name specified but no existing ID), generate new ID
+            if (!string.IsNullOrWhiteSpace(journeyName) && string.IsNullOrWhiteSpace(journeyId))
+            {
+                journeyId = JourneyExtractor.GenerateJourneyId();
+            }
+            // If random journey requested and no ID, generate new ID
+            else if (journeyRandom && string.IsNullOrWhiteSpace(journeyId))
+            {
+                journeyId = JourneyExtractor.GenerateJourneyId();
+            }
+
+            if (!string.IsNullOrWhiteSpace(journeyId))
+            {
+                journeyInstance = _journeySessionManager.GetOrCreateJourney(
+                    journeyId,
+                    journeyName,
+                    journeyRandom,
+                    journeyModality,
+                    contextSharedData);
+            }
+
+            if (journeyInstance != null)
+            {
+                // Try to resolve step for this request
+                var pathOnly = fullPathWithQuery.Split('?')[0];
+                var matchingStep = _journeySessionManager.ResolveStepForRequest(journeyInstance, method, pathOnly);
+
+                if (matchingStep != null)
+                {
+                    // Build prompt influence from journey
+                    var contextSnapshot = JourneyPromptInfluencer.BuildContextSnapshot(
+                        contextSharedData,
+                        matchingStep.PromptHints?.PromoteKeys,
+                        matchingStep.PromptHints?.DemoteKeys);
+
+                    var fallbackSeed = JourneyPromptInfluencer.GenerateRandomnessSeed(
+                        journeyInstance.SessionId, method, pathOnly, journeyInstance.CurrentStepIndex);
+
+                    var influence = _journeyPromptInfluencer.BuildJourneyPromptInfluence(
+                        journeyInstance, matchingStep, contextSnapshot, fallbackSeed);
+
+                    journeyInfluenceText = JourneyPromptInfluencer.FormatInfluenceForPrompt(influence);
+
+                    // Use step's shape if provided and no shape specified in request
+                    if (string.IsNullOrWhiteSpace(shapeInfo.Shape) && !string.IsNullOrWhiteSpace(matchingStep.ShapeJson))
+                    {
+                        shapeInfo.Shape = matchingStep.ShapeJson;
+                    }
+
+                    _logger.LogDebug("Journey '{Journey}' (ID: {JourneyId}) step {Step} matched for {Method} {Path}",
+                        journeyInstance.Template.Name, journeyInstance.SessionId, journeyInstance.CurrentStepIndex, method, pathOnly);
+                }
+
+                // Store journey state in context for persistence
+                if (!string.IsNullOrWhiteSpace(contextName))
+                {
+                    var journeyState = _journeySessionManager.GetJourneyStateForContext(journeyInstance);
+                    _contextManager.AddJourneyState(contextName, journeyState);
+                }
+
+                // Add journey info to response headers (including unique ID for tracking)
+                context.Response.Headers["X-Journey-Id"] = journeyInstance.SessionId;
+                context.Response.Headers["X-Journey-Name"] = journeyInstance.Template.Name;
+                context.Response.Headers["X-Journey-Step"] = journeyInstance.CurrentStepIndex.ToString();
+                context.Response.Headers["X-Journey-TotalSteps"] = journeyInstance.ResolvedSteps.Count.ToString();
+                context.Response.Headers["X-Journey-Complete"] = journeyInstance.IsComplete.ToString().ToLowerInvariant();
+            }
+        }
+
+        // Combine journey influence with context history
+        if (!string.IsNullOrWhiteSpace(journeyInfluenceText))
+        {
+            contextHistory = string.IsNullOrWhiteSpace(contextHistory)
+                ? $"Journey Guidance:\n{journeyInfluenceText}"
+                : $"{contextHistory}\n\nJourney Guidance:\n{journeyInfluenceText}";
+        }
 
         // Execute tools if requested (Phase 1: Explicit mode)
         List<ToolResult>? toolResults = null;
@@ -180,6 +303,27 @@ public class RegularRequestHandler
         if (!string.IsNullOrWhiteSpace(contextName))
         {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, content);
+        }
+
+        // Advance journey if a step was matched
+        if (journeyInstance != null && !journeyInstance.IsComplete)
+        {
+            var pathOnly = fullPathWithQuery.Split('?')[0];
+            var matchingStep = _journeySessionManager.ResolveStepForRequest(journeyInstance, method, pathOnly);
+            if (matchingStep != null)
+            {
+                var advanced = _journeySessionManager.AdvanceJourney(journeyInstance.SessionId);
+                if (advanced != null && !string.IsNullOrWhiteSpace(contextName))
+                {
+                    // Update journey state in context after advancing
+                    var updatedState = _journeySessionManager.GetJourneyStateForContext(advanced);
+                    _contextManager.AddJourneyState(contextName, updatedState);
+
+                    // Update response headers with new step
+                    context.Response.Headers["X-Journey-Step"] = advanced.CurrentStepIndex.ToString();
+                    context.Response.Headers["X-Journey-Complete"] = advanced.IsComplete.ToString().ToLowerInvariant();
+                }
+            }
         }
 
         // Optionally include schema in header

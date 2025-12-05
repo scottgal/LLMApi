@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
@@ -261,6 +262,7 @@ public class LLMockApiServiceTests
 
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
+        var journeyExtractor = new JourneyExtractor();
         var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
         var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
@@ -275,13 +277,21 @@ public class LLMockApiServiceTests
         var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(opts);
         var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, opts, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
 
+        // Journey system (minimal setup for tests)
+        var optionsMonitor = new Mock<IOptionsMonitor<LLMockApiOptions>>();
+        optionsMonitor.Setup(m => m.CurrentValue).Returns(opts.Value);
+        var journeyRegistry = new JourneyRegistry(NullLogger<JourneyRegistry>.Instance, optionsMonitor.Object);
+        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance, optionsMonitor.Object, journeyRegistry, memoryCache);
+        var journeyPromptInfluencer = new JourneyPromptInfluencer();
+
         // Tool system (minimal setup for tests)
         var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
         var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
         var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
 
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
-            opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, cacheManager, delayHelper,
+            opts, shapeExtractor, contextExtractor, journeyExtractor, contextManager, journeySessionManager, journeyPromptInfluencer,
+            promptBuilder, llmClient, cacheManager, delayHelper,
             chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(

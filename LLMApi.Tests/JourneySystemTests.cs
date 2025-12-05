@@ -559,4 +559,487 @@ public class JourneySystemTests
     }
 
     #endregion
+
+    #region JourneyExtractor Tests
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyName_FromQueryParameter()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journey=ecommerce-browse");
+
+        // Act
+        var result = extractor.ExtractJourneyName(context.Request, null);
+
+        // Assert
+        Assert.Equal("ecommerce-browse", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyName_FromHeader()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.Headers["X-Journey"] = "auth-flow";
+
+        // Act
+        var result = extractor.ExtractJourneyName(context.Request, null);
+
+        // Assert
+        Assert.Equal("auth-flow", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyName_FromBody()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.ContentType = "application/json";
+
+        // Act
+        var result = extractor.ExtractJourneyName(context.Request, "{\"journey\":\"graphql-exploration\"}");
+
+        // Assert
+        Assert.Equal("graphql-exploration", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyRandom_FromQuery()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyRandom=true");
+
+        // Act
+        var result = extractor.ExtractJourneyRandom(context.Request);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyModality_FromQuery()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyModality=GraphQL");
+
+        // Act
+        var result = extractor.ExtractJourneyModality(context.Request);
+
+        // Assert
+        Assert.Equal("GraphQL", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_QueryTakesPrecedenceOverHeader()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journey=from-query");
+        context.Request.Headers["X-Journey"] = "from-header";
+
+        // Act
+        var result = extractor.ExtractJourneyName(context.Request, null);
+
+        // Assert
+        Assert.Equal("from-query", result);
+    }
+
+    #endregion
+
+    #region JourneySessionManager Context Integration Tests
+
+    [Fact]
+    public void JourneySessionManager_GetJourneyStateForContext_ReturnsCorrectState()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null),
+                new("GET", "/api/step2", null, null, "Step 2", null)
+            });
+        registry.RegisterJourney(template);
+
+        var instance = sessionManager.CreateJourneyInstance("session-123", "test-journey");
+
+        // Act
+        var state = sessionManager.GetJourneyStateForContext(instance);
+
+        // Assert
+        Assert.Equal("test-journey", state["journey.name"]);
+        Assert.Equal("0", state["journey.step"]);
+        Assert.Equal("2", state["journey.totalSteps"]);
+        Assert.Equal("Rest", state["journey.modality"]);
+        Assert.Equal("false", state["journey.isComplete"]);
+        Assert.Equal("Step 1", state["journey.stepDescription"]);
+    }
+
+    [Fact]
+    public void JourneySessionManager_RestoreJourneyFromContext_RestoresSuccessfully()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null),
+                new("GET", "/api/step2", null, null, "Step 2", null)
+            });
+        registry.RegisterJourney(template);
+
+        var sharedData = new Dictionary<string, string>
+        {
+            ["journey.name"] = "test-journey",
+            ["journey.step"] = "1"
+        };
+
+        // Act
+        var restored = sessionManager.RestoreJourneyFromContext("new-session", sharedData);
+
+        // Assert
+        Assert.NotNull(restored);
+        Assert.Equal("test-journey", restored.Template.Name);
+        Assert.Equal(1, restored.CurrentStepIndex);
+        Assert.Equal("Step 2", restored.CurrentStep?.Description);
+    }
+
+    [Fact]
+    public void JourneySessionManager_GetOrCreateJourney_CreatesNewJourney()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null)
+            });
+        registry.RegisterJourney(template);
+
+        // Act
+        var instance = sessionManager.GetOrCreateJourney(
+            "session-123",
+            "test-journey",
+            startRandom: false,
+            modality: null,
+            contextSharedData: null);
+
+        // Assert
+        Assert.NotNull(instance);
+        Assert.Equal("test-journey", instance.Template.Name);
+        Assert.Equal(0, instance.CurrentStepIndex);
+    }
+
+    [Fact]
+    public void JourneySessionManager_GetOrCreateJourney_RestoresFromContextWhenAvailable()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null),
+                new("GET", "/api/step2", null, null, "Step 2", null)
+            });
+        registry.RegisterJourney(template);
+
+        var contextSharedData = new Dictionary<string, string>
+        {
+            ["journey.name"] = "test-journey",
+            ["journey.step"] = "1"
+        };
+
+        // Act
+        var instance = sessionManager.GetOrCreateJourney(
+            "session-123",
+            journeyName: null, // No explicit journey specified
+            startRandom: false,
+            modality: null,
+            contextSharedData: contextSharedData);
+
+        // Assert
+        Assert.NotNull(instance);
+        Assert.Equal("test-journey", instance.Template.Name);
+        Assert.Equal(1, instance.CurrentStepIndex); // Restored at step 1
+    }
+
+    #endregion
+
+    #region Concurrent Journeys Tests
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyId_FromQueryParameter()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyId=jrn_123456_abc");
+
+        // Act
+        var result = extractor.ExtractJourneyId(context.Request, null);
+
+        // Assert
+        Assert.Equal("jrn_123456_abc", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_ExtractJourneyId_FromHeader()
+    {
+        // Arrange
+        var extractor = new JourneyExtractor();
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.Headers["X-Journey-Id"] = "jrn_789_xyz";
+
+        // Act
+        var result = extractor.ExtractJourneyId(context.Request, null);
+
+        // Assert
+        Assert.Equal("jrn_789_xyz", result);
+    }
+
+    [Fact]
+    public void JourneyExtractor_GenerateJourneyId_CreatesUniqueIds()
+    {
+        // Act
+        var id1 = JourneyExtractor.GenerateJourneyId();
+        var id2 = JourneyExtractor.GenerateJourneyId();
+
+        // Assert
+        Assert.StartsWith("jrn_", id1);
+        Assert.StartsWith("jrn_", id2);
+        Assert.NotEqual(id1, id2);
+    }
+
+    [Fact]
+    public void JourneySessionManager_ConcurrentJourneys_TrackedSeparately()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        // Register two different journey templates
+        var ecommerceJourney = new JourneyTemplate(
+            "ecommerce-browse",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/products", null, null, "Browse products", null),
+                new("GET", "/api/products/*", null, null, "View product", null)
+            });
+
+        var authJourney = new JourneyTemplate(
+            "auth-flow",
+            JourneyModality.Auth,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("POST", "/api/auth/login", null, null, "Login", null),
+                new("GET", "/api/auth/profile", null, null, "Get profile", null)
+            });
+
+        registry.RegisterJourney(ecommerceJourney);
+        registry.RegisterJourney(authJourney);
+
+        // Act - Start two concurrent journeys with different IDs
+        var journey1 = sessionManager.CreateJourneyInstance("journey-1", "ecommerce-browse");
+        var journey2 = sessionManager.CreateJourneyInstance("journey-2", "auth-flow");
+
+        // Assert - Both journeys exist and are tracked separately
+        Assert.NotNull(journey1);
+        Assert.NotNull(journey2);
+        Assert.Equal("ecommerce-browse", journey1.Template.Name);
+        Assert.Equal("auth-flow", journey2.Template.Name);
+
+        // Verify they can be retrieved separately
+        var retrieved1 = sessionManager.GetJourneyForSession("journey-1");
+        var retrieved2 = sessionManager.GetJourneyForSession("journey-2");
+
+        Assert.NotNull(retrieved1);
+        Assert.NotNull(retrieved2);
+        Assert.Equal("ecommerce-browse", retrieved1.Template.Name);
+        Assert.Equal("auth-flow", retrieved2.Template.Name);
+    }
+
+    [Fact]
+    public void JourneySessionManager_ConcurrentJourneys_AdvanceIndependently()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null),
+                new("GET", "/api/step2", null, null, "Step 2", null),
+                new("GET", "/api/step3", null, null, "Step 3", null)
+            });
+        registry.RegisterJourney(template);
+
+        // Start two concurrent journeys of the same template
+        var journey1 = sessionManager.CreateJourneyInstance("concurrent-1", "test-journey");
+        var journey2 = sessionManager.CreateJourneyInstance("concurrent-2", "test-journey");
+
+        // Act - Advance journey1 twice, journey2 once
+        sessionManager.AdvanceJourney("concurrent-1");
+        sessionManager.AdvanceJourney("concurrent-1");
+        sessionManager.AdvanceJourney("concurrent-2");
+
+        // Assert - They should be at different steps
+        var updated1 = sessionManager.GetJourneyForSession("concurrent-1");
+        var updated2 = sessionManager.GetJourneyForSession("concurrent-2");
+
+        Assert.NotNull(updated1);
+        Assert.NotNull(updated2);
+        Assert.Equal(2, updated1.CurrentStepIndex); // Advanced twice
+        Assert.Equal(1, updated2.CurrentStepIndex); // Advanced once
+    }
+
+    [Fact]
+    public void JourneySessionManager_GetJourneyStateForContext_IncludesJourneyId()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null)
+            });
+        registry.RegisterJourney(template);
+
+        var instance = sessionManager.CreateJourneyInstance("my-unique-journey-id", "test-journey");
+
+        // Act
+        var state = sessionManager.GetJourneyStateForContext(instance);
+
+        // Assert - Should have both ID-specific and general keys
+        Assert.Equal("my-unique-journey-id", state["journey.id"]);
+        Assert.Equal("test-journey", state["journey.name"]);
+        Assert.Equal("test-journey", state["journey.my-unique-journey-id.name"]);
+        Assert.Equal("0", state["journey.my-unique-journey-id.step"]);
+    }
+
+    [Fact]
+    public void JourneySessionManager_RestoreBySpecificId_WorksCorrectly()
+    {
+        // Arrange
+        var options = new LLMockApiOptions
+        {
+            Journeys = new JourneysConfig { Enabled = true }
+        };
+        var optionsMonitor = CreateOptionsMonitor(options);
+        var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
+        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+
+        var template = new JourneyTemplate(
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
+            {
+                new("GET", "/api/step1", null, null, "Step 1", null),
+                new("GET", "/api/step2", null, null, "Step 2", null)
+            });
+        registry.RegisterJourney(template);
+
+        // Create context data with ID-specific journey state
+        var sharedData = new Dictionary<string, string>
+        {
+            ["journey.specific-id.name"] = "test-journey",
+            ["journey.specific-id.step"] = "1"
+        };
+
+        // Act - Restore using the specific ID
+        var restored = sessionManager.RestoreJourneyFromContext("specific-id", sharedData);
+
+        // Assert
+        Assert.NotNull(restored);
+        Assert.Equal("test-journey", restored.Template.Name);
+        Assert.Equal(1, restored.CurrentStepIndex);
+        Assert.Equal("specific-id", restored.SessionId);
+    }
+
+    #endregion
 }

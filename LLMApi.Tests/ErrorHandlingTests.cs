@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
@@ -411,8 +412,11 @@ public class ErrorHandlingTests
             BaseUrl = "http://localhost:11434/v1/",
             ModelName = "llama3"
         });
+        var optionsMonitor = new Mock<IOptionsMonitor<LLMockApiOptions>>();
+        optionsMonitor.Setup(m => m.CurrentValue).Returns(options.Value);
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
+        var journeyExtractor = new JourneyExtractor();
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var promptBuilder = new PromptBuilder(options);
@@ -425,14 +429,19 @@ public class ErrorHandlingTests
         var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(options);
         var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, options, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
 
-        // Tool system (minimal setup for tests)
+        // Journey system (minimal setup for tests)
         var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var journeyRegistry = new JourneyRegistry(NullLogger<JourneyRegistry>.Instance, optionsMonitor.Object);
+        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance, optionsMonitor.Object, journeyRegistry, memoryCache);
+        var journeyPromptInfluencer = new JourneyPromptInfluencer();
+
+        // Tool system (minimal setup for tests)
         var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
         var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
         var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
 
-        var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<RegularRequestHandler>.Instance);
+        var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, journeyExtractor, contextManager,
+            journeySessionManager, journeyPromptInfluencer, promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");

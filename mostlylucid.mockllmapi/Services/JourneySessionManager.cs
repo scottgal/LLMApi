@@ -234,6 +234,178 @@ public class JourneySessionManager
         return Array.Empty<(string, string, int, int, bool)>();
     }
 
+    /// <summary>
+    /// Gets journey state data to store in API context's SharedData.
+    /// This allows journey state to persist across requests via context.
+    /// Keys: journey.id, journey.name, journey.step, journey.totalSteps, journey.modality, journey.isComplete
+    /// Note: Multiple journeys can be tracked by using journey.{id}.* prefixed keys.
+    /// </summary>
+    public Dictionary<string, string> GetJourneyStateForContext(JourneyInstance instance)
+    {
+        var journeyId = instance.SessionId;
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Store with journey ID prefix for multi-journey support
+            [$"journey.{journeyId}.name"] = instance.Template.Name,
+            [$"journey.{journeyId}.step"] = instance.CurrentStepIndex.ToString(),
+            [$"journey.{journeyId}.totalSteps"] = instance.ResolvedSteps.Count.ToString(),
+            [$"journey.{journeyId}.modality"] = instance.Template.Modality.ToString(),
+            [$"journey.{journeyId}.isComplete"] = instance.IsComplete.ToString().ToLowerInvariant(),
+            [$"journey.{journeyId}.stepDescription"] = instance.CurrentStep?.Description ?? "",
+            [$"journey.{journeyId}.stepPath"] = instance.CurrentStep?.Path ?? "",
+            [$"journey.{journeyId}.stepMethod"] = instance.CurrentStep?.Method ?? "",
+            // Also store as "current" journey for simple access (last updated journey)
+            ["journey.id"] = journeyId,
+            ["journey.name"] = instance.Template.Name,
+            ["journey.step"] = instance.CurrentStepIndex.ToString(),
+            ["journey.totalSteps"] = instance.ResolvedSteps.Count.ToString(),
+            ["journey.modality"] = instance.Template.Modality.ToString(),
+            ["journey.isComplete"] = instance.IsComplete.ToString().ToLowerInvariant(),
+            ["journey.stepDescription"] = instance.CurrentStep?.Description ?? "",
+            ["journey.stepPath"] = instance.CurrentStep?.Path ?? "",
+            ["journey.stepMethod"] = instance.CurrentStep?.Method ?? ""
+        };
+    }
+
+    /// <summary>
+    /// Restores a journey instance from context SharedData if journey state was stored.
+    /// Returns null if no journey state is stored or if the journey template no longer exists.
+    /// Supports both legacy format (journey.name) and new format (journey.{id}.name).
+    /// </summary>
+    public JourneyInstance? RestoreJourneyFromContext(
+        string journeyId,
+        IReadOnlyDictionary<string, string> sharedData)
+    {
+        if (string.IsNullOrWhiteSpace(journeyId))
+            return null;
+
+        // First try to find journey state by specific ID (journey.{id}.name)
+        string? journeyName = null;
+        string? stepStr = null;
+
+        if (sharedData.TryGetValue($"journey.{journeyId}.name", out var idSpecificName) &&
+            !string.IsNullOrWhiteSpace(idSpecificName))
+        {
+            journeyName = idSpecificName;
+            sharedData.TryGetValue($"journey.{journeyId}.step", out stepStr);
+        }
+        // Fall back to legacy format (journey.name) if ID matches stored journey.id
+        else if (sharedData.TryGetValue("journey.id", out var storedId) &&
+                 storedId == journeyId &&
+                 sharedData.TryGetValue("journey.name", out var legacyName) &&
+                 !string.IsNullOrWhiteSpace(legacyName))
+        {
+            journeyName = legacyName;
+            sharedData.TryGetValue("journey.step", out stepStr);
+        }
+        // Legacy support: if journeyId not found, try legacy format
+        else if (sharedData.TryGetValue("journey.name", out var fallbackName) &&
+                 !string.IsNullOrWhiteSpace(fallbackName))
+        {
+            journeyName = fallbackName;
+            sharedData.TryGetValue("journey.step", out stepStr);
+        }
+
+        if (string.IsNullOrWhiteSpace(journeyName))
+            return null;
+
+        if (!int.TryParse(stepStr, out var stepIndex))
+            stepIndex = 0;
+
+        // Check if we already have this journey in cache
+        var existing = GetJourneyForSession(journeyId);
+        if (existing != null && existing.Template.Name == journeyName)
+        {
+            // Verify step index matches, otherwise restore from context
+            if (existing.CurrentStepIndex == stepIndex)
+                return existing;
+        }
+
+        // Try to restore from template
+        var template = _journeyRegistry.GetJourney(journeyName);
+        if (template == null)
+        {
+            _logger.LogWarning("Cannot restore journey '{JourneyName}' - template not found", journeyName);
+            return null;
+        }
+
+        // Extract variables from context (anything not journey.* prefixed)
+        var variables = sharedData
+            .Where(kvp => !kvp.Key.StartsWith("journey.", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        // Resolve all steps with variables
+        var resolvedSteps = template.Steps
+            .Select(step => ResolveStepVariables(step, variables))
+            .ToList()
+            .AsReadOnly();
+
+        var instance = new JourneyInstance(
+            journeyId,
+            template,
+            variables,
+            resolvedSteps,
+            stepIndex);
+
+        // Store in cache
+        var cacheOptions = new MemoryCacheEntryOptions()
+            .SetSlidingExpiration(GetExpiration());
+
+        _cache.Set(GetCacheKey(journeyId), instance, cacheOptions);
+
+        _logger.LogInformation(
+            "Restored journey '{JourneyName}' (ID: {JourneyId}) at step {StepIndex}/{TotalSteps}",
+            template.Name, journeyId, stepIndex, resolvedSteps.Count);
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Gets or creates a journey for a session. If journeyName is specified, starts that journey.
+    /// If startRandom is true and no journey is active, selects a random journey.
+    /// If context SharedData contains journey state, restores from that.
+    /// </summary>
+    public JourneyInstance? GetOrCreateJourney(
+        string sessionId,
+        string? journeyName,
+        bool startRandom,
+        JourneyModality? modality,
+        IReadOnlyDictionary<string, string>? contextSharedData,
+        Dictionary<string, string>? variables = null)
+    {
+        // 1. If specific journey requested, start it
+        if (!string.IsNullOrWhiteSpace(journeyName))
+        {
+            var template = _journeyRegistry.GetJourney(journeyName);
+            if (template != null)
+            {
+                return CreateJourneyInstance(sessionId, template, variables);
+            }
+            _logger.LogWarning("Journey '{JourneyName}' not found", journeyName);
+        }
+
+        // 2. Check for existing journey in cache
+        var existing = GetJourneyForSession(sessionId);
+        if (existing != null)
+            return existing;
+
+        // 3. Try to restore from context SharedData
+        if (contextSharedData != null && contextSharedData.Count > 0)
+        {
+            var restored = RestoreJourneyFromContext(sessionId, contextSharedData);
+            if (restored != null)
+                return restored;
+        }
+
+        // 4. If startRandom, select a random journey
+        if (startRandom)
+        {
+            return CreateRandomJourneyInstance(sessionId, modality, variables);
+        }
+
+        return null;
+    }
+
     private JourneyStepTemplate ResolveStepVariables(
         JourneyStepTemplate step,
         IReadOnlyDictionary<string, string> variables)

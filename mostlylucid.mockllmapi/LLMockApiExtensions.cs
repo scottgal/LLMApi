@@ -212,6 +212,7 @@ public static class LlMockApiExtensions
             services.AddMemoryCache(); // Required for IContextStore
             services.AddScoped<ShapeExtractor>();
             services.AddScoped<ContextExtractor>();
+            services.AddScoped<JourneyExtractor>();
             services.AddScoped<PromptBuilder>();
             services.AddScoped<LlmClient>();
             services.AddSingleton<LlmBackendSelector>();

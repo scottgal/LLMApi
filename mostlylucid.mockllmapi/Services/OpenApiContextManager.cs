@@ -285,6 +285,56 @@ public class OpenApiContextManager
     }
 
     /// <summary>
+    /// Adds journey state data to context's SharedData.
+    /// Journey keys are prefixed with "journey." to avoid conflicts.
+    /// </summary>
+    public void AddJourneyState(string contextName, Dictionary<string, string> journeyState)
+    {
+        if (string.IsNullOrWhiteSpace(contextName) || journeyState == null || journeyState.Count == 0)
+            return;
+
+        if (!_contextStore.TryGetValue(contextName, out var context) || context == null)
+        {
+            // Create context if it doesn't exist
+            context = _contextStore.GetOrAdd(contextName, _ => new ApiContext
+            {
+                Name = contextName,
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastUsedAt = DateTimeOffset.UtcNow,
+                RecentCalls = new List<RequestSummary>(),
+                SharedData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                ContextSummary = string.Empty,
+                TotalCalls = 0
+            });
+        }
+
+        lock (_contextLock)
+        {
+            foreach (var kvp in journeyState)
+            {
+                context.SharedData[kvp.Key] = kvp.Value;
+            }
+        }
+
+        _contextStore.TouchContext(contextName);
+        _logger.LogDebug("Added journey state to context '{Context}'", contextName);
+    }
+
+    /// <summary>
+    /// Gets the shared data from a context (thread-safe snapshot).
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? GetSharedData(string contextName)
+    {
+        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) || context == null)
+            return null;
+
+        lock (_contextLock)
+        {
+            return new Dictionary<string, string>(context.SharedData, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
     /// Extracts shared data from response JSON - captures ALL fields dynamically
     /// </summary>
     private void ExtractSharedData(ApiContext context, string responseBody)
