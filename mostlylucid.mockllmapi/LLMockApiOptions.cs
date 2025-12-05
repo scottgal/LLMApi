@@ -341,6 +341,18 @@ public class LLMockApiOptions
 
     #endregion
 
+    #region Journeys Options
+
+    /// <summary>
+    /// Journey configuration for simulating multi-step user flows.
+    /// Journeys define sequences of API calls that simulate realistic user behavior,
+    /// with each step having its own shape, context, and prompt hints.
+    /// LLMs can later use this to decide on a journey based on their own decisions.
+    /// </summary>
+    public JourneysConfig? Journeys { get; set; }
+
+    #endregion
+
     #region Rate Limiting & Batching Options
 
     /// <summary>

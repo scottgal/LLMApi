@@ -245,6 +245,11 @@ public static class LlMockApiExtensions
             // OpenApiContextManager is needed by all request handlers (REST, Streaming, GraphQL, gRPC)
             services.AddSingleton<OpenApiContextManager>();
 
+            // Journey system for multi-step user flow simulation
+            services.AddSingleton<JourneyRegistry>();
+            services.AddScoped<JourneySessionManager>();
+            services.AddScoped<JourneyPromptInfluencer>();
+
             // Register context store with configurable automatic expiration
             services.AddSingleton<IContextStore>(sp =>
             {
@@ -903,6 +908,29 @@ public static class LlMockApiExtensions
             .WithSummary("Clear all contexts")
             .WithDescription("Removes all API contexts and their associated data. Useful for resetting the entire system state.");
 
+        return app;
+    }
+
+    /// <summary>
+    /// Maps journey management endpoints for managing multi-step user flow simulations.
+    /// Provides APIs to create/manage journey templates and track active sessions.
+    /// LLMs can use these endpoints to select and drive journeys based on their decisions.
+    /// </summary>
+    /// <param name="app">The application builder</param>
+    /// <param name="pattern">Base path pattern (default: "/api/journeys")</param>
+    /// <returns>The application builder for chaining</returns>
+    public static IApplicationBuilder MapLLMockJourneyManagement(
+        this IApplicationBuilder app,
+        string pattern = "/api/journeys")
+    {
+        if (app is not IEndpointRouteBuilder routeBuilder)
+        {
+            throw new InvalidOperationException(
+                "MapLLMockJourneyManagement requires endpoint routing. " +
+                "Call UseRouting() before MapLLMockJourneyManagement().");
+        }
+
+        routeBuilder.MapJourneyManagement(pattern);
         return app;
     }
 
