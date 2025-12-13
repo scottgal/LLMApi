@@ -99,7 +99,7 @@ curl "http://localhost:5555/api/mock/v1/api/products/electronics/computers/lapto
 **Change**: Updated default LLM model recommendation.
 
 **From**: `llama3` (8B parameters)
-**To**: `ministral-3b` (3B parameters)
+**To**: `ministral-3:3b` (3B parameters)
 
 **Rationale**:
 - **Faster**: 3B model is significantly faster on all hardware
@@ -147,7 +147,7 @@ All features tested and passing:
    - Manual JSON construction throughout
 
 5. **README.md**
-   - Updated default model to ministral-3b
+   - Updated default model to ministral-3:3b
    - Updated all configuration examples
    - Updated model comparison table
 

@@ -15,7 +15,7 @@
 
 ###
 # 1. Simple GET Request - User List
-# Config: Works with any backend (ministral-3b, llama3, gpt-4o-mini)
+# Config: Works with any backend (ministral-3:3b, llama3, gpt-4o-mini)
 # Notes: Basic request, no shape specified - LLM will generate realistic data
 GET {{baseUrl}}/api/users HTTP/1.1
 
@@ -40,13 +40,13 @@ Content-Type: application/json
 
 ###
 # 4. Complex Nested Object - Product with Reviews
-# Config: Recommended: ministral-8b+, llama3:8b+, gpt-4o-mini
+# Config: Recommended: mistral:7b+, llama3:8b+, gpt-4o-mini
 # Notes: More complex nested structures benefit from larger models
 GET {{baseUrl}}/api/products/456?shape={"id":"number","name":"string","price":"number","reviews":[{"author":"string","rating":"number","comment":"string"}]} HTTP/1.1
 
 ###
 # 5. Deep Graph Structure - Organization Hierarchy
-# Config: Recommended: ministral-22b+, llama3:70b+, gpt-4o, gpt-4o-mini
+# Config: Recommended: mistral-nemo, llama3:70b+, gpt-4o, gpt-4o-mini
 # Notes: Deep nested structures require more powerful models for consistency
 # Consider increasing Temperature to 1.5+ for more varied data
 GET {{baseUrl}}/api/organizations/1?shape={"id":"number","name":"string","departments":[{"id":"number","name":"string","manager":{"id":"number","name":"string","email":"string"},"employees":[{"id":"number","name":"string","position":"string"}]}]} HTTP/1.1
@@ -110,7 +110,7 @@ GET {{baseUrl}}/api/contexts HTTP/1.1
 
 ###
 # 14. GraphQL Query
-# Config: Recommended: ministral-8b+, gpt-4o-mini
+# Config: Recommended: mistral:7b+, gpt-4o-mini
 # Notes: LLM will generate data matching the GraphQL schema
 POST {{baseUrl}}/api/graphql HTTP/1.1
 Content-Type: application/json
@@ -127,7 +127,7 @@ GET {{baseUrl}}/api/posts?shape=[{"id":"number","title":"string","author":"strin
 
 ###
 # 16. Time-Series Data
-# Config: Recommended: ministral-8b+, gpt-4o-mini
+# Config: Recommended: mistral:7b+, gpt-4o-mini
 # Notes: Good for testing dashboards and charts
 GET {{baseUrl}}/api/metrics?shape={"timestamp":"string","cpu":"number","memory":"number","requests":"number"} HTTP/1.1
 
@@ -166,7 +166,7 @@ DELETE {{baseUrl}}/api/users/123 HTTP/1.1
 ###
 # Configuration Tips:
 #
-# 1. Small Models (ministral-3b, llama3, tinyllama):
+# 1. Small Models (ministral-3:3b, llama3, tinyllama):
 #    - Best for: Simple CRUD operations, basic data structures
 #    - Fast response times, lower resource usage
 #    - May struggle with deep nesting or complex consistency
@@ -176,7 +176,7 @@ DELETE {{baseUrl}}/api/users/123 HTTP/1.1
 #    - Good balance of speed and capability
 #    - Recommended for general development work
 #
-# 3. Large Models (ministral-22b+, llama3:70b+, gpt-4o):
+# 3. Large Models (mistral-nemo, llama3:70b+, gpt-4o):
 #    - Best for: Deep hierarchies, complex relationships, consistency
 #    - Slower but more accurate for complex scenarios
 #    - Use when data realism is critical

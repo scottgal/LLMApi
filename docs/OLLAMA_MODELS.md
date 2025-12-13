@@ -20,7 +20,7 @@ This document provides recommended configurations for various Ollama models with
 
 ```json
 {
-  "ModelName": "ministral-3b",
+  "ModelName": "ministral-3:3b",
   "Temperature": 1.2,
   "MaxContextWindow": 262144
 }
