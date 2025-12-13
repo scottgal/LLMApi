@@ -99,12 +99,12 @@ curl "http://localhost:5555/api/mock/v1/api/products/electronics/computers/lapto
 **Change**: Updated default LLM model recommendation.
 
 **From**: `llama3` (8B parameters)
-**To**: `qwen2.5-coder:3b` (3B parameters)
+**To**: `ministral-3b` (3B parameters)
 
 **Rationale**:
 - **Faster**: 3B model is significantly faster on all hardware
 - **More Accurate**: Trained specifically for code/structured data like JSON
-- **Larger Context**: 32K context window vs llama3's 8K
+- **Larger Context**: 256K context window vs llama3's 8K
 - **Better JSON**: Minimal hallucinations, excellent structure adherence
 - **Efficient**: Runs well on low-end machines (3-4GB RAM)
 
@@ -147,7 +147,7 @@ All features tested and passing:
    - Manual JSON construction throughout
 
 5. **README.md**
-   - Updated default model to qwen2.5-coder:3b
+   - Updated default model to ministral-3b
    - Updated all configuration examples
    - Updated model comparison table
 

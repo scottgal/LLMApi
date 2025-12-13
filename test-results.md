@@ -2,7 +2,7 @@
 
 Test Date: 2025-12-13
 Server: http://localhost:5555
-Model: qwen2.5-coder:3b (via Ollama)
+Model: ministral-3b (via Ollama)
 Port: 5555 (configurable via appsettings.json)
 
 ## Configuration Changes
@@ -24,8 +24,8 @@ Port: 5555 (configurable via appsettings.json)
 - **Status**: ✅ PASSED
 
 ### README Update
-- **Change**: Updated default model from `llama3` to `qwen2.5-coder:3b`
-- **Reason**: Faster, more accurate JSON generation, 32K context window
+- **Change**: Updated default model from `llama3` to `ministral-3b`
+- **Reason**: Faster, more accurate JSON generation, 256K context window
 - **Status**: ✅ COMPLETED
 
 ## Test Results

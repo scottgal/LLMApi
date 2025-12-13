@@ -353,18 +353,18 @@ If not using Docker:
 1. Install [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 2. Install [Ollama](https://ollama.ai/) and pull a model:
    ```bash
-   ollama pull qwen2.5-coder:3b
+   ollama pull ministral-3b
    ```
 
 ### Choosing an LLM Model
 
-This package was **developed and tested with `qwen2.5-coder:3b`** (3B parameters), which provides excellent results for all features with very fast performance. However, it works with any Ollama-compatible model:
+This package was **developed and tested with `ministral-3b`** (3B parameters), which provides excellent results for all features with very fast performance. However, it works with any Ollama-compatible model:
 
 #### Recommended Models
 
 | Model                | Size | Speed     | Quality | Context | Best For |
 |----------------------|------|-----------|---------|---------|----------|
-| **qwen2.5-coder:3b** (default) | 3B   | V.Fast    | Excellent | 32K | **KILLER for JSON! Fast, accurate, large context** |
+| **ministral-3b** (default) | 3B   | V.Fast    | Excellent | 256K | **KILLER for JSON! Fast, accurate, huge context** |
 | **gemma3:4b**        | 4B   | Fast      | Good | 4K | Alternative for lower-end machines |
 | **llama3**           | 8B   | Medium    | Very Good | 8K | General use, production |
 | **mistral-nemo**     | 12B  | Slower    | Excellent | 128K | **High quality, massive datasets** |
@@ -377,13 +377,13 @@ This package was **developed and tested with `qwen2.5-coder:3b`** (3B parameters
 **Qwen 2.5 Coder is KILLER for JSON generation** - ultra-fast, highly accurate, large context:
 
 ```bash
-ollama pull qwen2.5-coder:3b
+ollama pull ministral-3b
 ```
 
 ```json
 {
   "MockLlmApi": {
-    "ModelName": "qwen2.5-coder:3b",
+    "ModelName": "ministral-3b",
     "Temperature": 1.2,
     "MaxInputTokens": 8192
   }
@@ -393,7 +393,7 @@ ollama pull qwen2.5-coder:3b
 **Why it's great:**
 - Exceptionally fast on any hardware (3-4GB RAM)
 - Best-in-class JSON generation accuracy
-- 32K context window (handles complex nested structures)
+- 256K context window (handles complex nested structures)
 - Trained specifically for code/structured data
 - Perfect for CI/CD pipelines and development
 - Minimal hallucinations compared to general models
@@ -425,12 +425,12 @@ ollama pull mistral-nemo
 
 #### Model-Specific Configuration
 
-**For qwen2.5-coder:3b (Recommended - default):**
+**For ministral-3b (Recommended - default):**
 ```json
 {
-  "ModelName": "qwen2.5-coder:3b",
+  "ModelName": "ministral-3b",
   "Temperature": 1.2,
-  "MaxContextWindow": 32768   // 32K context window
+  "MaxContextWindow": 262144   // 256K context window
 }
 ```
 
@@ -484,7 +484,7 @@ ollama show {model-name}
 
 ```bash
 # RECOMMENDED for development (fastest, most accurate JSON)
-ollama pull qwen2.5-coder:3b
+ollama pull ministral-3b
 
 # Alternative options
 ollama pull gemma3:4b       # Good for low-end machines
@@ -535,7 +535,7 @@ app.Run();
 {
   "mostlylucid.mockllmapi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "qwen2.5-coder:3b",
+    "ModelName": "ministral-3b",
     "Temperature": 1.2
   }
 }
@@ -554,14 +554,14 @@ That's it! Now all requests to `/api/mock/**` return intelligent mock data.
 {
   "mostlylucid.mockllmapi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "qwen2.5-coder:3b",
+    "ModelName": "ministral-3b",
     "Temperature": 1.2,
     "TimeoutSeconds": 30,
     "EnableVerboseLogging": false,
     "CustomPromptTemplate": null,
 
     // Token Management (NEW in v1.5.0)
-    "MaxInputTokens": 8192,  // Qwen 2.5 Coder has 32K context
+    "MaxInputTokens": 8192,  // Ministral has 256K context
 
     // Resilience Policies (enabled by default)
     "EnableRetryPolicy": true,
@@ -1075,7 +1075,7 @@ app.MapLLMockApi("/api/mock", includeStreaming: true);
 {
   "MockLlmApi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "qwen2.5-coder:3b",
+    "ModelName": "ministral-3b",
     "Temperature": 1.2,
 
     "SignalRPushIntervalMs": 5000,
@@ -1547,7 +1547,7 @@ app.Run();
 {
   "MockLlmApi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "qwen2.5-coder:3b",
+    "ModelName": "ministral-3b",
     "Temperature": 1.2,
     "OpenApiSpecs": [
       {

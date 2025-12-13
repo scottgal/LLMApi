@@ -15,7 +15,26 @@ This document provides recommended configurations for various Ollama models with
 
 ## Recommended Models
 
-### Llama 3.2 3B (Best for Most Use Cases)
+### Ministral 3B (Best for Most Use Cases - Default)
+**Hardware**: 3-6GB GPU | **Context**: 256K tokens | **Quality**: Excellent
+
+```json
+{
+  "ModelName": "ministral-3b",
+  "Temperature": 1.2,
+  "MaxContextWindow": 262144
+}
+```
+
+- **FASTEST** response times for 3B class
+- Excellent at following JSON shapes and code structures
+- Trained specifically for code/structured data
+- **MASSIVE** 256K context window - handles extremely complex nested data
+- Minimal hallucinations
+- Runs well on low-end machines (3-4GB RAM)
+- **Default model for the library**
+
+### Llama 3.2 3B (Alternative)
 **Hardware**: 4-8GB GPU | **Context**: 128K tokens | **Quality**: Excellent
 
 ```json
@@ -29,7 +48,7 @@ This document provides recommended configurations for various Ollama models with
 - Fast, high-quality responses
 - Excellent at following JSON shapes
 - Great for chunking large requests
-- Huge context window for complex nested data
+- Large context window for complex nested data
 
 ### Llama 3 / Llama 3.1 8B (Production Recommended)
 **Hardware**: 8-16GB GPU | **Context**: 8K tokens | **Quality**: Excellent
@@ -98,20 +117,21 @@ This document provides recommended configurations for various Ollama models with
 
 ## Specialized Models
 
-### Qwen 2.5 14B (Complex Data)
-**Hardware**: 16GB+ GPU | **Context**: 32K tokens | **Quality**: Excellent
+### Qwen 2.5 14B (Complex Data - Legacy)
+**Hardware**: 16GB+ GPU | **Context**: 128K tokens | **Quality**: Excellent
 
 ```json
 {
   "ModelName": "qwen2.5:14b",
   "Temperature": 1.2,
-  "MaxContextWindow": 32768
+  "MaxContextWindow": 131072
 }
 ```
 
 - Excellent for complex GraphQL schemas
 - Great at nested object structures
 - Strong multilingual support
+- **Note**: Consider Ministral 3B for better performance
 
 ### Mistral 7B (Classic Choice)
 **Hardware**: 8-12GB GPU | **Context**: 8K tokens | **Quality**: Excellent
