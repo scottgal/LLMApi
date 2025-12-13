@@ -19,6 +19,7 @@ dotnet publish -c Release -r <runtime-id>
 ```
 
 Runtime IDs:
+
 - `win-x64` - Windows 64-bit
 - `linux-x64` - Linux 64-bit
 - `osx-x64` - macOS Intel
@@ -141,12 +142,54 @@ $env:LLMOCK_LLMockApi__Backends__0__ApiKey="sk-your-key"
 llmock serve
 ```
 
+## Catch-All Mock Configuration
+
+By default, the CLI is configured to respond to **ANY endpoint** (except management endpoints) with mock data. This is
+configurable in `appsettings.json`:
+
+```json
+{
+  "LLMockCli": {
+    "CatchAllMockPath": "/"
+  }
+}
+```
+
+**Options:**
+
+| Value          | Behavior                                | Example Requests                                 |
+|----------------|-----------------------------------------|--------------------------------------------------|
+| `"/"`          | Mock ALL paths (default)                | `/`, `/api/test`, `/serviceworker`, `/users/123` |
+| `"/api"`       | Mock only paths starting with `/api`    | `/api/test`, `/api/users` (but NOT `/test`)      |
+| `null` or `""` | Disable catch-all, only explicit routes | Only `/api/mock/**` works                        |
+
+**Management Endpoints (Always Excluded):**
+
+These endpoints are always excluded from catch-all mocking:
+
+- `/api/openapi/**` - OpenAPI spec management
+- `/api/contexts` - API context management
+- `/api/grpc-protos` - gRPC proto management
+- `/api/signalr/**` - SignalR context management
+- `/api/graphql` - GraphQL endpoint
+- `/hubs/**` - SignalR hubs
+
 ## Available Endpoints
 
 Once running, the following endpoints are available:
 
+**Standard Mock Endpoints:**
+
 - `GET/POST /api/mock/**` - Shape-based mock endpoints
 - `GET/POST /api/mock/stream/**` - Streaming mock endpoints
+
+**Catch-All (Configurable):**
+
+- `ANY /**` - Dynamic mock for any path (when CatchAllMockPath="/")
+- `ANY /api/**` - Dynamic mock for API paths (when CatchAllMockPath="/api")
+
+**Management Endpoints:**
+
 - `POST /api/openapi/specs` - Load OpenAPI specs at runtime
 - `GET /api/openapi/specs` - List loaded specs
 - `DELETE /api/openapi/specs/{name}` - Remove a spec
@@ -262,6 +305,7 @@ The console shows informative messages about what's happening without being over
 ```
 
 **What gets logged to console:**
+
 - Server startup and configuration
 - OpenAPI spec loading (success and failures)
 - HTTP requests with method, path, status code, and response time
@@ -269,6 +313,7 @@ The console shows informative messages about what's happening without being over
 - Application lifecycle events
 
 **What doesn't flood the console:**
+
 - Individual LLM tokens during streaming
 - Request/response bodies
 - Detailed debug information
@@ -286,6 +331,7 @@ System.Net.Http.HttpRequestException: Connection refused
 ```
 
 **File logs include:**
+
 - Warnings (slow requests, deprecation notices)
 - Errors (LLM connection failures, spec loading errors)
 - Critical issues
@@ -296,13 +342,13 @@ System.Net.Http.HttpRequestException: Connection refused
 
 The CLI uses intelligent log level selection:
 
-| Condition | Console Level | File Level | Example |
-|-----------|---------------|------------|---------|
-| Normal request | Info | Not logged | `GET /api/mock/users` (200, 500ms) |
-| Slow request (>10s) | Warning | Warning | `GET /api/mock/huge` (200, 12000ms) |
-| Client error (4xx) | Warning | Warning | `GET /api/mock/missing` (404) |
-| Server error (5xx) | Error | Error | `GET /api/mock/broken` (500) |
-| Exception | Error | Error | Any unhandled exception |
+| Condition           | Console Level | File Level | Example                             |
+|---------------------|---------------|------------|-------------------------------------|
+| Normal request      | Info          | Not logged | `GET /api/mock/users` (200, 500ms)  |
+| Slow request (>10s) | Warning       | Warning    | `GET /api/mock/huge` (200, 12000ms) |
+| Client error (4xx)  | Warning       | Warning    | `GET /api/mock/missing` (404)       |
+| Server error (5xx)  | Error         | Error      | `GET /api/mock/broken` (500)        |
+| Exception           | Error         | Error      | Any unhandled exception             |
 
 ### Connection Logging
 
@@ -313,6 +359,7 @@ When connections are made, you'll see:
 ```
 
 Additional diagnostic context (visible in file logs):
+
 - Remote IP address
 - User Agent
 - Selected LLM backend (if specified via `?backend=` parameter)
@@ -326,6 +373,175 @@ To see more detailed logs in the console during development, modify the CLI sour
     restrictedToMinimumLevel: LogEventLevel.Debug,  // Change from Information
     outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
 ```
+
+## Configuration Reference
+
+The CLI supports all configuration options from the [mostlylucid.mockllmapi](https://github.com/scottgal/LLMApi) library.
+
+### Core LLM Backend Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `Backends` | `Array` | `[]` | Multiple LLM backends for load balancing/failover. See [Multiple LLM Backends](https://github.com/scottgal/LLMApi/blob/main/docs/MULTIPLE_LLM_BACKENDS.md) |
+| `BaseUrl` | `string` | `http://localhost:11434/v1/` | **DEPRECATED**: Use `Backends` instead |
+| `ModelName` | `string` | `llama3` | **DEPRECATED**: Use `Backends` instead |
+| `Temperature` | `double` | `1.2` | LLM generation temperature (0.0-2.0). Higher = more creative |
+| `TimeoutSeconds` | `int` | `30` | Request timeout in seconds |
+
+**Backend Array Configuration:**
+
+```json
+{
+  "LLMockApi": {
+    "Backends": [
+      {
+        "Name": "ollama",
+        "Provider": "ollama",
+        "BaseUrl": "http://localhost:11434/v1/",
+        "ModelName": "llama3",
+        "Enabled": true,
+        "ApiKey": null,
+        "MaxTokens": null
+      }
+    ]
+  }
+}
+```
+
+### Context Window & Response Limits
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `MaxContextWindow` | `int` | `4096` | Total context window. See [model docs](https://github.com/scottgal/LLMApi/blob/main/docs/MULTIPLE_LLM_BACKENDS.md#%EF%B8%8F-ollama-context-window-configuration) |
+| `EnableAutoChunking` | `bool` | `true` | Auto-split large responses |
+| `MaxItems` | `int` | `1000` | Max items per response AND max cache size |
+
+### Caching Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `MaxCachePerKey` | `int` | `5` | Max cached variants per key |
+| `CacheSlidingExpirationMinutes` | `int` | `15` | Sliding expiration (refreshed on access) |
+| `CacheAbsoluteExpirationMinutes` | `int?` | `60` | Absolute expiration time |
+| `EnableCacheStatistics` | `bool` | `false` | Track cache metrics |
+| `EnableCacheCompression` | `bool` | `false` | Compress cached responses |
+
+### Streaming Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `SseMode` | `string` | `LlmTokens` | Mode: `LlmTokens`, `CompleteObjects`, `ArrayItems` |
+| `StreamingChunkDelayMinMs` | `int` | `0` | Min delay between chunks (ms) |
+| `StreamingChunkDelayMaxMs` | `int` | `0` | Max delay (random if both set) |
+| `EnableContinuousStreaming` | `bool` | `false` | Keep SSE open for continuous data |
+| `ContinuousStreamingIntervalMs` | `int` | `2000` | Interval between events (2 sec) |
+| `ContinuousStreamingMaxDurationSeconds` | `int` | `300` | Max duration (5 min) |
+
+See [Streaming Modes](https://github.com/scottgal/LLMApi#streaming-modes)
+
+### Resilience & Reliability
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `EnableRetryPolicy` | `bool` | `true` | Exponential backoff retry |
+| `MaxRetryAttempts` | `int` | `3` | Max retry attempts |
+| `RetryBaseDelaySeconds` | `double` | `1.0` | Base delay (2^attempt) |
+| `EnableCircuitBreaker` | `bool` | `true` | Circuit breaker pattern |
+| `CircuitBreakerFailureThreshold` | `int` | `5` | Failures before opening |
+| `CircuitBreakerDurationSeconds` | `int` | `30` | Duration circuit stays open |
+
+### Rate Limiting Simulation
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `EnableRateLimiting` | `bool` | `false` | Simulate rate-limited APIs |
+| `RateLimitDelayRange` | `string?` | `null` | Range: `"500-4000"` or `"max"` |
+| `RateLimitStrategy` | `string` | `Auto` | `Auto`, `Sequential`, `Parallel`, `Streaming` |
+
+See [Rate Limiting Docs](https://github.com/scottgal/LLMApi/blob/main/docs/RATE_LIMITING.md)
+
+### OpenAPI Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `OpenApiSpecs` | `Array` | `[]` | Pre-load OpenAPI specs. See [OpenAPI Features](https://github.com/scottgal/LLMApi/blob/main/docs/OPENAPI-FEATURES.md) |
+
+```json
+{
+  "OpenApiSpecs": [
+    {
+      "Name": "petstore",
+      "Source": "https://petstore3.swagger.io/api/v3/openapi.json",
+      "BasePath": "/petstore",
+      "EnableStreaming": false
+    }
+  ]
+}
+```
+
+### Simulator Types
+
+Control which endpoint types are enabled:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `SimulatorTypes.EnableRest` | `bool` | `true` | REST mock endpoints |
+| `SimulatorTypes.EnableGraphQL` | `bool` | `true` | GraphQL endpoint |
+| `SimulatorTypes.EnableGrpc` | `bool` | `true` | gRPC services |
+| `SimulatorTypes.EnableSignalR` | `bool` | `true` | SignalR hubs |
+| `SimulatorTypes.EnableOpenApi` | `bool` | `true` | OpenAPI dynamic endpoints |
+| `SimulatorTypes.EnableConfiguredApis` | `bool` | `true` | Pre-configured REST APIs |
+| `SimulatorTypes.EnableManagementEndpoints` | `bool` | `true` | Management endpoints |
+
+### Tools & Actions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ToolExecutionMode` | `string` | `Disabled` | `Disabled`, `Explicit`, `LlmDriven` |
+| `Tools` | `Array` | `[]` | Available tool definitions |
+| `MaxConcurrentTools` | `int` | `5` | Max parallel executions |
+| `MaxToolChainDepth` | `int` | `3` | Max recursion depth |
+
+See [Tools Documentation](https://github.com/scottgal/LLMApi/blob/main/docs/TOOLS.md)
+
+### Request Delays
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `RandomRequestDelayMinMs` | `int` | `0` | Min delay before ANY request |
+| `RandomRequestDelayMaxMs` | `int` | `0` | Max delay (random if both set) |
+
+### Context Management
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ContextExpirationMinutes` | `int` | `15` | Auto-expire inactive contexts |
+
+See [API Contexts](https://github.com/scottgal/LLMApi#api-contexts)
+
+### Other Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `EnableVerboseLogging` | `bool` | `false` | Detailed debug logging |
+| `IncludeShapeInResponse` | `bool` | `false` | Include JSON shape in response |
+| `GraphQLMaxTokens` | `int?` | `500` | Max tokens for GraphQL (200-300 recommended for small models) |
+| `CustomPromptTemplate` | `string?` | `null` | Custom prompt template |
+
+### CLI-Specific Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `LLMockCli.CatchAllMockPath` | `string?` | `"/"` | Catch-all path: `"/"` (all), `"/api"` (API only), `null` (disabled) |
+
+### Additional Documentation
+
+- **[Main Repository](https://github.com/scottgal/LLMApi)** - Complete documentation
+- **[Multiple LLM Backends](https://github.com/scottgal/LLMApi/blob/main/docs/MULTIPLE_LLM_BACKENDS.md)** - Backend config & load balancing
+- **[OpenAPI Features](https://github.com/scottgal/LLMApi/blob/main/docs/OPENAPI-FEATURES.md)** - OpenAPI spec import
+- **[Rate Limiting](https://github.com/scottgal/LLMApi/blob/main/docs/RATE_LIMITING.md)** - Rate limiting simulation
+- **[Tools & Actions](https://github.com/scottgal/LLMApi/blob/main/docs/TOOLS.md)** - Tool execution & MCP
+- **[Streaming Modes](https://github.com/scottgal/LLMApi#streaming-modes)** - SSE streaming config
 
 ## Configuration Priority
 
@@ -386,15 +602,18 @@ The CLI is optimized for small binary size:
 - **InvariantGlobalization**: Removes localization data
 
 Expected sizes (Release build with trimming):
+
 - Windows x64: ~14 MB
 - Linux x64: ~14 MB
 - macOS ARM64: ~14 MB
 
 ## AOT Compilation
 
-Native AOT compilation is **not currently supported** due to JSON serialization reflection requirements in the core library. The library would need to be refactored to use JSON source generators throughout.
+Native AOT compilation is **not currently supported** due to JSON serialization reflection requirements in the core
+library. The library would need to be refactored to use JSON source generators throughout.
 
-However, the trimmed single-file executable is already very small (~14 MB) and starts quickly, so AOT is not essential for this use case.
+However, the trimmed single-file executable is already very small (~14 MB) and starts quickly, so AOT is not essential
+for this use case.
 
 ## License
 

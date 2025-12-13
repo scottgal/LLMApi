@@ -1,15 +1,46 @@
-using System.Net.Http.Json;
-using mostlylucid.mockllmapi.Models;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace mostlylucid.mockllmapi.Services.Providers;
 
 /// <summary>
-/// Ollama provider (local LLM via OpenAI-compatible API)
+/// Ollama provider with manual JSON handling for .NET 10 compatibility
 /// Default provider for backward compatibility
 /// </summary>
 public class OllamaProvider : ILlmProvider
 {
     public string Name => "ollama";
+
+    private static string EscapeJsonString(string str)
+    {
+        // Manual JSON string escaping to avoid reflection-based serialization
+        return "\"" + str
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t")
+            + "\"";
+    }
+
+    private static string ExtractContentFromResponse(string jsonResponse)
+    {
+        // Manual JSON parsing to avoid reflection-based deserialization
+        // Looking for: "choices":[{"message":{"content":"..."}}]
+        var match = Regex.Match(jsonResponse, @"""choices"":\s*\[\s*\{\s*[^}]*?""message"":\s*\{\s*[^}]*?""content"":\s*""((?:[^""\\]|\\.)*?)""", RegexOptions.Singleline);
+        if (match.Success)
+        {
+            var content = match.Groups[1].Value;
+            // Unescape JSON string
+            return content
+                .Replace("\\n", "\n")
+                .Replace("\\r", "\r")
+                .Replace("\\t", "\t")
+                .Replace("\\\"", "\"")
+                .Replace("\\\\", "\\");
+        }
+        return "{}";
+    }
 
     public async Task<string> GetCompletionAsync(
         HttpClient client,
@@ -19,25 +50,23 @@ public class OllamaProvider : ILlmProvider
         int? maxTokens,
         CancellationToken cancellationToken)
     {
-        var payload = new
-        {
-            model = modelName,
-            stream = false,
-            temperature,
-            max_tokens = maxTokens,
-            messages = new[] { new { role = "user", content = prompt } }
-        };
+        // Manually construct JSON to avoid reflection-based serialization
+        var escapedPrompt = EscapeJsonString(prompt);
+        var escapedModel = EscapeJsonString(modelName);
+        var maxTokensJson = maxTokens.HasValue ? $",\"max_tokens\":{maxTokens.Value}" : "";
+
+        var jsonPayload = $"{{\"model\":{escapedModel},\"stream\":false,\"temperature\":{temperature:F2}{maxTokensJson},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}]}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
         };
 
         var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
-        return result.FirstContent ?? "{}";
+        var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+        return ExtractContentFromResponse(responseText);
     }
 
     public async Task<HttpResponseMessage> GetStreamingCompletionAsync(
@@ -47,17 +76,15 @@ public class OllamaProvider : ILlmProvider
         double temperature,
         CancellationToken cancellationToken)
     {
-        var payload = new
-        {
-            model = modelName,
-            stream = true,
-            temperature,
-            messages = new[] { new { role = "user", content = prompt } }
-        };
+        // Manually construct JSON to avoid reflection-based serialization
+        var escapedPrompt = EscapeJsonString(prompt);
+        var escapedModel = EscapeJsonString(modelName);
+
+        var jsonPayload = $"{{\"model\":{escapedModel},\"stream\":true,\"temperature\":{temperature:F2},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}]}}";
 
         var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
         };
 
         var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -73,36 +100,35 @@ public class OllamaProvider : ILlmProvider
         int n,
         CancellationToken cancellationToken)
     {
-        var payload = new
+        var results = new List<string>();
+
+        // Ollama doesn't support n-completions in a single request like OpenAI
+        // So we make n separate requests
+        for (int i = 0; i < n; i++)
         {
-            model = modelName,
-            stream = false,
-            temperature,
-            n,
-            messages = new[] { new { role = "user", content = prompt } }
-        };
+            // Manually construct JSON to avoid reflection-based serialization
+            var escapedPrompt = EscapeJsonString(prompt);
+            var escapedModel = EscapeJsonString(modelName);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(payload)
-        };
+            var jsonPayload = $"{{\"model\":{escapedModel},\"stream\":false,\"temperature\":{temperature:F2},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}]}}";
 
-        var response = await client.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var result = await response.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
-        var list = new List<string>();
-
-        if (result.Choices != null)
-        {
-            foreach (var choice in result.Choices)
+            using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
             {
-                if (!string.IsNullOrEmpty(choice.Message.Content))
-                    list.Add(choice.Message.Content);
+                Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+            };
+
+            var response = await client.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+            var content = ExtractContentFromResponse(responseText);
+            if (!string.IsNullOrEmpty(content) && content != "{}")
+            {
+                results.Add(content);
             }
         }
 
-        return list;
+        return results;
     }
 
     public void ConfigureClient(HttpClient client, string? apiKey)

@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services.Providers;
@@ -12,6 +14,18 @@ public class LMStudioProvider : ILlmProvider
 {
     public string Name => "lmstudio";
 
+    private static string EscapeJsonString(string str)
+    {
+        // Manual JSON string escaping to avoid reflection-based serialization
+        return "\"" + str
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t")
+            + "\"";
+    }
+
     public async Task<string> GetCompletionAsync(
         HttpClient client,
         string prompt,
@@ -20,25 +34,24 @@ public class LMStudioProvider : ILlmProvider
         int? maxTokens,
         CancellationToken cancellationToken)
     {
-        var payload = new
-        {
-            model = modelName,
-            messages = new[] { new { role = "user", content = prompt } },
-            temperature,
-            max_tokens = maxTokens,
-            stream = false
-        };
+        // Manually construct JSON to avoid reflection-based serialization
+        var escapedPrompt = EscapeJsonString(prompt);
+        var escapedModel = EscapeJsonString(modelName);
+        var maxTokensJson = maxTokens.HasValue ? $",\"max_tokens\":{maxTokens.Value}" : "";
+
+        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2}{maxTokensJson},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
         };
 
         var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
-        return result.FirstContent ?? "{}";
+        var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+        var result = JsonSerializer.Deserialize<ChatCompletionLite?>(responseText);
+        return result.HasValue ? result.Value.FirstContent ?? "{}" : "{}";
     }
 
     public async Task<HttpResponseMessage> GetStreamingCompletionAsync(
@@ -48,17 +61,15 @@ public class LMStudioProvider : ILlmProvider
         double temperature,
         CancellationToken cancellationToken)
     {
-        var payload = new
-        {
-            model = modelName,
-            messages = new[] { new { role = "user", content = prompt } },
-            temperature,
-            stream = true
-        };
+        // Manually construct JSON to avoid reflection-based serialization
+        var escapedPrompt = EscapeJsonString(prompt);
+        var escapedModel = EscapeJsonString(modelName);
+
+        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"stream\":true}}";
 
         var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
         };
 
         var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -74,30 +85,28 @@ public class LMStudioProvider : ILlmProvider
         int n,
         CancellationToken cancellationToken)
     {
+        // Manually construct JSON to avoid reflection-based serialization
         // LM Studio supports n parameter
-        var payload = new
-        {
-            model = modelName,
-            messages = new[] { new { role = "user", content = prompt } },
-            temperature,
-            n,
-            stream = false
-        };
+        var escapedPrompt = EscapeJsonString(prompt);
+        var escapedModel = EscapeJsonString(modelName);
+
+        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"n\":{n},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
-            Content = JsonContent.Create(payload)
+            Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
         };
 
         var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<ChatCompletionLite>(cancellationToken: cancellationToken);
+        var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+        var result = JsonSerializer.Deserialize<ChatCompletionLite?>(responseText);
         var list = new List<string>();
 
-        if (result.Choices != null)
+        if (result.HasValue && result.Value.Choices != null)
         {
-            foreach (var choice in result.Choices)
+            foreach (var choice in result.Value.Choices)
             {
                 if (!string.IsNullOrEmpty(choice.Message.Content))
                     list.Add(choice.Message.Content);

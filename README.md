@@ -1,6 +1,8 @@
 # mostlylucid.mockllmapi v2.2.0
 
-A comprehensive, production-ready ASP.NET Core mocking platform for generating realistic mock API responses using multiple LLM backends. Add intelligent mock endpoints to any project with just 2 lines of code!
+**What it does:** A production-ready ASP.NET Core mocking platform for generating realistic mock API responses using LLMs.
+
+**Why you'd use it:** Add intelligent mock endpoints to any project with just 2 lines of code—no databases, no hardcoded fixtures, no maintenance.
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
@@ -8,190 +10,103 @@ A comprehensive, production-ready ASP.NET Core mocking platform for generating r
 
 **Companion Package:** [mostlylucid.mockllmapi.Testing](./mostlylucid.mockllmapi.Testing/README.md) - Testing utilities with fluent HttpClient integration
 
-**Version 2.2.0 (NEW!)** - [Pluggable tools & actions](./docs/TOOLS_ACTIONS.md) with MCP-compatible architecture for HTTP calls, decision trees, and tool chaining. Plus dynamic context memory with automatic expiration.
+---
 
-**Version 2.1.0** - [Rate limiting and batching support](./docs/RATE_LIMITING_BATCHING.md) with n-completions, per-endpoint statistics, and multiple execution strategies.
+## How to Read This README
+
+This README is comprehensive by design. Choose your path:
+
+- **"I want to try this in 5 minutes"** → Jump to [Quick Start](#quick-start)
+- **"I want to know what this can do"** → See [Features Overview](#features) and [Architecture](#architecture)
+- **"I want to understand how it works"** → Read [Feature Documentation](#feature-documentation) and [Advanced Features](#advanced-features)
+
+---
+
+## What's New - TL;DR
+
+**v2.2.0:** Pluggable tools for API integration, pre-configured REST APIs, automatic context memory expiration
+**v2.1.0:** Rate limiting, batching, n-completions with multiple execution strategies
+
+<details>
+<summary><strong>Click for detailed v2.2.0 feature breakdown</strong></summary>
+
+### Version 2.2.0 Details
+
+**Focus**: Pluggable tools for API integration, pre-configured REST APIs, and intelligent context memory. Fully backward compatible with v2.1.0.
+
+**1. Pluggable Tools & Actions System** - Call external REST APIs or chain mock endpoints to create realistic workflows and decision trees. MCP-compatible architecture ready for LLM-driven tool selection. [Full docs →](./docs/TOOLS_ACTIONS.md)
+
+**2. Pre-Configured REST APIs** - Define complete API configurations once, call by name. Shape or OpenAPI spec reference, shared context management, tool integration. See `appsettings.Full.json` for 8 complete examples.
+
+**3. Dynamic Context Memory Management** - Contexts now expire after 15 minutes of inactivity (configurable 5-1440 minutes). No memory leaks, automatic cleanup, smart touch on access.
+
+**4. Intelligent Shared Data Extraction** - Automatically extracts ALL fields from responses at any nesting level. Nested objects, array tracking, first item data, custom fields—all tracked automatically.
+
+**5. Enhanced Documentation** - New comprehensive guides for [Tools & Actions](./docs/TOOLS_ACTIONS.md), [Rate Limiting](./docs/RATE_LIMITING_BATCHING.md), and [API Contexts](./docs/API-CONTEXTS.md).
+
+[See RELEASE_NOTES.md for complete details](./RELEASE_NOTES.md)
+</details>
 
 ---
 
 ## Table of Contents
 
-- [What's New in v2.2.0](#whats-new-in-v220)
-- [Features Overview](#features)
-- [Quick Start](#quick-start)
-- [Feature Documentation](#feature-documentation)
-- [Configuration](#configuration-options)
-- [Usage Examples](#usage-examples)
-- [Demo Applications](#demo-applications)
+### Core Concepts
+- [Features Overview](#features) - What this system can do
+- [Quick Start](#quick-start) - Get running in 5 minutes
+- [Architecture](#architecture) - How it all fits together
+- [Non-Goals & Boundaries](#non-goals--boundaries) - What this is NOT
+
+### Protocols & Features
+- [REST API Mocking](#1-rest-api-mocking)
+- [GraphQL API Mocking](#graphql-api-mocking)
+- [SSE Streaming](#3-server-sent-events-sse-streaming)
+- [SignalR Real-Time](#signalr-real-time-data-streaming)
+- [OpenAPI / Swagger](#openapi--swagger-mock-generation)
+- [gRPC Services](#6-grpc-service-mocking-new-in-v170)
+
+### Advanced & Architecture
+- [Configuration Options](#configuration-options)
+- [Feature Documentation](#feature-documentation) - In-depth guides
 - [Advanced Features](#advanced-features)
-- [Architecture](#architecture)
+- [Demo Applications](#demo-applications)
 - [Testing](#testing)
 
 ---
 
-## What's New in v2.2.0
+## Architecture Overview
 
-**Focus**: Pluggable tools for API integration, pre-configured REST APIs, and intelligent context memory. Fully backward compatible with v2.1.0.
+**One engine, multiple protocols, shared infrastructure.** All features share the same generation, context, and control systems—giving you consistent behavior across REST, GraphQL, SSE, SignalR, OpenAPI, and gRPC.
 
-### 1. Pluggable Tools & Actions System 🔥
-Call external REST APIs or chain mock endpoints to create realistic workflows and decision trees:
+```mermaid
+graph LR
+    Client[Client] -->|HTTP Request| API[LLMApi<br/>Minimal API]
+    API -->|Chat Completion| Ollama[Ollama API<br/>localhost:11434]
+    Ollama -->|Inference| Model[llm-model Model]
+    Model -->|Response| Ollama
+    Ollama -->|JSON/Stream| API
+    API -->|JSON/SSE| Client
 
-**HTTP Tools** - Call any external API:
-```json
-{
-  "Name": "getUserData",
-  "Type": "http",
-  "HttpConfig": {
-    "Endpoint": "https://api.example.com/users/{userId}",
-    "AuthType": "bearer",
-    "AuthToken": "${API_TOKEN}"  // Environment variable support
-  }
-}
+    API -.->|uses| Helper[AutoApiHelper]
+
+    style API fill:#4CAF50
+    style Helper fill:#2196F3
+    style Model fill:#FF9800
 ```
 
-**Mock Tools** - Chain mock endpoints:
-```json
-{
-  "Name": "getOrderHistory",
-  "Type": "mock",
-  "MockConfig": {
-    "Endpoint": "/api/mock/users/{userId}/orders",
-    "Shape": "{\"orders\":[{\"id\":\"string\",\"total\":0.0}]}"
-  }
-}
-```
+**Key Components:**
+- **Single LLM Client**: All protocols use the same LLM integration with resilience policies
+- **Shared Context Memory**: API contexts work across REST, GraphQL, SignalR, and OpenAPI
+- **Common Features**: Rate limiting, caching, error simulation, and token management apply to all
+- **Modular Design**: Use any combination—add only what you need
 
-**Key Features**:
-- MCP-compatible architecture ready for LLM-driven tool selection
-- Template substitution (`{param}`) and environment variables (`${ENV_VAR}`)
-- Authentication: Bearer, Basic, API Key
-- JSONPath extraction, tool chaining, result caching
-- Safety limits prevent runaway execution
-
-**Documentation**: [TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)
-
-### 2. Pre-Configured REST APIs 🔥
-Define complete API configurations once, call by name:
-
-```json
-{
-  "RestApis": [
-    {
-      "Name": "user-profile",
-      "Path": "profile/{userId}",
-      "Shape": "{\"user\":{},\"orders\":[]}",
-      "ContextName": "user-session",
-      "Tools": ["getUserData", "getOrderHistory"],
-      "Tags": ["users"],
-      "CacheCount": 5
-    }
-  ]
-}
-```
-
-**Features**:
-- Shape or OpenAPI spec reference
-- Shared context management
-- Tool integration
-- Tags for organization
-- All mock features: rate limiting, streaming, caching, errors
-
-**8 complete examples** in `appsettings.Full.json`
-
-### 3. Dynamic Context Memory Management 🔥
-Context memory is now truly dynamic with automatic lifecycle management:
-
-**Automatic Expiration**
-- **Sliding Expiration**: Contexts expire after 15 minutes of inactivity (configurable)
-- **No Memory Leaks**: Automatic cleanup prevents indefinite memory growth
-- **Smart Touch**: Each access refreshes the expiration timer
-- **Configurable Duration**: Set from 5 minutes to 24 hours based on your needs
-
-**Benefits**
-- Start testing immediately - no manual cleanup needed
-- Long-running test sessions stay active as long as you're using them
-- Abandoned contexts automatically disappear
-- Memory-efficient for CI/CD pipelines
-
-**Configuration Example**
-```json
-{
-  "mostlylucid.mockllmapi": {
-    "ContextExpirationMinutes": 15  // Default: 15 (range: 5-1440)
-  }
-}
-```
-
-### 4. Intelligent Shared Data Extraction
-Context memory now automatically extracts **ALL** fields from responses:
-
-**Before (v2.1)**: Only hardcoded fields (`id`, `userId`, `name`, `email`)
-**Now (v2.2)**: Every field at any nesting level!
-
-**New Capabilities**
-- **Nested Objects**: Extracts `address.city`, `payment.cardNumber`, etc.
-- **Array Tracking**: Stores array lengths (e.g., `items.length: 5`)
-- **First Item Data**: Captures `items[0].productId` automatically
-- **Custom Fields**: Any domain-specific field is now tracked
-- **Backward Compatible**: Legacy `lastId`, `lastUserId` keys still work
-
-**Example**
-```json
-// Response from GET /orders/123
-{
-  "orderId": 123,
-  "customer": {
-    "customerId": 456,
-    "tier": "gold"
-  },
-  "items": [
-    {"productId": 789, "sku": "WIDGET-01"}
-  ]
-}
-
-// Automatically extracted shared data:
-{
-  "orderId": "123",
-  "customer.customerId": "456",
-  "customer.tier": "gold",
-  "items.length": "1",
-  "items[0].productId": "789",
-  "items[0].sku": "WIDGET-01",
-  // Legacy keys for compatibility:
-  "lastId": "123"
-}
-```
-
-**Why This Matters**
-- No more manual specification of which fields to track
-- Domain-specific data (SKUs, account numbers, reference codes) automatically tracked
-- Nested relationships preserved across API calls
-- Perfect for complex e-commerce, financial, or enterprise scenarios
-
-### 5. Enhanced Documentation
-New comprehensive guides:
-- **[TOOLS_ACTIONS.md](./docs/TOOLS_ACTIONS.md)**: Complete pluggable tools system guide (500+ lines)
-  - HTTP and Mock tools with examples
-  - Authentication, template substitution, tool chaining
-  - Decision tree patterns and workflows
-  - Phase 2/3 roadmap for LLM-driven tool selection
-- **[RATE_LIMITING_BATCHING.md](./docs/RATE_LIMITING_BATCHING.md)**: Rate limiting and batching guide
-  - N-completions with multiple strategies
-  - Per-endpoint statistics tracking
-- **[API-CONTEXTS.md](./docs/API-CONTEXTS.md)**: Complete rewrite of context memory
-  - IMemoryCache architecture and sliding expiration
-  - Dynamic field extraction with nested objects/arrays
-  - Configuration recommendations and real-world scenarios
-
-**[See RELEASE_NOTES.md for complete details and full version history](./RELEASE_NOTES.md)**
-- See [MODULAR_EXAMPLES.md](./MODULAR_EXAMPLES.md) for modular usage patterns
-- See [API-CONTEXTS.md](./docs/API-CONTEXTS.md) for context memory deep dive
+See [detailed architecture diagrams](#architecture) below for request flow and shape control.
 
 ---
 
 ## Features
 
-This package provides **six independent features** - use any combination you need:
+This package provides **six independent features** - use any combination you need (see [Modular Examples](./MODULAR_EXAMPLES.md) for protocol-specific setups):
 
 ### 1. REST API Mocking
 - **Super Simple**: `AddLLMockApi()` + `MapLLMockApi("/api/mock")` = instant mock API
@@ -244,13 +159,43 @@ This package provides **six independent features** - use any combination you nee
 
 ---
 
+## Non-Goals & Boundaries
+
+**What this is:**
+- A development and prototyping tool for realistic mock data generation
+- Perfect for frontend development, API design, demos, and testing
+- Zero-maintenance alternative to hardcoded fixtures and database-backed mocks
+
+**What this is NOT:**
+- **Not a production data source** - Generated data is realistic but synthetic
+- **Not a replacement for contract tests** - Use this for development; validate real APIs separately
+- **Not for unvalidated production traffic** - User input goes directly to LLM prompts (prompt injection possible)
+- **Not a database or persistent store** - No state maintained between requests (except optional API contexts)
+- **Not a substitute for real backend logic** - Business rules, validation, and workflows remain simplified
+
+**When to use it:**
+- Developing frontends before backends are ready
+- Creating realistic demos without production data access
+- Testing UI components with varied data scenarios
+- Prototyping API designs and experimenting with response shapes
+- Learning LLM integration patterns in .NET
+
+**When NOT to use it:**
+- In production environments serving real users
+- For testing authentication/authorization logic (security schemes ignored)
+- When data must conform to strict business rules or validation
+- For load testing actual backend performance
+- When deterministic, reproducible data is required across test runs
+
+---
+
 ## Feature Documentation
 
 For detailed guides with architecture diagrams, use cases, and implementation details:
 
 - **[Docker Deployment Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and deployment
   - Quick start with Docker Compose + Ollama
-  - End-to-end example with llama3
+  - End-to-end example with llm-model
   - Configuration methods (env vars, volume mapping, .env files)
   - GPU support, multi-backend setup
   - Production considerations and troubleshooting
@@ -342,7 +287,7 @@ The fastest way to get started - no .NET or Ollama installation required!
 git clone https://github.com/scottgal/LLMApi.git
 cd LLMApi
 
-# Start everything with Docker Compose (includes Ollama + llama3)
+# Start everything with Docker Compose (includes Ollama + llm-model)
 docker compose up -d
 
 # Wait for model download (first run only, ~4.7GB)
@@ -368,48 +313,50 @@ If not using Docker:
 1. Install [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 2. Install [Ollama](https://ollama.ai/) and pull a model:
    ```bash
-   ollama pull llama3
+   ollama pull qwen2.5-coder:3b
    ```
 
 ### Choosing an LLM Model
 
-This package was **developed and tested with `llama3`** (8B parameters), which provides excellent results for all features. However, it works with any Ollama-compatible model:
+This package was **developed and tested with `qwen2.5-coder:3b`** (3B parameters), which provides excellent results for all features with very fast performance. However, it works with any Ollama-compatible model:
 
 #### Recommended Models
 
-| Model | Size | Speed | Quality | Context | Best For |
-|-------|------|-------|---------|---------|----------|
-| **gemma3:4b** | 4B | Fast | Good | 4K | **KILLER for lower-end machines!** |
-| **llama3** (default) | 8B | Medium | Very Good | 8K | General use, production |
-| **mistral-nemo** | 12B | Slower | Excellent | 128K | **High quality, massive datasets** |
-| **mistral:7b** | 7B | Medium | Very Good | 8K | Alternative to llama3 |
-| **phi3** | 3.8B | Fast | Good | 4K | Quick prototyping |
-| **tinyllama** | 1.1B | Very Fast | Basic | 2K | Ultra resource-constrained |
+| Model                | Size | Speed     | Quality | Context | Best For |
+|----------------------|------|-----------|---------|---------|----------|
+| **qwen2.5-coder:3b** (default) | 3B   | V.Fast    | Excellent | 32K | **KILLER for JSON! Fast, accurate, large context** |
+| **gemma3:4b**        | 4B   | Fast      | Good | 4K | Alternative for lower-end machines |
+| **llama3**           | 8B   | Medium    | Very Good | 8K | General use, production |
+| **mistral-nemo**     | 12B  | Slower    | Excellent | 128K | **High quality, massive datasets** |
+| **mistral:7b**       | 7B   | Medium    | Very Good | 8K | Alternative to llm-model |
+| **phi3**             | 3.8B | Fast      | Good | 4K | Quick prototyping |
+| **tinyllama**        | 1.1B | Very Fast | Basic | 2K | Ultra resource-constrained |
 
-#### RECOMMENDED: Gemma3 (4B) - Perfect for Development!
+#### RECOMMENDED: Qwen 2.5 Coder (3B) - Perfect for Development!
 
-**Gemma 3 is KILLER for lower-end machines** - fast, lightweight, excellent quality:
+**Qwen 2.5 Coder is KILLER for JSON generation** - ultra-fast, highly accurate, large context:
 
 ```bash
-ollama pull gemma3:4b
+ollama pull qwen2.5-coder:3b
 ```
 
 ```json
 {
   "MockLlmApi": {
-    "ModelName": "gemma3:4b",
+    "ModelName": "qwen2.5-coder:3b",
     "Temperature": 1.2,
-    "MaxInputTokens": 4096
+    "MaxInputTokens": 8192
   }
 }
 ```
 
 **Why it's great:**
-- Runs smoothly on laptops and budget workstations (4-6GB RAM)
-- Fast generation even on CPU-only systems
-- Excellent JSON generation quality
-- 4K context window (sufficient for most mock data)
-- Perfect for CI/CD pipelines
+- Exceptionally fast on any hardware (3-4GB RAM)
+- Best-in-class JSON generation accuracy
+- 32K context window (handles complex nested structures)
+- Trained specifically for code/structured data
+- Perfect for CI/CD pipelines and development
+- Minimal hallucinations compared to general models
 
 #### PRODUCTION: Mistral-Nemo - Best Quality & Massive Contexts
 
@@ -438,19 +385,19 @@ ollama pull mistral-nemo
 
 #### Model-Specific Configuration
 
-**For gemma3:4b (Recommended for development):**
+**For qwen2.5-coder:3b (Recommended - default):**
 ```json
 {
-  "ModelName": "gemma3:4b",
+  "ModelName": "qwen2.5-coder:3b",
   "Temperature": 1.2,
-  "MaxContextWindow": 4096   // Set to model's context window size
+  "MaxContextWindow": 32768   // 32K context window
 }
 ```
 
-**For llama3 or mistral:7b (Production):**
+**For gemma3:4b or llama3:**
 ```json
 {
-  "ModelName": "llama3",     // or "mistral:7b"
+  "ModelName": "llm-model",     // or "mistral:7b"
   "Temperature": 1.2,
   "MaxContextWindow": 8192   // Set to model's context window size
 }
@@ -496,11 +443,12 @@ ollama show {model-name}
 #### Installation
 
 ```bash
-# RECOMMENDED for development (fast, lightweight)
-ollama pull gemma3:4b
+# RECOMMENDED for development (fastest, most accurate JSON)
+ollama pull qwen2.5-coder:3b
 
-# Production options
-ollama pull llama3          # Best balance
+# Alternative options
+ollama pull gemma3:4b       # Good for low-end machines
+ollama pull llama3          # General purpose, good balance
 ollama pull mistral-nemo    # Highest quality (requires more RAM)
 
 # Alternative options
@@ -547,7 +495,7 @@ app.Run();
 {
   "mostlylucid.mockllmapi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "llama3",
+    "ModelName": "qwen2.5-coder:3b",
     "Temperature": 1.2
   }
 }
@@ -566,14 +514,14 @@ That's it! Now all requests to `/api/mock/**` return intelligent mock data.
 {
   "mostlylucid.mockllmapi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "llama3",
+    "ModelName": "qwen2.5-coder:3b",
     "Temperature": 1.2,
     "TimeoutSeconds": 30,
     "EnableVerboseLogging": false,
     "CustomPromptTemplate": null,
 
     // Token Management (NEW in v1.5.0)
-    "MaxInputTokens": 4096,  // Adjust based on model (2048-8192)
+    "MaxInputTokens": 8192,  // Qwen 2.5 Coder has 32K context
 
     // Resilience Policies (enabled by default)
     "EnableRetryPolicy": true,
@@ -940,7 +888,7 @@ GraphQL responses can become large with deeply nested queries. To prevent JSON t
 
 | Model | Recommended Max Tokens | Notes |
 |-------|----------------------|-------|
-| **llama3** | 300-500 | Best balance of speed and complexity |
+| **llm-model** | 300-500 | Best balance of speed and complexity |
 | **mistral:7b** | 300-500 | Handles nested structures well |
 | **phi3** | 200-300 | Keep queries simple |
 | **tinyllama** | 150-200 | Use shallow queries only |
@@ -952,7 +900,7 @@ GraphQL responses can become large with deeply nested queries. To prevent JSON t
 - If you see "Invalid JSON from LLM" errors, **reduce GraphQLMaxTokens**
 
 **For Complex Nested Queries:**
-1. Use larger models (llama3, mistral:7b)
+1. Use larger models (llm-model, mistral:7b)
 2. Increase GraphQLMaxTokens to 500-1000
 3. Keep array sizes small (2 items max by default)
 4. Monitor logs for truncation warnings
@@ -961,7 +909,7 @@ GraphQL responses can become large with deeply nested queries. To prevent JSON t
 ```json
 {
   "MockLlmApi": {
-    "ModelName": "llama3",           // Larger model
+    "ModelName": "llm-model",           // Larger model
     "GraphQLMaxTokens": 800,          // Higher limit for nested data
     "Temperature": 1.2
   }
@@ -1018,7 +966,7 @@ app.MapLLMockApi("/api/mock", includeStreaming: true);
 {
   "MockLlmApi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "llama3",
+    "ModelName": "qwen2.5-coder:3b",
     "Temperature": 1.2,
 
     "SignalRPushIntervalMs": 5000,
@@ -1490,7 +1438,7 @@ app.Run();
 {
   "MockLlmApi": {
     "BaseUrl": "http://localhost:11434/v1/",
-    "ModelName": "llama3",
+    "ModelName": "qwen2.5-coder:3b",
     "Temperature": 1.2,
     "OpenApiSpecs": [
       {
@@ -2020,14 +1968,14 @@ Mount multiple mock APIs with different configurations:
 builder.Services.Addmostlylucid.mockllmapi("Dev", options =>
 {
     options.Temperature = 1.5;
-    options.ModelName = "llama3";
+    options.ModelName = "llm-model";
 });
 
 // Stable test data
 builder.Services.Addmostlylucid.mockllmapi("Test", options =>
 {
     options.Temperature = 0.3;
-    options.ModelName = "llama3";
+    options.ModelName = "llm-model";
 });
 
 app.Mapmostlylucid.mockllmapi("/api/dev");
@@ -2176,23 +2124,9 @@ dotnet test --verbosity detailed
 
 ## Architecture
 
-```mermaid
-graph LR
-    Client[Client] -->|HTTP Request| API[LLMApi<br/>Minimal API]
-    API -->|Chat Completion| Ollama[Ollama API<br/>localhost:11434]
-    Ollama -->|Inference| Model[llama3 Model]
-    Model -->|Response| Ollama
-    Ollama -->|JSON/Stream| API
-    API -->|JSON/SSE| Client
+See [Architecture Overview](#architecture-overview) above for the high-level system diagram and component description.
 
-    API -.->|uses| Helper[AutoApiHelper]
-
-    style API fill:#4CAF50
-    style Helper fill:#2196F3
-    style Model fill:#FF9800
-```
-
-### Request Flow
+### Detailed Request Flow
 
 ```mermaid
 sequenceDiagram
@@ -2200,7 +2134,7 @@ sequenceDiagram
     participant A as LLMApi
     participant H as AutoApiHelper
     participant O as Ollama
-    participant M as llama3
+    participant M as llm-model
 
     C->>A: GET/POST/PUT/DELETE /api/auto/**
     A->>H: Extract context (method, path, body, shape)

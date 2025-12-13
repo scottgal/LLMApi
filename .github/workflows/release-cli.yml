@@ -98,21 +98,30 @@ jobs:
             -p:Version=${{ steps.version.outputs.VERSION }} \
             -o ./publish/osx-arm64
 
+      - name: Copy documentation files to publish directories
+        run: |
+          # Copy documentation files to each platform directory
+          for dir in publish/*/; do
+            cp llmock.cli/appsettings.json "$dir"
+            cp llmock.cli/README.md "$dir"
+            cp llmock.cli/examples.http "$dir"
+          done
+
       - name: Package binaries
         run: |
           cd publish
 
           # Windows
-          zip -j llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip win-x64/llmock.exe
-          zip -j llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip win-arm64/llmock.exe
+          cd win-x64 && zip ../llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip llmock.exe appsettings.json README.md examples.http && cd ..
+          cd win-arm64 && zip ../llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip llmock.exe appsettings.json README.md examples.http && cd ..
 
           # Linux
-          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz -C linux-x64 llmock
-          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz -C linux-arm64 llmock
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz -C linux-x64 llmock appsettings.json README.md examples.http
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz -C linux-arm64 llmock appsettings.json README.md examples.http
 
           # macOS
-          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz -C osx-x64 llmock
-          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz -C osx-arm64 llmock
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz -C osx-x64 llmock appsettings.json README.md examples.http
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz -C osx-arm64 llmock appsettings.json README.md examples.http
 
       - name: Generate checksums
         run: |
@@ -187,6 +196,9 @@ jobs:
 
           Each platform-specific archive contains:
           - Single self-contained executable (`llmock` or `llmock.exe`)
+          - `appsettings.json` - Full configuration template with all available options
+          - `README.md` - Complete usage documentation
+          - `examples.http` - Sample API requests with configuration notes
           - No dependencies required (besides .NET runtime which is included)
           - Full ASP.NET Core web server
           - OpenAPI/Swagger support

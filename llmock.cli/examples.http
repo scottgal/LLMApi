@@ -1,0 +1,193 @@
+###
+# LLMock CLI - Sample API Requests
+#
+# This file demonstrates common use cases for the LLMock CLI tool.
+# Use with Visual Studio, Rider, or the REST Client extension for VS Code.
+#
+# Configuration notes are included for each example showing what LLM backend
+# settings work best for different scenarios.
+###
+
+### Variables (customize for your setup)
+@baseUrl = http://localhost:5000
+@ollamaBackend = ollama
+@openaiBackend = openai
+
+###
+# 1. Simple GET Request - User List
+# Config: Works with any backend (qwen2.5-coder:3b, llama3, gpt-4o-mini)
+# Notes: Basic request, no shape specified - LLM will generate realistic data
+GET {{baseUrl}}/api/users HTTP/1.1
+
+###
+# 2. GET with Shape - Structured User Response
+# Config: Works with any backend
+# Notes: Shape defines the response structure for the LLM
+GET {{baseUrl}}/api/users/123?shape={"id":"number","name":"string","email":"string","role":"string"} HTTP/1.1
+
+###
+# 3. POST with Body - Create User
+# Config: Works with any backend
+# Notes: LLM will acknowledge the creation with generated data
+POST {{baseUrl}}/api/users HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "role": "developer"
+}
+
+###
+# 4. Complex Nested Object - Product with Reviews
+# Config: Recommended: qwen2.5-coder:7b+, llama3:8b+, gpt-4o-mini
+# Notes: More complex nested structures benefit from larger models
+GET {{baseUrl}}/api/products/456?shape={"id":"number","name":"string","price":"number","reviews":[{"author":"string","rating":"number","comment":"string"}]} HTTP/1.1
+
+###
+# 5. Deep Graph Structure - Organization Hierarchy
+# Config: Recommended: qwen2.5-coder:14b+, llama3:70b+, gpt-4o, gpt-4o-mini
+# Notes: Deep nested structures require more powerful models for consistency
+# Consider increasing Temperature to 1.5+ for more varied data
+GET {{baseUrl}}/api/organizations/1?shape={"id":"number","name":"string","departments":[{"id":"number","name":"string","manager":{"id":"number","name":"string","email":"string"},"employees":[{"id":"number","name":"string","position":"string"}]}]} HTTP/1.1
+
+###
+# 6. Streaming Response - Real-time Updates
+# Config: Works with any backend that supports streaming
+# Notes: Returns Server-Sent Events (SSE) with chunked data
+GET {{baseUrl}}/api/mock/stream/events HTTP/1.1
+Accept: text/event-stream
+
+###
+# 7. Error Simulation - 404 Not Found
+# Config: Works with any backend
+# Notes: Demonstrates error simulation capabilities
+GET {{baseUrl}}/api/users/999?error=404&errorMessage=User%20not%20found HTTP/1.1
+
+###
+# 8. Error Simulation - Validation Error
+# Config: Works with any backend
+# Notes: Shows detailed error response when ShowDetailedErrors=true
+GET {{baseUrl}}/api/users?error=422&errorMessage=Validation%20failed&errorDetails=Email%20format%20invalid HTTP/1.1
+
+###
+# 9. Backend Selection - Use Specific Backend
+# Config: Requires multiple backends configured in appsettings.json
+# Notes: Override default backend using X-LLM-Backend header
+GET {{baseUrl}}/api/products HTTP/1.1
+X-LLM-Backend: {{openaiBackend}}
+
+###
+# 10. Backend Selection via Query Parameter
+# Config: Requires multiple backends configured in appsettings.json
+# Notes: Alternative method using query parameter
+GET {{baseUrl}}/api/products?backend={{ollamaBackend}} HTTP/1.1
+
+###
+# 11. OpenAPI Spec Loading - Management Endpoint
+# Config: N/A (management endpoint, doesn't use LLM)
+# Notes: Load a new OpenAPI spec at runtime
+POST {{baseUrl}}/api/openapi/specs HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "petstore",
+  "source": "https://petstore3.swagger.io/api/v3/openapi.json",
+  "basePath": "/petstore"
+}
+
+###
+# 12. View Loaded OpenAPI Specs
+# Config: N/A (management endpoint)
+# Notes: See all currently loaded OpenAPI specifications
+GET {{baseUrl}}/api/openapi/specs HTTP/1.1
+
+###
+# 13. View API Contexts
+# Config: N/A (management endpoint)
+# Notes: Shows active conversation contexts for maintaining consistency
+GET {{baseUrl}}/api/contexts HTTP/1.1
+
+###
+# 14. GraphQL Query
+# Config: Recommended: qwen2.5-coder:7b+, gpt-4o-mini
+# Notes: LLM will generate data matching the GraphQL schema
+POST {{baseUrl}}/api/graphql HTTP/1.1
+Content-Type: application/json
+
+{
+  "query": "{ users { id name email posts { id title } } }"
+}
+
+###
+# 15. Complex Array Response - List of Items
+# Config: Works with any backend
+# Notes: Generates an array of objects with realistic variation
+GET {{baseUrl}}/api/posts?shape=[{"id":"number","title":"string","author":"string","publishedDate":"string","tags":["string"]}] HTTP/1.1
+
+###
+# 16. Time-Series Data
+# Config: Recommended: qwen2.5-coder:7b+, gpt-4o-mini
+# Notes: Good for testing dashboards and charts
+GET {{baseUrl}}/api/metrics?shape={"timestamp":"string","cpu":"number","memory":"number","requests":"number"} HTTP/1.1
+
+###
+# 17. Pagination Simulation
+# Config: Works with any backend
+# Notes: LLM understands pagination concepts from query params
+GET {{baseUrl}}/api/users?page=2&pageSize=10&shape={"items":[{"id":"number","name":"string"}],"total":"number","page":"number","pageSize":"number"} HTTP/1.1
+
+###
+# 18. Search/Filter Simulation
+# Config: Works with any backend, better results with larger models
+# Notes: LLM will generate results relevant to the search term
+GET {{baseUrl}}/api/products/search?q=laptop&shape=[{"id":"number","name":"string","price":"number","category":"string"}] HTTP/1.1
+
+###
+# 19. File Upload Simulation
+# Config: Works with any backend
+# Notes: Simulate file upload acknowledgment
+POST {{baseUrl}}/api/files/upload HTTP/1.1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.txt"
+Content-Type: text/plain
+
+Sample file content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+# 20. DELETE Request
+# Config: Works with any backend
+# Notes: LLM will generate appropriate deletion confirmation
+DELETE {{baseUrl}}/api/users/123 HTTP/1.1
+
+###
+# Configuration Tips:
+#
+# 1. Small Models (qwen2.5-coder:3b, llama3, tinyllama):
+#    - Best for: Simple CRUD operations, basic data structures
+#    - Fast response times, lower resource usage
+#    - May struggle with deep nesting or complex consistency
+#
+# 2. Medium Models (qwen2.5-coder:7b, llama3:8b, gpt-4o-mini):
+#    - Best for: Most use cases including nested objects, GraphQL
+#    - Good balance of speed and capability
+#    - Recommended for general development work
+#
+# 3. Large Models (qwen2.5-coder:14b+, llama3:70b+, gpt-4o):
+#    - Best for: Deep hierarchies, complex relationships, consistency
+#    - Slower but more accurate for complex scenarios
+#    - Use when data realism is critical
+#
+# Temperature Settings:
+#   - 1.0-1.2: Balanced variety (default)
+#   - 1.3-1.5: High variety, more creative responses
+#   - 0.7-0.9: More deterministic, less variety
+#
+# For more information, see:
+# - Full documentation: https://github.com/scottgal/LLMApi
+# - CLI README: llmock.cli/README.md
+# - Configuration guide: Included appsettings.json
+###
