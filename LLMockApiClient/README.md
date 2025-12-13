@@ -1,5 +1,9 @@
 # LLMock API Client - WPF Desktop Application
 
+[![GitHub Release](https://img.shields.io/github/v/release/scottgal/LLMApi)](https://github.com/scottgal/LLMApi/releases)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+[![.NET](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
+
 > **⚠️ DEVELOPMENT STATUS**: This Windows desktop client is currently under active development. While many features are functional, some functionality may be incomplete or subject to change. Use for testing and development purposes.
 
 A comprehensive, user-friendly Windows desktop client for the LLMock API demo application. Built with WPF and Modern WPF UI.

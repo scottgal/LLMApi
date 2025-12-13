@@ -6,6 +6,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
 [![NuGet](https://img.shields.io/nuget/dt/mostlylucid.mockllmapi.svg)](https://www.nuget.org/packages/mostlylucid.mockllmapi)
+[![GitHub Release](https://img.shields.io/github/v/release/scottgal/LLMApi)](https://github.com/scottgal/LLMApi/releases)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
 **Companion Package:** [mostlylucid.mockllmapi.Testing](./mostlylucid.mockllmapi.Testing/README.md) - Testing utilities with fluent HttpClient integration
@@ -24,7 +25,7 @@ This README is comprehensive by design. Choose your path:
 
 ## What's New - TL;DR
 
-**v2.3.0:** Full content type support - form bodies, file uploads, comprehensive testing (228 tests)
+**v2.3.0:** Full content type support - form bodies, file uploads, comprehensive testing (405 tests)
 **v2.2.0:** Pluggable tools for API integration, pre-configured REST APIs, automatic context memory expiration
 **v2.1.0:** Rate limiting, batching, n-completions with multiple execution strategies
 

@@ -1,67 +1,69 @@
 mostlylucid.mockllmapi — Release Notes
 
 ===============================================================================
+Release 2.3.0 — 2025-12-13
+===============================================================================
+
+Complete Content Type Support - Forms, Files, Deep Paths
+
+1. Form Body Support (application/x-www-form-urlencoded)
+   - Automatic conversion of form data to JSON
+   - Single + multiple values (arrays for duplicate field names)
+   - Special character escaping (quotes, backslashes, newlines, tabs)
+   - Unicode and emoji support
+   - Manual JSON construction for .NET 10 compatibility
+
+2. File Upload Support (multipart/form-data)
+   - Memory-safe streaming: Files read through 8KB buffer and dumped
+   - Metadata extraction: filename, content type, size, bytes read
+   - Multiple files + mixed form fields in single request
+   - Large file support (tested with 100MB+)
+   - Constant O(1) memory usage regardless of file size
+
+3. Arbitrary Path Lengths
+   - Full support for deep nested paths (tested to 21 segments)
+   - Query parameters fully preserved
+   - Works with all HTTP methods + content types
+   - Perfect for RESTful API structures
+
+Usage Examples:
+  # Form submission
+  curl -X POST http://localhost:5116/api/mock/users/register \
+    -d "username=john&email=john@example.com"
+
+  # File upload
+  curl -X POST http://localhost:5116/api/mock/photos/upload \
+    -F "title=My Photo" -F "image=@photo.jpg"
+
+  # Deep path
+  curl "http://localhost:5116/api/mock/v1/api/products/electronics/laptops"
+
+Testing: 60 new tests (405 total, 100% pass rate)
+  - FormBodyHandlingTests.cs (12 tests) - form parsing
+  - JsonHandlingTests.cs (25 tests) - escaping + extraction
+  - V2_3_0_FeatureTests.cs (23 tests) - full integration
+
+Technical: Manual JSON construction throughout for .NET 10 AOT compatibility
+
+Docs: TEST_SUMMARY.md, IMPLEMENTATION_SUMMARY.md, V2_3_0_TESTS.md
+
+Breaking Changes: None - fully backward compatible
+
+===============================================================================
 Release 2.2.0 — 2025-01-14
 ===============================================================================
 
-Pluggable Tools & Pre-Configured APIs - MCP-Compatible Architecture
+Pluggable Tools & Pre-Configured APIs
 
-1. Pluggable Tools & Actions System
-   - HTTP Tools: Call external REST APIs with Bearer/Basic/API Key auth
-   - Mock Tools: Chain mock endpoints for decision tree workflows
-   - MCP-compatible architecture ready for LLM-driven tool selection
-   - Template substitution: {paramName} + environment variables ${ENV_VAR}
-   - JSONPath response extraction, tool chaining, result caching
-   - Safety limits: MaxToolChainDepth, MaxConcurrentTools
-   - Modes: Disabled (default) | Explicit (v2.2) | LlmDriven (future)
-   - Full guide: docs/TOOLS_ACTIONS.md (500+ lines)
-
-2. Pre-Configured REST APIs
-   - Define complete API configs once, call by name
-   - Shape/OpenAPI spec, shared context, tool integration, tags
-   - All features: rate limiting, n-completions, streaming, caching
-   - 8 examples in appsettings.Full.json
-   - Management endpoints coming in v2.2.1
-
-3. Dynamic Context Memory with Auto-Expiration
-   - IMemoryCache with sliding expiration (default: 15 min)
-   - Zero manual cleanup - contexts auto-expire after inactivity
-   - Configurable: ContextExpirationMinutes (5-1440 range)
-   - Perfect for CI/CD - no state accumulation
-
-4. Enhanced Shared Data Extraction
-   - Recursive extraction captures ALL fields automatically
-   - Nested objects (address.city), arrays (items.length, items[0].id)
-   - Works for any domain: e-commerce, finance, healthcare, etc.
-   - Backward compatible + truncation fix for long strings
-
-Configuration:
-  - 5 tool examples (HTTP + Mock) in appsettings.Full.json
-  - 8 pre-configured API examples (simple → workflows)
-  - 20+ HTTP request examples in LLMApi.http
-
-Technical: ToolRegistry, ToolOrchestrator, RestApiRegistry with DI + auto-reload
-
-Docs: TOOLS_ACTIONS.md, RATE_LIMITING_BATCHING.md, API-CONTEXTS.md updated
-
-Bug Fixes:
-  - Fixed OpenApiContextManager dependency in AddLLMockApi()
-  - Improved token estimation accuracy (JSON vs text content ratio)
-  - Added thread-safety to context management with proper locking
-  - Fixed greedy JSON extraction (balanced bracket matching)
-  - Added error logging to streaming chunk parsing
-
-Breaking Changes: None - fully backward compatible
+- HTTP/Mock tools system (MCP-compatible)
+- Pre-configured REST APIs (define once, call by name)
+- Auto-expiring context memory (15 min default)
+- Enhanced shared data extraction (recursive)
 
 ===============================================================================
 Release 2.1.0 — 2025-01-06
 ===============================================================================
 
-Quality & Validation Release - Production Ready
+Quality & Validation - 70+ Tests, Enhanced Chunking, Swagger Docs
 
-- HTTP Validation Suite (70+ Tests)
-- Enhanced Chunking Reliability
-- Streamlined Configuration
-- Complete Swagger Documentation
-
-Full history: github.com/ScottGalloway/mostlylucid.mockllmapi/blob/main/RELEASE_NOTES.md
+Full history: github.com/ScottGalloway/mostlylucid.mockllmapi

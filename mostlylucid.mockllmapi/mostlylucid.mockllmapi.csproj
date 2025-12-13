@@ -8,11 +8,11 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>mostlylucid.mockllmapi</PackageId>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <Authors>mostlyLucid</Authors>
     <Company>mostlyLucid</Company>
-    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Supports REST, GraphQL, SSE streaming, SignalR real-time data, gRPC, and OpenAPI specs. NEW in v2.2: Pluggable tools &amp; actions with MCP-compatible architecture, pre-configured REST APIs, dynamic context memory with auto-expiration, and enhanced thread-safety. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
-    <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9;signalr;realtime;graphql;sse;openapi;contexts</PackageTags>
+    <Description>A lightweight ASP.NET Core middleware for generating realistic mock API responses using local LLMs (via Ollama). Supports REST, GraphQL, SSE streaming, SignalR real-time data, gRPC, and OpenAPI specs. NEW in v2.3: Complete content type support - form bodies (application/x-www-form-urlencoded), file uploads (multipart/form-data) with memory-safe streaming, and arbitrary path lengths. All with manual JSON construction for .NET 10 AOT compatibility. 405 tests, 100% pass rate. Perfect for prototyping, demos, and testing. Compatible with .NET 8.0 and later.</Description>
+    <PackageTags>llm;mock;api;ollama;aspnetcore;testing;demo;mostlylucid;net8;net9;signalr;realtime;graphql;sse;openapi;contexts;forms;file-upload;multipart;deep-paths</PackageTags>
     <RepositoryUrl>https://github.com/scottgal/LLMApi</RepositoryUrl>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
