@@ -20,6 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		ChunkingAndCaching.http = ChunkingAndCaching.http
 		docs\CONFIGURATION_REFERENCE.md = docs\CONFIGURATION_REFERENCE.md
 		docs\MULTIPLE_LLM_BACKENDS.md = docs\MULTIPLE_LLM_BACKENDS.md
+		.github\workflows\release-cli.yml = .github\workflows\release-cli.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLMApi.Tests", "LLMApi.Tests\LLMApi.Tests.csproj", "{AF03E1ED-B3C1-4E5A-8848-F17472884CD8}"
@@ -31,6 +32,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mostlylucid.mockllmapi.Testing", "mostlylucid.mockllmapi.Testing\mostlylucid.mockllmapi.Testing.csproj", "{AA34BB6E-2E95-4CC3-A615-351BD5328093}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mostlylucid.mockllmapi.Testing.Examples", "mostlylucid.mockllmapi.Testing.Examples\mostlylucid.mockllmapi.Testing.Examples.csproj", "{6BA44828-67DC-49C5-A3A5-346E4AA3BFBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "llmock.cli", "llmock.cli\llmock.cli.csproj", "{2F98171C-279F-4180-A8CE-2A6740D80544}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -114,6 +117,18 @@ Global
 		{6BA44828-67DC-49C5-A3A5-346E4AA3BFBB}.Release|x64.Build.0 = Release|Any CPU
 		{6BA44828-67DC-49C5-A3A5-346E4AA3BFBB}.Release|x86.ActiveCfg = Release|Any CPU
 		{6BA44828-67DC-49C5-A3A5-346E4AA3BFBB}.Release|x86.Build.0 = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|x64.Build.0 = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F98171C-279F-4180-A8CE-2A6740D80544}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

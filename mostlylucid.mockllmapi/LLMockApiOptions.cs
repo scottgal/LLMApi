@@ -353,6 +353,16 @@ public class LLMockApiOptions
 
     #endregion
 
+    #region Simulator Types
+
+    /// <summary>
+    /// Configuration for which types of simulators/endpoints are enabled.
+    /// Each simulator type can be independently enabled or disabled.
+    /// </summary>
+    public SimulatorTypesConfig SimulatorTypes { get; set; } = new();
+
+    #endregion
+
     #region Rate Limiting & Batching Options
 
     /// <summary>

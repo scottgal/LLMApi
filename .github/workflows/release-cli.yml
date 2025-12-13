@@ -1,0 +1,264 @@
+name: Release LLMock CLI
+
+on:
+  push:
+    tags:
+      - 'llmock-v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release CLI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/llmock-v}
+          echo "VERSION=$TAG" >> $GITHUB_OUTPUT
+          echo "Building version: $TAG"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore llmock.cli/llmock.cli.csproj
+
+      - name: Build and Publish - Windows x64
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r win-x64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/win-x64
+
+      - name: Build and Publish - Windows ARM64
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r win-arm64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/win-arm64
+
+      - name: Build and Publish - Linux x64
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r linux-x64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/linux-x64
+
+      - name: Build and Publish - Linux ARM64
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r linux-arm64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/linux-arm64
+
+      - name: Build and Publish - macOS x64 (Intel)
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r osx-x64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/osx-x64
+
+      - name: Build and Publish - macOS ARM64 (Apple Silicon)
+        run: |
+          dotnet publish llmock.cli/llmock.cli.csproj \
+            -c Release \
+            -r osx-arm64 \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:DebugType=embedded \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -o ./publish/osx-arm64
+
+      - name: Package binaries
+        run: |
+          cd publish
+
+          # Windows
+          zip -j llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip win-x64/llmock.exe
+          zip -j llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip win-arm64/llmock.exe
+
+          # Linux
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz -C linux-x64 llmock
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz -C linux-arm64 llmock
+
+          # macOS
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz -C osx-x64 llmock
+          tar -czf llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz -C osx-arm64 llmock
+
+      - name: Generate checksums
+        run: |
+          cd publish
+          sha256sum llmock-v${{ steps.version.outputs.VERSION }}-*.{zip,tar.gz} > checksums.txt
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          # LLMock CLI v${{ steps.version.outputs.VERSION }}
+
+          A minimal, cross-platform CLI tool for running LLM-powered mock API servers with OpenAPI support.
+
+          ## Features
+
+          - **OpenAPI Import**: Load any OpenAPI 3.x or Swagger 2.0 spec from URL or file
+          - **Multiple LLM Backends**: Support for Ollama, OpenAI, and LM Studio
+          - **Configuration Flexibility**: CLI args, appsettings.json, or environment variables
+          - **Cross-Platform**: Works on Windows, Linux, and macOS (x64 and ARM64)
+          - **Small Binary Size**: ~14 MB optimized with trimming and compression
+          - **Comprehensive Logging**: Serilog with console (Info+) and file (Warning+) outputs
+          - **Simulator Type Control**: Fine-grained control over which endpoint types are enabled
+
+          ## Quick Start
+
+          ### Windows
+          ```bash
+          # Download and extract
+          curl -L https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip -o llmock.zip
+          unzip llmock.zip
+
+          # Run
+          llmock.exe serve
+          ```
+
+          ### Linux/macOS
+          ```bash
+          # Download and extract (Linux x64 example)
+          curl -L https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz | tar xz
+
+          # Make executable
+          chmod +x llmock
+
+          # Run
+          ./llmock serve
+          ```
+
+          ## Usage Examples
+
+          ```bash
+          # Start with default Ollama backend
+          llmock serve
+
+          # Load OpenAPI spec
+          llmock serve --spec https://petstore3.swagger.io/api/v3/openapi.json
+
+          # Use OpenAI backend
+          llmock serve --backend openai --model gpt-4o-mini --api-key sk-...
+
+          # Custom port + config file
+          llmock serve --port 8080 --config my-config.json
+
+          # Multiple specs
+          llmock serve \
+            --spec petstore.yaml \
+            --spec github-api.json \
+            --port 3000
+          ```
+
+          ## What's Included
+
+          Each platform-specific archive contains:
+          - Single self-contained executable (`llmock` or `llmock.exe`)
+          - No dependencies required (besides .NET runtime which is included)
+          - Full ASP.NET Core web server
+          - OpenAPI/Swagger support
+          - GraphQL, gRPC, and SignalR simulators
+          - Serilog logging with file and console outputs
+
+          ## Platform Support
+
+          | Platform | Architecture | Binary Size | Download |
+          |----------|--------------|-------------|----------|
+          | Windows | x64 | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip) |
+          | Windows | ARM64 | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip) |
+          | Linux | x64 | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz) |
+          | Linux | ARM64 | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz) |
+          | macOS | Intel (x64) | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz) |
+          | macOS | Apple Silicon (ARM64) | ~14 MB | [llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz](https://github.com/scottgal/mostlylucid.mockllmapi/releases/download/llmock-v${{ steps.version.outputs.VERSION }}/llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz) |
+
+          ## Logging
+
+          The CLI includes comprehensive Serilog logging:
+          - **Console**: Info and above (startup, requests, connections)
+          - **File**: Warning and above (`logs/llmock-{date}.log`, 7 days retained)
+
+          Example console output:
+          ```
+          [14:23:15 INF] LLMock CLI Server starting on http://localhost:5000
+          [14:23:15 INF] Using default LLM backend: ollama/llama3 at http://localhost:11434/v1/
+          [14:23:16 INF] Server ready - listening for connections
+          [14:23:25 INF] HTTP GET /api/mock/users responded 200 in 842.3456ms
+          ```
+
+          ## Verification
+
+          Verify your download using SHA256 checksums:
+          ```bash
+          sha256sum -c checksums.txt
+          ```
+
+          ## Documentation
+
+          - [Full CLI Documentation](https://github.com/scottgal/mostlylucid.mockllmapi/blob/main/llmock.cli/README.md)
+          - [Main Project README](https://github.com/scottgal/mostlylucid.mockllmapi/blob/main/README.md)
+          - [OpenAPI Features](https://github.com/scottgal/mostlylucid.mockllmapi/blob/main/docs/OPENAPI-FEATURES.md)
+
+          ## Requirements
+
+          - No prerequisites on target systems (self-contained executable)
+          - LLM backend (Ollama, OpenAI, or LM Studio) for generating mock data
+
+          ---
+
+          **Full Changelog**: https://github.com/scottgal/mostlylucid.mockllmapi/commits/llmock-v${{ steps.version.outputs.VERSION }}
+          EOF
+
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: LLMock CLI v${{ steps.version.outputs.VERSION }}
+          body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+          files: |
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-win-x64.zip
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-win-arm64.zip
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-linux-x64.tar.gz
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-macos-x64.tar.gz
+            publish/llmock-v${{ steps.version.outputs.VERSION }}-macos-arm64.tar.gz
+            publish/checksums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
