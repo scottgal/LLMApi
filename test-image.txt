@@ -1,0 +1,3 @@
+This is a fake image file used for testing file upload functionality.
+The content doesn't matter - we're just testing that the server can handle file uploads.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.

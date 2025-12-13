@@ -1,4 +1,8 @@
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Net.Http.Headers;
 using mostlylucid.mockllmapi.RequestHandlers;
 
 namespace mostlylucid.mockllmapi;
@@ -20,16 +24,146 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Reads the request body as a string
+    /// Reads the request body as a string, supporting JSON, form data, and multipart uploads
     /// </summary>
     public async Task<string> ReadBodyAsync(HttpRequest request)
     {
-        if (request.ContentLength is > 0)
+        if (request.ContentLength is null or <= 0)
+            return string.Empty;
+
+        var contentType = request.ContentType ?? "";
+
+        // Handle multipart/form-data (file uploads)
+        if (contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
         {
-            using var reader = new StreamReader(request.Body);
-            return await reader.ReadToEndAsync();
+            return await ReadMultipartFormAsync(request);
         }
-        return string.Empty;
+
+        // Handle application/x-www-form-urlencoded
+        if (contentType.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+        {
+            return await ReadFormUrlEncodedAsync(request);
+        }
+
+        // Handle JSON and other text-based content
+        using var reader = new StreamReader(request.Body);
+        return await reader.ReadToEndAsync();
+    }
+
+    /// <summary>
+    /// Reads form URL-encoded body and converts to JSON
+    /// </summary>
+    private async Task<string> ReadFormUrlEncodedAsync(HttpRequest request)
+    {
+        var form = await request.ReadFormAsync();
+        var jsonParts = new List<string>();
+
+        foreach (var key in form.Keys)
+        {
+            var values = form[key].ToArray();
+            var escapedKey = EscapeJsonString(key);
+
+            if (values.Length == 1)
+            {
+                var escapedValue = EscapeJsonString(values[0] ?? "");
+                jsonParts.Add($"{escapedKey}:{escapedValue}");
+            }
+            else
+            {
+                var arrayValues = values.Select(v => EscapeJsonString(v ?? ""));
+                jsonParts.Add($"{escapedKey}:[{string.Join(",", arrayValues)}]");
+            }
+        }
+
+        return "{" + string.Join(",", jsonParts) + "}";
+    }
+
+    /// <summary>
+    /// Manually escapes a string for JSON to avoid reflection-based serialization
+    /// </summary>
+    private static string EscapeJsonString(string str)
+    {
+        return "\"" + str
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t")
+            + "\"";
+    }
+
+    /// <summary>
+    /// Reads multipart form data including file uploads
+    /// For files, we dump the content to avoid memory issues but return metadata
+    /// </summary>
+    private async Task<string> ReadMultipartFormAsync(HttpRequest request)
+    {
+        if (!request.HasFormContentType)
+            return "{}";
+
+        var form = await request.ReadFormAsync();
+        var jsonParts = new List<string>();
+
+        // Read form fields
+        var fieldParts = new List<string>();
+        foreach (var key in form.Keys)
+        {
+            var values = form[key].ToArray();
+            var escapedKey = EscapeJsonString(key);
+
+            if (values.Length == 1)
+            {
+                var escapedValue = EscapeJsonString(values[0] ?? "");
+                fieldParts.Add($"{escapedKey}:{escapedValue}");
+            }
+            else
+            {
+                var arrayValues = values.Select(v => EscapeJsonString(v ?? ""));
+                fieldParts.Add($"{escapedKey}:[{string.Join(",", arrayValues)}]");
+            }
+        }
+
+        if (fieldParts.Count > 0)
+        {
+            jsonParts.Add($"\"fields\":{{{string.Join(",", fieldParts)}}}");
+        }
+        else
+        {
+            jsonParts.Add("\"fields\":{}");
+        }
+
+        // Read file uploads (dump content to avoid memory issues)
+        if (form.Files.Count > 0)
+        {
+            var fileParts = new List<string>();
+
+            foreach (var file in form.Files)
+            {
+                // Dump file content to avoid memory issues
+                using var stream = file.OpenReadStream();
+                var buffer = new byte[8192];
+                long totalRead = 0;
+                int bytesRead;
+
+                while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+                {
+                    totalRead += bytesRead;
+                    // Content is discarded, we only track the size
+                }
+
+                // Manual JSON construction
+                var fieldName = EscapeJsonString(file.Name ?? "unknown");
+                var fileName = EscapeJsonString(file.FileName ?? "unknown");
+                var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
+
+                var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead}}}";
+                fileParts.Add(fileJson);
+            }
+
+            jsonParts.Add($"\"files\":[{string.Join(",", fileParts)}]");
+        }
+
+        return "{" + string.Join(",", jsonParts) + "}";
     }
 
     /// <summary>
