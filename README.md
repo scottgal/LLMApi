@@ -1,4 +1,4 @@
-# mostlylucid.mockllmapi v2.2.0
+# mostlylucid.mockllmapi
 
 **What it does:** A production-ready ASP.NET Core mocking platform for generating realistic mock API responses using LLMs.
 
