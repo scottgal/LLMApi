@@ -9,6 +9,27 @@ using Xunit;
 namespace LLMApi.Tests;
 
 /// <summary>
+/// Custom Fact attribute that skips tests in CI environments.
+/// Checks for CI, GITHUB_ACTIONS, TF_BUILD, or JENKINS_URL environment variables.
+/// </summary>
+public sealed class FactUnlessCI : FactAttribute
+{
+    private static readonly bool IsCI = 
+        Environment.GetEnvironmentVariable("CI") == "true" ||
+        Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" ||
+        Environment.GetEnvironmentVariable("TF_BUILD") == "True" ||
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JENKINS_URL"));
+
+    public FactUnlessCI()
+    {
+        if (IsCI)
+        {
+            Skip = "Test skipped in CI environment - requires Ollama LLM service";
+        }
+    }
+}
+
+/// <summary>
 /// Tests for gRPC proto management and service call functionality
 /// </summary>
 [Trait("Category", "Integration")]
@@ -304,7 +325,7 @@ message User { int32 id = 1; string name = 2; }";
 
     #region gRPC Service Call Tests
 
-    [Fact]
+    [FactUnlessCI]
     public async Task GrpcCall_UnaryMethod_Success()
     {
         // Upload proto
@@ -339,7 +360,7 @@ message User {
         Assert.True(result.TryGetProperty("is_active", out _));
     }
 
-    [Fact]
+    [FactUnlessCI]
     public async Task GrpcCall_WithComplexRequest_Success()
     {
         // Upload proto
@@ -381,7 +402,7 @@ message Product {
         Assert.True(result.TryGetProperty("total", out _));
     }
 
-    [Fact]
+    [FactUnlessCI]
     public async Task GrpcCall_WithEmptyRequest_Success()
     {
         // Upload proto
@@ -457,7 +478,7 @@ message Response { string data = 1; }";
         Assert.Contains("not a unary call", result.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [FactUnlessCI]
     public async Task GrpcCall_ReturnsVariedDataAcrossMultipleCalls()
     {
         // Upload proto
@@ -483,7 +504,7 @@ message Response { string value = 1; }";
         Assert.NotEqual(result1, result2);
     }
 
-    [Fact]
+    [FactUnlessCI]
     public async Task GrpcCall_WithNestedMessages_Success()
     {
         // Upload proto with nested messages
