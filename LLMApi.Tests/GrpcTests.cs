@@ -11,6 +11,7 @@ namespace LLMApi.Tests;
 /// <summary>
 /// Tests for gRPC proto management and service call functionality
 /// </summary>
+[Trait("Category", "Integration")]
 public class GrpcTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

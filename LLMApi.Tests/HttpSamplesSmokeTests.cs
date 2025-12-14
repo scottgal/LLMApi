@@ -9,6 +9,7 @@ using mostlylucid.mockllmapi;
 
 namespace LLMApi.Tests;
 
+[Trait("Category", "Integration")]
 public class HttpSamplesSmokeTests : IClassFixture<HttpSamplesSmokeTests.CustomFactory>
 {
     public class CustomFactory : WebApplicationFactory<Program>

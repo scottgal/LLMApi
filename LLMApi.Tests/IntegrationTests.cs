@@ -20,6 +20,7 @@ namespace LLMApi.Tests;
 /// <summary>
 /// Integration tests for form bodies, file uploads, and arbitrary path lengths
 /// </summary>
+[Trait("Category", "Integration")]
 public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

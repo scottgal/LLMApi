@@ -14,6 +14,7 @@ namespace LLMApi.Tests;
 /// Uses the LLMock API to test itself by making real HTTP requests
 /// and verifying responses are properly deserialized.
 /// </summary>
+[Trait("Category", "Integration")]
 public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

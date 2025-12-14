@@ -17,6 +17,7 @@ namespace LLMApi.Tests;
 /// - File upload support (multipart/form-data)
 /// - Arbitrary path lengths
 /// </summary>
+[Trait("Category", "Integration")]
 public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

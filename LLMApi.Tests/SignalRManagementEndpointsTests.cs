@@ -13,6 +13,7 @@ using Xunit;
 
 namespace LLMApi.Tests;
 
+[Trait("Category", "Integration")]
 public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

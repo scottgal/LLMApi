@@ -21,13 +21,52 @@ public class FakeLlmClient : LlmClient
 
     public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, HttpRequest? request = null)
     {
-        // Return fake JSON data
-        var id = Interlocked.Increment(ref _counter);
+        // Detect if array shape is requested by checking if prompt contains array notation
+        // But NOT if it's file metadata (files property with nested objects)
+        var hasArrayNotation = prompt.Contains("[{") || prompt.Contains("[ {");
+        var isFileMetadata = prompt.Contains("\"files\"") || prompt.Contains("\"filename\"") ||
+                            prompt.Contains("\"contentType\"") || prompt.Contains("\"formFields\"");
+
+        var isArrayRequest = hasArrayNotation && !isFileMetadata;
+
+        if (isArrayRequest)
+        {
+            // Return array of items
+            var items = new List<string>();
+            for (int i = 0; i < 3; i++)
+            {
+                var id = Interlocked.Increment(ref _counter);
+                items.Add($$"""
+                {
+                    "id": {{id}},
+                    "name": "Test Item {{id}}",
+                    "title": "Title {{id}}",
+                    "author": "Author {{id}}",
+                    "value": {{Random.Shared.Next(1, 100)}},
+                    "description": "Description for item {{id}}",
+                    "metadata": { "tag1": "value1", "tag2": "value2", "tag3": "value3" },
+                    "timestamp": "{{DateTime.UtcNow:O}}"
+                }
+                """);
+            }
+            return Task.FromResult($"[{string.Join(",", items)}]");
+        }
+
+        // Return single object (including for file uploads)
+        var singleId = Interlocked.Increment(ref _counter);
         var json = $$"""
         {
-            "id": {{id}},
-            "name": "Test Item {{id}}",
+            "id": {{singleId}},
+            "name": "Test Item {{singleId}}",
+            "email": "test{{singleId}}@example.com",
+            "status": "active",
             "value": {{Random.Shared.Next(1, 100)}},
+            "address": {
+                "street": "123 Main St",
+                "city": "TestCity",
+                "country": "TestCountry"
+            },
+            "tags": ["tag1", "tag2", "tag3"],
             "timestamp": "{{DateTime.UtcNow:O}}"
         }
         """;

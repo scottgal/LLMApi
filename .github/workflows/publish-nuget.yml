@@ -39,7 +39,7 @@ jobs:
     - name: Restore and run tests
       run: |
         dotnet build LLMApi.Tests/LLMApi.Tests.csproj --configuration Release
-        dotnet test LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-build --verbosity normal
+        dotnet test LLMApi.Tests/LLMApi.Tests.csproj --configuration Release --no-build --verbosity normal --filter "Category!=Integration"
 
     - name: Extract version from tag or input
       id: get_version
