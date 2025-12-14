@@ -56,7 +56,7 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
 
         // Verify it's valid JSON
         var json = JsonDocument.Parse(responseText);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
 
         // Verify valid JSON with special characters
         var json = JsonDocument.Parse(responseText);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
 
         // Should not contain unescaped quotes or invalid escape sequences
         Assert.DoesNotContain("\\\\n", responseText); // Double-escaped
@@ -201,7 +201,7 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
         if (response.IsSuccessStatusCode)
         {
             var json = JsonDocument.Parse(responseText);
-            Assert.NotNull(json.RootElement);
+            Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
         }
     }
 
@@ -228,7 +228,7 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
         var responseText = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseText);
 
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]

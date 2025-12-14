@@ -182,7 +182,7 @@ public class OpenApiManagementTests
         var endpoint = result.Endpoints.First();
         Assert.NotEmpty(endpoint.Path);
         Assert.NotEmpty(endpoint.Method);
-        Assert.True(endpoint.Path.StartsWith("/api"));
+        Assert.StartsWith("/api", endpoint.Path);
     }
 
     [Fact]

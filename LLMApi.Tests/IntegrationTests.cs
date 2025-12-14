@@ -70,7 +70,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Should be valid JSON
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         var content = await response.Content.ReadAsStringAsync();
         Assert.NotEmpty(content);
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -149,7 +149,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.NotEmpty(responseContent);
 
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -250,7 +250,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.NotEmpty(content);
 
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -311,7 +311,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -337,7 +337,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion

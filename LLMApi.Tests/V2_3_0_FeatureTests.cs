@@ -97,7 +97,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Must be valid JSON (no syntax errors from escaping)
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -240,7 +240,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Verify response is valid JSON despite large file
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -332,7 +332,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -355,7 +355,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -404,7 +404,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -452,7 +452,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -477,7 +477,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -495,7 +495,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
@@ -527,7 +527,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     [Fact]
@@ -557,7 +557,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.NotNull(json.RootElement);
+        Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
     }
 
     #endregion
