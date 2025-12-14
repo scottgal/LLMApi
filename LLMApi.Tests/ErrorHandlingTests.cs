@@ -118,8 +118,8 @@ public class ErrorHandlingTests
     [Fact]
     public void ErrorConfig_ToGraphQLJson_ReturnsGraphQLFormat()
     {
-        // Arrange
-        var error = new ErrorConfig(401, "Unauthorized access");
+        // Arrange - use non-sensitive error message (avoid words that trigger redaction like "auth", "token")
+        var error = new ErrorConfig(401, "Access denied");
 
         // Act
         var json = error.ToGraphQLJson();
@@ -132,7 +132,7 @@ public class ErrorHandlingTests
 
         var firstError = errors[0];
         Assert.True(firstError.TryGetProperty("message", out var message));
-        Assert.Equal("Unauthorized access", message.GetString());
+        Assert.Equal("Access denied", message.GetString());
         Assert.True(firstError.TryGetProperty("extensions", out var extensions));
         Assert.True(extensions.TryGetProperty("code", out var code));
         Assert.Equal(401, code.GetInt32());
@@ -420,7 +420,8 @@ public class ErrorHandlingTests
         var journeyExtractor = new JourneyExtractor();
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
-        var promptBuilder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
         var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
@@ -477,7 +478,8 @@ public class ErrorHandlingTests
         var contextExtractor = new ContextExtractor();
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
-        var promptBuilder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
         var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
@@ -494,7 +496,8 @@ public class ErrorHandlingTests
             promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, NullLogger<GraphQLRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString("?error=401&errorMessage=Token%20expired");
+        // Use non-sensitive error message (avoid words that trigger redaction like "auth", "token")
+        context.Request.QueryString = new QueryString("?error=401&errorMessage=Session%20expired");
         context.Response.Body = new MemoryStream();
         var body = """{"query": "{ users { id } }"}""";
 
@@ -507,7 +510,7 @@ public class ErrorHandlingTests
         Assert.True(doc.RootElement.TryGetProperty("errors", out var errors));
         Assert.Equal(1, errors.GetArrayLength());
         var firstError = errors[0];
-        Assert.Equal("Token expired", firstError.GetProperty("message").GetString());
+        Assert.Equal("Session expired", firstError.GetProperty("message").GetString());
         Assert.Equal(401, firstError.GetProperty("extensions").GetProperty("code").GetInt32());
     }
 
@@ -524,7 +527,8 @@ public class ErrorHandlingTests
         var contextExtractor = new ContextExtractor();
         var contextStore = CreateContextStore();
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
-        var promptBuilder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
         var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);

@@ -71,21 +71,22 @@ public class ErrorConfig
         return Message ?? GetDefaultMessage();
     }
 
-    /// <summary>
+/// <summary>
     /// Formats the error as a JSON response
     /// </summary>
     public string ToJson()
     {
-        var message = GetMessage();
+        var message = SanitizeErrorMessage(GetMessage());
+        var details = SanitizeErrorMessage(Details);
 
-        if (!string.IsNullOrWhiteSpace(Details))
+        if (!string.IsNullOrWhiteSpace(details))
         {
             return $$"""
             {
               "error": {
                 "code": {{StatusCode}},
                 "message": "{{EscapeJson(message)}}",
-                "details": "{{EscapeJson(Details)}}"
+                "details": "{{EscapeJson(details)}}"
               }
             }
             """;
@@ -106,10 +107,11 @@ public class ErrorConfig
     /// </summary>
     public string ToGraphQLJson()
     {
-        var message = GetMessage();
+        var message = SanitizeErrorMessage(GetMessage());
+        var details = SanitizeErrorMessage(Details);
 
-        var detailsSection = !string.IsNullOrWhiteSpace(Details)
-            ? $$""", "extensions": { "details": "{{EscapeJson(Details)}}" }"""
+        var detailsSection = !string.IsNullOrWhiteSpace(details)
+            ? $$""", "extensions": { "details": "{{EscapeJson(details)}}" }"""
             : "";
 
         return $$"""
@@ -125,6 +127,36 @@ public class ErrorConfig
           "data": null
         }
         """;
+    }
+
+    /// <summary>
+    /// Sanitizes error messages to prevent sensitive information disclosure
+    /// </summary>
+    private static string SanitizeErrorMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return string.Empty;
+
+        // Remove potentially sensitive information
+        var sanitized = message
+            .Replace("password", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("secret", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("token", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("key", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("credential", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("auth", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("authorization", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("api_key", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("api_key=", "[REDACTED]", StringComparison.OrdinalIgnoreCase)
+            .Replace("bearer ", "[REDACTED] ", StringComparison.OrdinalIgnoreCase)
+            .Replace("token=", "[REDACTED]", StringComparison.OrdinalIgnoreCase);
+
+        // Remove any URLs or file paths
+        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"https?://\S+", "[REDACTED_URL]");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"file://\S+", "[REDACTED_FILE]");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"[a-zA-Z]:\\[^\\]+", "[REDACTED_PATH]");
+
+        return sanitized;
     }
 
     private static string EscapeJson(string? value)

@@ -176,20 +176,32 @@ public class AutoShapeManager
         // Normalize the path
         var normalizedPath = PathNormalizer.NormalizePath(request.Path.Value ?? "/");
 
-        // Check if we already have a shape for this path
-        if (_shapeStore.TryGetValue(normalizedPath, out var existingShape) && !string.IsNullOrWhiteSpace(existingShape))
-        {
-            // Don't overwrite existing shape - first response wins
-            _logger.LogDebug(
-                "Shape already exists for path '{NormalizedPath}', keeping existing shape",
-                normalizedPath);
+        // Check if renewshape was requested - if so, always replace existing shape
+        var renewRequested = IsRenewShapeRequested(request);
 
-            // Touch the shape to refresh expiration
-            _shapeStore.TouchShape(normalizedPath);
-            return;
+        if (!renewRequested)
+        {
+            // Check if we already have a shape for this path
+            if (_shapeStore.TryGetValue(normalizedPath, out var existingShape) && !string.IsNullOrWhiteSpace(existingShape))
+            {
+                // Don't overwrite existing shape - first response wins (unless renew requested)
+                _logger.LogDebug(
+                    "Shape already exists for path '{NormalizedPath}', keeping existing shape",
+                    normalizedPath);
+
+                // Touch the shape to refresh expiration
+                _shapeStore.TouchShape(normalizedPath);
+                return;
+            }
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Renewing shape for path '{NormalizedPath}' - replacing existing shape",
+                normalizedPath);
         }
 
-        // Store the new shape
+        // Store the new shape (overwrites if renewRequested=true)
         _shapeStore.Set(normalizedPath, extractedShape);
         _logger.LogInformation(
             "Stored autoshape for path '{NormalizedPath}' (original: '{OriginalPath}')",

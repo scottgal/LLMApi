@@ -304,7 +304,7 @@ message User { int32 id = 1; string name = 2; }";
 
     #region gRPC Service Call Tests
 
-    [Fact(Skip = "Requires LLM service (Ollama) to be running - not available in CI")]
+    [Fact]
     public async Task GrpcCall_UnaryMethod_Success()
     {
         // Upload proto
@@ -339,7 +339,7 @@ message User {
         Assert.True(result.TryGetProperty("is_active", out _));
     }
 
-    [Fact(Skip = "Requires LLM service (Ollama) to be running - not available in CI")]
+    [Fact]
     public async Task GrpcCall_WithComplexRequest_Success()
     {
         // Upload proto
@@ -381,7 +381,7 @@ message Product {
         Assert.True(result.TryGetProperty("total", out _));
     }
 
-    [Fact(Skip = "Requires LLM service (Ollama) to be running - not available in CI")]
+    [Fact]
     public async Task GrpcCall_WithEmptyRequest_Success()
     {
         // Upload proto
@@ -457,7 +457,7 @@ message Response { string data = 1; }";
         Assert.Contains("not a unary call", result.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(Skip = "Requires LLM service (Ollama) to be running - not available in CI")]
+    [Fact]
     public async Task GrpcCall_ReturnsVariedDataAcrossMultipleCalls()
     {
         // Upload proto
@@ -483,7 +483,7 @@ message Response { string value = 1; }";
         Assert.NotEqual(result1, result2);
     }
 
-    [Fact(Skip = "Requires LLM service (Ollama) to be running - not available in CI")]
+    [Fact]
     public async Task GrpcCall_WithNestedMessages_Success()
     {
         // Upload proto with nested messages

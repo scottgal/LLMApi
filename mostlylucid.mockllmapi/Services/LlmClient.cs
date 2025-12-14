@@ -199,7 +199,8 @@ public class LlmClient
         int? maxTokens)
     {
         var provider = _providerFactory.GetProvider(backend.Provider);
-        using var client = CreateHttpClient(backend.BaseUrl);
+        // Note: IHttpClientFactory manages HttpClient lifecycle - do NOT dispose manually
+        var client = CreateHttpClient(backend.BaseUrl);
         provider.ConfigureClient(client, backend.ApiKey);
 
         // Use backend-specific MaxTokens if configured, otherwise use parameter value
@@ -347,7 +348,8 @@ public class LlmClient
         CancellationToken cancellationToken)
     {
         var provider = _providerFactory.GetProvider(backend.Provider);
-        using var client = CreateHttpClient(backend.BaseUrl);
+        // Note: IHttpClientFactory manages HttpClient lifecycle - do NOT dispose manually
+        var client = CreateHttpClient(backend.BaseUrl);
         provider.ConfigureClient(client, backend.ApiKey);
 
         // Execute with resilience pipeline if policies are enabled
@@ -378,7 +380,10 @@ public class LlmClient
     }
 
     /// <summary>
-    /// Creates an HttpClient configured for the specified LLM backend
+    /// Creates an HttpClient configured for the specified LLM backend.
+    /// IMPORTANT: Clients from IHttpClientFactory should NOT be disposed manually.
+    /// The factory manages the underlying HttpMessageHandler lifecycle.
+    /// See: https://learn.microsoft.com/en-us/dotnet/fundamentals/networking/http/httpclient-guidelines
     /// </summary>
     private HttpClient CreateHttpClient(string baseUrl)
     {

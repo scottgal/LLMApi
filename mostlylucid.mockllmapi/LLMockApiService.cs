@@ -1,8 +1,10 @@
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Net.Http.Headers;
+using Microsoft.Extensions.Options;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 
 namespace mostlylucid.mockllmapi;
@@ -92,9 +94,9 @@ public class LLMockApiService
             + "\"";
     }
 
-    /// <summary>
-    /// Reads multipart form data including file uploads
-    /// For files, we dump the content to avoid memory issues but return metadata
+/// <summary>
+    /// Reads multipart form data including file uploads with streaming support
+    /// For large files, streams content to temporary storage instead of loading into memory
     /// </summary>
     private async Task<string> ReadMultipartFormAsync(HttpRequest request)
     {
@@ -132,32 +134,88 @@ public class LLMockApiService
             jsonParts.Add("\"fields\":{}");
         }
 
-        // Read file uploads (dump content to avoid memory issues)
+        // Read file uploads with streaming support
         if (form.Files.Count > 0)
         {
             var fileParts = new List<string>();
 
             foreach (var file in form.Files)
             {
-                // Dump file content to avoid memory issues
-                using var stream = file.OpenReadStream();
-                var buffer = new byte[8192];
-                long totalRead = 0;
-                int bytesRead;
-
-                while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+                // Validate file size
+                const long maxFileSize = 10 * 1024 * 1024; // 10MB limit
+                if (file.Length > maxFileSize)
                 {
-                    totalRead += bytesRead;
-                    // Content is discarded, we only track the size
+                    throw new InvalidOperationException($"File size exceeds maximum allowed size of {maxFileSize / (1024 * 1024)}MB");
                 }
 
-                // Manual JSON construction
-                var fieldName = EscapeJsonString(file.Name ?? "unknown");
-                var fileName = EscapeJsonString(file.FileName ?? "unknown");
-                var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
+                // For small files, read directly into memory
+                if (file.Length < 1024 * 1024) // 1MB threshold
+                {
+                    using var stream = file.OpenReadStream();
+                    var buffer = new byte[8192];
+                    long totalRead = 0;
+                    int bytesRead;
 
-                var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead}}}";
-                fileParts.Add(fileJson);
+                    while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+                    {
+                        totalRead += bytesRead;
+                        // Content is discarded, we only track the size
+                    }
+
+                    // Manual JSON construction
+                    var fieldName = EscapeJsonString(file.Name ?? "unknown");
+                    var fileName = EscapeJsonString(file.FileName ?? "unknown");
+                    var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
+
+                    var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead}}}";
+                    fileParts.Add(fileJson);
+                }
+                else
+                {
+                    // For large files, stream to temporary storage
+                    // Note: Using Guid instead of Path.GetTempFileName() to avoid:
+                    // 1. Windows temp file limit (65535 files) failures under high load
+                    // 2. Blocking calls to create unique files
+                    var tempFilePath = Path.Combine(Path.GetTempPath(), $"llmock_{Guid.NewGuid():N}.tmp");
+                    try
+                    {
+                        using var inputStream = file.OpenReadStream();
+                        using var outputStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+                        var buffer = new byte[8192];
+                        long totalRead = 0;
+                        int bytesRead;
+
+                        while ((bytesRead = await inputStream.ReadAsync(buffer)) > 0)
+                        {
+                            await outputStream.WriteAsync(buffer, 0, bytesRead);
+                            totalRead += bytesRead;
+                        }
+
+                        // Manual JSON construction
+                        var fieldName = EscapeJsonString(file.Name ?? "unknown");
+                        var fileName = EscapeJsonString(file.FileName ?? "unknown");
+                        var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
+
+                        var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead},\"streamed\":true,\"tempPath\":\"{EscapeJsonString(tempFilePath)}\"}}";
+                        fileParts.Add(fileJson);
+                    }
+                    finally
+                    {
+                        // Clean up temporary file
+                        if (File.Exists(tempFilePath))
+                        {
+                            try
+                            {
+                                File.Delete(tempFilePath);
+                            }
+                            catch
+                            {
+                                // Ignore cleanup errors
+                            }
+                        }
+                    }
+                }
             }
 
             jsonParts.Add($"\"files\":[{string.Join(",", fileParts)}]");

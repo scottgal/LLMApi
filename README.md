@@ -25,6 +25,7 @@ This README is comprehensive by design. Choose your path:
 
 ## What's New - TL;DR
 
+**Latest:** AutoShape (Shape Memory) - Automatic JSON structure consistency across endpoint calls
 **v2.3.0:** Full content type support - form bodies, file uploads, comprehensive testing (405 tests)
 **v2.2.0:** Pluggable tools for API integration, pre-configured REST APIs, automatic context memory expiration
 **v2.1.0:** Rate limiting, batching, n-completions with multiple execution strategies
@@ -181,6 +182,7 @@ This package provides **six independent features** - use any combination you nee
 - **Configurable**: appsettings.json or inline configuration
 - **Highly Variable Data**: Each request/update generates completely different realistic data
 - **NuGet Package**: Easy to add to existing projects
+- **AutoShape (Shape Memory)**: Automatically remembers JSON structure from first response, ensuring consistent schemas across all subsequent requests to the same endpoint - **[See AutoShape Guide](#autoshape-shape-memory)**
 - **API Contexts**: Maintain consistency across related requests - **[Complete Guide](./docs/API-CONTEXTS.md)**
 - **Error Simulation**: Comprehensive error testing with 4xx/5xx status codes, custom messages, and multiple configuration methods
 - **Testing Utilities**: Companion package `mostlylucid.mockllmapi.Testing` for easy HttpClient integration in tests - **[See Testing Section](#testing)**
@@ -542,6 +544,113 @@ app.Run();
 ```
 
 That's it! Now all requests to `/api/mock/**` return intelligent mock data.
+
+## AutoShape (Shape Memory)
+
+**Automatically maintain consistent JSON structures across requests to the same endpoint.**
+
+### What It Does
+
+AutoShape remembers the JSON structure from the first response to an endpoint and automatically applies it to all subsequent requests to that same endpoint (with different IDs). This ensures:
+- Consistent response schemas across multiple calls
+- No schema drift during development
+- Predictable API behavior for testing
+
+### Quick Example
+
+```http
+# First request - generates free-form response
+GET /api/mock/users/123
+Response: {"id": 123, "name": "Alice", "email": "alice@example.com", "role": "admin"}
+
+# Second request - automatically uses same structure
+GET /api/mock/users/456
+Response: {"id": 456, "name": "Bob", "email": "bob@example.com", "role": "user"}
+
+# All subsequent requests use the same schema!
+GET /api/mock/users/789
+Response: {"id": 789, "name": "Carol", "email": "carol@example.com", "role": "manager"}
+```
+
+### Configuration
+
+**Enabled by default** in `appsettings.json`:
+
+```json
+{
+  "MockLlmApi": {
+    "EnableAutoShape": true,              // Default: true
+    "ShapeExpirationMinutes": 15          // Default: 15
+  }
+}
+```
+
+### Per-Request Control
+
+**Disable for specific request:**
+```http
+GET /api/mock/users/special?autoshape=false
+```
+
+**Renew a bad shape:**
+```http
+# If first response was incomplete, renew it:
+GET /api/mock/users/1?renewshape=true
+# New response replaces old shape template
+```
+
+### Path Normalization
+
+All these requests share the same shape (normalized to `/api/mock/users/{id}`):
+```http
+GET /api/mock/users/123                  # Numeric ID
+GET /api/mock/users/abc-456              # Alphanumeric ID
+GET /api/mock/users/550e8400-e29b...     # UUID
+```
+
+### Key Features
+
+- **✅ Enabled by default** - Works out of the box
+- **🔄 Shape renewal** - Fix bad shapes with `?renewshape=true`
+- **⏱️ Auto-expiration** - Shapes expire after inactivity (configurable)
+- **🎯 Smart normalization** - Different IDs to same endpoint share shapes
+- **🚫 Explicit override** - Providing explicit shape via query/header/body skips autoshape
+- **✨ Works everywhere** - REST, Streaming, and GraphQL endpoints
+
+### When to Use
+
+**Perfect for:**
+- Frontend development needing consistent mock data structures
+- Integration tests requiring predictable schemas
+- Demos where data structure shouldn't change between requests
+- API prototyping with evolving but consistent shapes
+
+**Not needed when:**
+- Using explicit shapes (they take precedence anyway)
+- Want maximum variety in every response
+- Testing schema evolution scenarios
+
+### Troubleshooting
+
+**Shapes not being applied?**
+1. Check `EnableAutoShape: true` in config
+2. Verify no explicit shape provided (query/header/body)
+3. Check expiration time (default 15 minutes)
+
+**Need to change a shape?**
+```http
+GET /api/mock/users/1?renewshape=true
+```
+
+**Clear all shapes programmatically:**
+```csharp
+// Inject AutoShapeManager
+autoShapeManager.ClearAllShapes();
+```
+
+For complete documentation, see [CLAUDE.md AutoShape Section](./CLAUDE.md#autoshape-feature-shape-memory).
+
+**Test Coverage:** 39 tests covering all autoshape functionality ✅
 
 ## Configuration Options
 

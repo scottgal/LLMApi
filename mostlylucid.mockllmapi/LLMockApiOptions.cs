@@ -104,10 +104,15 @@ public class LLMockApiOptions
     /// </summary>
     public int MaxCachePerKey { get; set; } = 5;
 
-    /// <summary>
+/// <summary>
     /// Sliding expiration in minutes for cached responses (default: 15 minutes)
-    /// Cache entries are automatically removed after this period of inactivity.
+    /// Cached entries are automatically removed after this period of inactivity.
     /// Each cache hit refreshes the expiration timer.
+    /// 
+    /// Higher values reduce cache misses but increase memory usage.
+    /// Lower values free memory faster but may increase request latency.
+    /// 
+    /// Recommended: 5-30 minutes for most applications.
     /// </summary>
     public int CacheSlidingExpirationMinutes { get; set; } = 15;
 
@@ -119,12 +124,20 @@ public class LLMockApiOptions
     /// </summary>
     public int CacheRefreshThresholdPercent { get; set; } = 50;
 
-    /// <summary>
+/// <summary>
     /// Maximum items per response AND maximum cache size (default: 1000)
     /// This is a dual-purpose setting:
     /// 1. Response Limit: Maximum number of items that can be returned in a single API response
     /// 2. Cache Size: Maximum number of cached response variants across all keys
     /// Requests exceeding this will be automatically chunked (if EnableAutoChunking is true).
+    /// 
+    /// Response Limit: Controls memory usage and prevents overly large responses.
+    /// Cache Size: Prevents memory exhaustion from excessive caching.
+    /// 
+    /// Recommended values:
+    /// - Small responses: 100-500 items
+    /// - Medium responses: 500-1000 items  
+    /// - Large responses: 1000-5000 items (use with caution)
     /// </summary>
     public int MaxItems { get; set; } = 1000;
 
@@ -191,11 +204,16 @@ public class LLMockApiOptions
     /// </summary>
     public int ContinuousStreamingIntervalMs { get; set; } = 2000;
 
-    /// <summary>
+/// <summary>
     /// Maximum duration in seconds for continuous SSE connections (default: 300 = 5 minutes)
     /// Prevents infinite connections and resource leaks.
     /// Set to 0 for unlimited duration (not recommended for production).
     /// Can be overridden per-request with ?maxDuration=600 query parameter.
+    /// 
+    /// Recommended values:
+    /// - Short-lived connections: 60-300 seconds
+    /// - Long-running sessions: 300-1800 seconds
+    /// - Testing: 0 (unlimited)
     /// </summary>
     public int ContinuousStreamingMaxDurationSeconds { get; set; } = 300;
 
@@ -374,13 +392,40 @@ public class LLMockApiOptions
 
     #endregion
 
-    #region Simulator Types
+#region Simulator Types
 
     /// <summary>
     /// Configuration for which types of simulators/endpoints are enabled.
     /// Each simulator type can be independently enabled or disabled.
     /// </summary>
     public SimulatorTypesConfig SimulatorTypes { get; set; } = new();
+
+    #endregion
+
+    #region CORS Configuration
+
+    /// <summary>
+    /// CORS (Cross-Origin Resource Sharing) configuration options.
+    /// Controls which origins are allowed to access the API.
+    /// </summary>
+    public CorsOptions Cors { get; set; } = new();
+
+    #endregion
+
+#region Management & Security Options
+
+    /// <summary>
+    /// Enable authentication for management endpoints (default: false)
+    /// When enabled, requires valid authentication tokens for accessing management APIs.
+    /// </summary>
+    public bool EnableManagementAuth { get; set; } = false;
+
+    /// <summary>
+    /// Management API secret key for token-based authentication (default: null)
+    /// Used to validate authentication tokens for management endpoints.
+    /// In production, use proper JWT or OAuth2 authentication.
+    /// </summary>
+    public string? ManagementAuthSecret { get; set; }
 
     #endregion
 
@@ -392,6 +437,27 @@ public class LLMockApiOptions
     /// Useful for testing backoff strategies, timeouts, and concurrent request handling.
     /// </summary>
     public bool EnableRateLimiting { get; set; } = false;
+
+    /// <summary>
+    /// Requests per minute limit for rate limiting (default: 100)
+    /// Sets the maximum number of requests allowed per minute per client.
+    /// Higher values allow more traffic but increase server load.
+    /// Recommended values: 60-300 for production, 1000+ for testing.
+    /// </summary>
+    public int RateLimitRequestsPerMinute { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum request size in bytes (default: 50MB)
+    /// Prevents memory exhaustion from large requests.
+    /// Set to 0 to disable size limiting.
+    /// </summary>
+    public long MaxRequestSizeBytes { get; set; } = 50 * 1024 * 1024; // 50MB
+
+    /// <summary>
+    /// Maximum concurrent requests per client (default: 100)
+    /// Prevents resource exhaustion from too many simultaneous requests.
+    /// </summary>
+    public int MaxConcurrentRequests { get; set; } = 100;
 
     /// <summary>
     /// Delay range in milliseconds for rate limiting (default: null = disabled)
@@ -425,6 +491,7 @@ public class LLMockApiOptions
     /// Window size for calculating moving average response times (default: 10)
     /// Higher values = smoother average but slower to adapt to changes.
     /// Lower values = more responsive to recent performance but more volatile.
+    /// Recommended: 5-20 for most use cases.
     /// </summary>
     public int RateLimitStatsWindowSize { get; set; } = 10;
 

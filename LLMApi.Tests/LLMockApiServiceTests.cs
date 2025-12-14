@@ -140,7 +140,8 @@ public class LLMockApiServiceTests
     {
         // Arrange
         var options = CreateOptions();
-        var builder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var builder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var shapeInfo = new ShapeInfo();
 
         // Act
@@ -158,7 +159,8 @@ public class LLMockApiServiceTests
     {
         // Arrange
         var options = CreateOptions();
-        var builder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var builder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var shapeInfo = new ShapeInfo { Shape = "{\"id\":0,\"name\":\"string\"}" };
 
         // Act
@@ -174,7 +176,8 @@ public class LLMockApiServiceTests
     {
         // Arrange
         var options = CreateOptions();
-        var builder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var builder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var shapeInfo = new ShapeInfo
         {
             Shape = @"{""$schema"":""http://json-schema.org/draft-07/schema#"",""type"":""object""}",
@@ -197,7 +200,8 @@ public class LLMockApiServiceTests
         {
             CustomPromptTemplate = "Custom: {method} {path} {randomSeed}"
         });
-        var builder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var builder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var shapeInfo = new ShapeInfo();
 
         // Act
@@ -267,7 +271,8 @@ public class LLMockApiServiceTests
             new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
         var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
         var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts, contextStore);
-        var promptBuilder = new PromptBuilder(opts);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(opts, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(opts, NullLogger<LlmBackendSelector>.Instance);
         var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
         var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance, backendSelector, providerFactory);

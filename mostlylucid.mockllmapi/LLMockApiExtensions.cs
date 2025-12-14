@@ -213,6 +213,7 @@ public static class LlMockApiExtensions
             services.AddScoped<ShapeExtractor>();
             services.AddScoped<ContextExtractor>();
             services.AddScoped<JourneyExtractor>();
+            services.AddScoped<IInputValidationService, InputValidationService>();
             services.AddScoped<PromptBuilder>();
             services.AddScoped<LlmClient>();
             services.AddSingleton<LlmBackendSelector>();

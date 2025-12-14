@@ -42,7 +42,8 @@ public class GraphQLRequestHandlerTests
         var contextStoreLogger = NullLogger<MemoryCacheContextStore>.Instance;
         var contextStore = new MemoryCacheContextStore(memoryCache, contextStoreLogger);
         var contextManager = new OpenApiContextManager(contextManagerLogger, options, contextStore);
-        var promptBuilder = new PromptBuilder(options);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         if (llmClient == null)
         {
             var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
@@ -66,6 +67,8 @@ public class GraphQLRequestHandlerTests
     private DefaultHttpContext CreateHttpContext(string? body = null)
     {
         var context = new DefaultHttpContext();
+        // Set a default path for the request - required for AutoShapeManager
+        context.Request.Path = "/api/mock/graphql";
         if (body != null)
         {
             var bytes = Encoding.UTF8.GetBytes(body);

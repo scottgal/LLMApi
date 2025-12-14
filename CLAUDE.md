@@ -217,6 +217,175 @@ Autoshape is integrated into:
 - `StreamingRequestHandler` (Streaming requests in StreamingRequestHandler.cs:158-172 and :281-282)
 - `GraphQLRequestHandler` (GraphQL requests in GraphQLRequestHandler.cs:132-133)
 
+### Detailed Examples
+
+#### Example 1: Basic Autoshape Usage
+
+```http
+# First request - generates free-form response
+GET /api/mock/users/123
+# Response: {"id": 123, "name": "Alice Johnson", "email": "alice@example.com"}
+# Shape extracted and stored: {"id": 0, "name": "", "email": ""}
+
+# Second request - uses stored shape
+GET /api/mock/users/456
+# Response: {"id": 456, "name": "Bob Smith", "email": "bob@example.com"}
+# Same structure, different data!
+```
+
+#### Example 2: Renewing a Bad Shape
+
+```http
+# First request - accidentally incomplete data
+GET /api/mock/products/1
+# Response: {"id": 1, "title": "Product"}
+# Shape stored: {"id": 0, "title": ""}
+
+# Later, you realize it needs more fields
+GET /api/mock/products/2?renewshape=true
+# Response: {"id": 2, "title": "Complete Product", "price": 29.99, "inStock": true}
+# New shape replaces old: {"id": 0, "title": "", "price": 0, "inStock": true}
+
+# Subsequent requests use the new, complete shape
+GET /api/mock/products/3
+# Response: {"id": 3, "title": "Another Product", "price": 49.99, "inStock": false}
+```
+
+#### Example 3: Per-Request Control
+
+```http
+# Disable autoshape for this specific request
+GET /api/mock/users/special?autoshape=false
+# Response: Freely generated, not constrained by stored shape
+
+# Enable autoshape even if globally disabled
+GET /api/mock/users/123?autoshape=true
+# Response: Uses stored shape (if available)
+```
+
+#### Example 4: Path Normalization
+
+```http
+# All these requests share the same shape
+GET /api/mock/users/123         # Numeric ID
+GET /api/mock/users/456         # Different numeric ID
+GET /api/mock/users/abc-def     # Alphanumeric ID
+GET /api/mock/users/550e8400-e29b-41d4-a716-446655440000  # UUID
+
+# They normalize to: /api/mock/users/{id}
+# All use the same stored shape for consistency
+```
+
+### Troubleshooting
+
+#### Shape Not Being Applied
+
+**Symptoms:** Each request returns different structures even with autoshape enabled
+
+**Solutions:**
+1. Verify autoshape is enabled: Check `EnableAutoShape: true` in appsettings.json
+2. Check for explicit shapes: Query params (`?shape=...`), headers (`X-Shape`), or body fields override autoshape
+3. Verify path normalization: Use logging to see the normalized path being used
+4. Check expiration: Shapes expire after `ShapeExpirationMinutes` of inactivity (default: 15)
+
+#### Shape Stuck with Old Structure
+
+**Symptoms:** Can't update a shape that was stored with incomplete data
+
+**Solutions:**
+1. Use `?renewshape=true` to force regeneration
+2. Clear all shapes via code: `AutoShapeManager.ClearAllShapes()`
+3. Restart application (shapes are in-memory only)
+4. Remove specific shape: `AutoShapeManager.RemoveShape("/api/mock/users/{id}")`
+
+#### Shapes Expiring Too Quickly
+
+**Symptoms:** Shapes disappear between test runs
+
+**Solutions:**
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "ShapeExpirationMinutes": 60  // Increase for longer sessions
+  }
+}
+```
+
+#### Different Endpoints Sharing Shapes Unexpectedly
+
+**Symptoms:** `/api/mock/users/1` and `/api/mock/products/1` use the same shape
+
+**Causes:**
+- This should NOT happen - path normalization includes the full path
+- If you see this, it's a bug - please report
+
+#### Error Responses Being Stored as Shapes
+
+**Symptoms:** Subsequent requests return error-like structures
+
+**This should NOT happen:**
+- `ShapeExtractorFromResponse.IsValidForShapeExtraction()` filters out errors
+- Error responses (with `error` or `errors` fields) are automatically rejected
+- If you encounter this, please report as a bug
+
+### Advanced Configuration
+
+#### Custom Shape Expiration
+
+```csharp
+// In Program.cs
+builder.Services.AddLLMockApi(options =>
+{
+    options.EnableAutoShape = true;
+    options.ShapeExpirationMinutes = 120; // 2 hours for long test sessions
+});
+```
+
+#### Programmatic Shape Management
+
+```csharp
+// Inject AutoShapeManager in your code
+public class MyTestSetup
+{
+    private readonly AutoShapeManager _shapeManager;
+
+    public MyTestSetup(AutoShapeManager shapeManager)
+    {
+        _shapeManager = shapeManager;
+    }
+
+    public void ResetShapesBeforeEachTest()
+    {
+        _shapeManager.ClearAllShapes();
+    }
+
+    public void RemoveSpecificShape(string path)
+    {
+        _shapeManager.RemoveShape(path);
+    }
+
+    public int GetShapeCount()
+    {
+        return _shapeManager.GetStoredShapeCount();
+    }
+
+    public IEnumerable<string> GetAllShapePaths()
+    {
+        return _shapeManager.GetStoredPaths();
+    }
+}
+```
+
+### Testing with Autoshape
+
+See `LLMApi.Tests/AutoShapeTests.cs` for comprehensive test examples covering:
+- **PathNormalizer Tests** (9 tests): Path normalization logic, ID detection, query string handling
+- **ShapeExtractorFromResponse Tests** (8 tests): Shape extraction from various JSON structures
+- **AutoShapeManager Tests** (14 tests): Configuration, storage, retrieval, renewal, error handling
+- **MemoryCacheShapeStore Tests** (8 tests): Cache operations, expiration, case-insensitivity
+
+All 39 tests passing ✅
+
 ## Development Commands
 
 ### Build Everything

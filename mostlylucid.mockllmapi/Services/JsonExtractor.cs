@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using mostlylucid.mockllmapi.Utilities;
 
 namespace mostlylucid.mockllmapi.Services;
 
@@ -42,9 +43,8 @@ public static class JsonExtractor
             }
         }
 
-        // Remove markdown code blocks
-        var jsonPattern = @"```(?:json|graphql)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```";
-        var match = Regex.Match(response, jsonPattern);
+        // Remove markdown code blocks (using cached regex for performance)
+        var match = ValidationRegex.JsonMarkdownCodeBlockRegex().Match(response);
         if (match.Success)
         {
             return match.Groups[1].Value.Trim();
@@ -58,10 +58,9 @@ public static class JsonExtractor
             return extractedJson;
         }
 
-        // Fallback to non-greedy regex patterns
+        // Fallback to non-greedy regex patterns (using cached regex for performance)
         // Use *? for non-greedy matching - but this may not find the complete JSON
-        var jsonObjectPattern = @"\{[\s\S]*?\}";
-        var objectMatch = Regex.Match(response, jsonObjectPattern);
+        var objectMatch = ValidationRegex.JsonObjectRegex().Match(response);
         if (objectMatch.Success)
         {
             // Validate it's actually valid JSON before returning
@@ -76,8 +75,7 @@ public static class JsonExtractor
             }
         }
 
-        var jsonArrayPattern = @"\[[\s\S]*?\]";
-        var arrayMatch = Regex.Match(response, jsonArrayPattern);
+        var arrayMatch = ValidationRegex.JsonArrayRegex().Match(response);
         if (arrayMatch.Success)
         {
             try
@@ -202,28 +200,29 @@ public static class JsonExtractor
     /// - Ellipsis (...) used to indicate truncation
     /// - C-style comments (// ...)
     /// - Trailing commas before closing brackets
+    /// Uses cached regex patterns for performance.
     /// </summary>
     private static string CleanupLlmArtifacts(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
             return json;
 
-        // Remove ellipsis patterns that indicate truncation
+        // Remove ellipsis patterns that indicate truncation (using cached regex)
         // Match: "...", ..., "field": "...", etc.
-        json = Regex.Replace(json, @"""\.\.\.""", @"""""");  // "..." -> ""
-        json = Regex.Replace(json, @":\s*\.\.\.(?=[,\}\]])", ": null");  // : ... -> : null
-        json = Regex.Replace(json, @",\s*\.\.\.(?=[\}\]])", "");  // , ... before closing -> remove
-        json = Regex.Replace(json, @"^\s*\.\.\..*$", "", RegexOptions.Multiline);  // Entire lines with just ...
+        json = ValidationRegex.LlmEllipsisQuotedRegex().Replace(json, @"""""");  // "..." -> ""
+        json = ValidationRegex.LlmEllipsisAfterColonRegex().Replace(json, ": null");  // : ... -> : null
+        json = ValidationRegex.LlmEllipsisBeforeCloseRegex().Replace(json, "");  // , ... before closing -> remove
+        json = ValidationRegex.LlmEllipsisLineRegex().Replace(json, "");  // Entire lines with just ...
 
-        // Remove C-style comments (// ...)
-        json = Regex.Replace(json, @"//[^\n]*", "");  // Remove // comments
+        // Remove C-style comments (// ...) using cached regex
+        json = ValidationRegex.LlmCStyleCommentRegex().Replace(json, "");  // Remove // comments
 
         // Remove trailing commas before closing brackets (common LLM mistake)
-        json = Regex.Replace(json, @",(\s*[\}\]])", "$1");  // , } -> } and , ] -> ]
+        json = ValidationRegex.LlmTrailingCommaRegex().Replace(json, "$1");  // , } -> } and , ] -> ]
 
         // Remove empty array/object elements created by cleanup
-        json = Regex.Replace(json, @"\[\s*,\s*", "[");  // [, -> [
-        json = Regex.Replace(json, @",\s*,\s*", ",");   // ,, -> ,
+        json = ValidationRegex.LlmLeadingCommaRegex().Replace(json, "[");  // [, -> [
+        json = ValidationRegex.LlmConsecutiveCommaRegex().Replace(json, ",");   // ,, -> ,
 
         return json;
     }
