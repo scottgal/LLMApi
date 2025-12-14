@@ -4,15 +4,15 @@ using Microsoft.AspNetCore.Http;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Extracts context name from requests (query param, header, or body)
+///     Extracts context name from requests (query param, header, or body)
 /// </summary>
 public class ContextExtractor
 {
     /// <summary>
-    /// Extracts context name from the request using precedence:
-    /// 1. Query parameter (context or api-context)
-    /// 2. Header (X-Api-Context)
-    /// 3. Body property (context or apiContext)
+    ///     Extracts context name from the request using precedence:
+    ///     1. Query parameter (context or api-context)
+    ///     2. Header (X-Api-Context)
+    ///     3. Body property (context or apiContext)
     /// </summary>
     public string? ExtractContextName(HttpRequest request, string? body)
     {
@@ -43,7 +43,6 @@ public class ContextExtractor
         if (!string.IsNullOrWhiteSpace(body) &&
             request.ContentType != null &&
             request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(body);
@@ -70,7 +69,6 @@ public class ContextExtractor
             {
                 // Ignore JSON parse errors
             }
-        }
 
         return null;
     }

@@ -1,114 +1,114 @@
 namespace mostlylucid.mockllmapi.Models;
 
 /// <summary>
-/// Pre-configured REST API definition with complete settings
+///     Pre-configured REST API definition with complete settings
 /// </summary>
 public class RestApiConfig
 {
     /// <summary>
-    /// Unique name/identifier for this API configuration
+    ///     Unique name/identifier for this API configuration
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Human-readable description of what this API does
+    ///     Human-readable description of what this API does
     /// </summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// HTTP method (GET, POST, PUT, DELETE, PATCH)
+    ///     HTTP method (GET, POST, PUT, DELETE, PATCH)
     /// </summary>
     public string Method { get; set; } = "GET";
 
     /// <summary>
-    /// Endpoint path (can include path parameters like /users/{userId})
+    ///     Endpoint path (can include path parameters like /users/{userId})
     /// </summary>
     public string Path { get; set; } = string.Empty;
 
     /// <summary>
-    /// JSON shape specification for response structure
+    ///     JSON shape specification for response structure
     /// </summary>
     public string? Shape { get; set; }
 
     /// <summary>
-    /// Reference to an OpenAPI spec name (loaded via OpenAPI management)
-    /// If specified, shape will be derived from the spec's schema
+    ///     Reference to an OpenAPI spec name (loaded via OpenAPI management)
+    ///     If specified, shape will be derived from the spec's schema
     /// </summary>
     public string? OpenApiSpec { get; set; }
 
     /// <summary>
-    /// Specific operation ID from the OpenAPI spec to use for shape
+    ///     Specific operation ID from the OpenAPI spec to use for shape
     /// </summary>
     public string? OpenApiOperationId { get; set; }
 
     /// <summary>
-    /// Shared context name for maintaining consistency across requests
+    ///     Shared context name for maintaining consistency across requests
     /// </summary>
     public string? ContextName { get; set; }
 
     /// <summary>
-    /// Custom description to add to the LLM prompt
+    ///     Custom description to add to the LLM prompt
     /// </summary>
     public string? CustomDescription { get; set; }
 
     /// <summary>
-    /// Number of cached response variants to pre-generate
+    ///     Number of cached response variants to pre-generate
     /// </summary>
     public int? CacheCount { get; set; }
 
     /// <summary>
-    /// Tools to execute before generating the response
+    ///     Tools to execute before generating the response
     /// </summary>
     public List<string> Tools { get; set; } = new();
 
     /// <summary>
-    /// Default query parameters to include
+    ///     Default query parameters to include
     /// </summary>
     public Dictionary<string, string> DefaultQueryParams { get; set; } = new();
 
     /// <summary>
-    /// Default headers to include
+    ///     Default headers to include
     /// </summary>
     public Dictionary<string, string> DefaultHeaders { get; set; } = new();
 
     /// <summary>
-    /// Tags/groups for organizing APIs
+    ///     Tags/groups for organizing APIs
     /// </summary>
     public List<string> Tags { get; set; } = new();
 
     /// <summary>
-    /// Whether this API is enabled
+    ///     Whether this API is enabled
     /// </summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Whether to use streaming (SSE) for this API
+    ///     Whether to use streaming (SSE) for this API
     /// </summary>
     public bool UseStreaming { get; set; } = false;
 
     /// <summary>
-    /// Rate limiting delay range (e.g., "500-2000" or "max")
+    ///     Rate limiting delay range (e.g., "500-2000" or "max")
     /// </summary>
     public string? RateLimitDelay { get; set; }
 
     /// <summary>
-    /// Number of completions to generate (n-completions)
+    ///     Number of completions to generate (n-completions)
     /// </summary>
     public int? NCompletions { get; set; }
 
     /// <summary>
-    /// Error simulation configuration
+    ///     Error simulation configuration
     /// </summary>
     public ErrorConfig? ErrorConfig { get; set; }
 }
 
 /// <summary>
-/// Extension methods for RestApiConfig
+///     Extension methods for RestApiConfig
 /// </summary>
 public static class RestApiConfigExtensions
 {
     /// <summary>
-    /// Get the full URL pattern for this API
+    ///     Get the full URL pattern for this API
     /// </summary>
     public static string GetUrlPattern(this RestApiConfig config, string basePath = "/api/mock")
     {
@@ -117,7 +117,7 @@ public static class RestApiConfigExtensions
     }
 
     /// <summary>
-    /// Check if this API matches any of the given tags
+    ///     Check if this API matches any of the given tags
     /// </summary>
     public static bool HasAnyTag(this RestApiConfig config, params string[] tags)
     {
@@ -128,7 +128,7 @@ public static class RestApiConfigExtensions
     }
 
     /// <summary>
-    /// Get a summary of this API for display purposes
+    ///     Get a summary of this API for display purposes
     /// </summary>
     public static object ToSummary(this RestApiConfig config)
     {

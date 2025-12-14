@@ -1,5 +1,3 @@
-using System.Windows.Media;
-
 namespace LLMockApiClient.Models;
 
 public class OpenApiEndpointItem

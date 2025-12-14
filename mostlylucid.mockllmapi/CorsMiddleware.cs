@@ -1,21 +1,20 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using mostlylucid.mockllmapi.Models;
+using Microsoft.Extensions.Options;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Middleware for handling CORS (Cross-Origin Resource Sharing)
-/// Validates configuration to prevent insecure combinations.
+///     Middleware for handling CORS (Cross-Origin Resource Sharing)
+///     Validates configuration to prevent insecure combinations.
 /// </summary>
 public class CorsMiddleware
 {
+    private readonly bool _hasInsecureConfiguration;
+    private readonly ILogger<CorsMiddleware> _logger;
     private readonly RequestDelegate _next;
     private readonly IOptions<LLMockApiOptions> _options;
-    private readonly ILogger<CorsMiddleware> _logger;
-    private readonly bool _hasInsecureConfiguration;
 
     public CorsMiddleware(
         RequestDelegate next,
@@ -25,14 +24,14 @@ public class CorsMiddleware
         _next = next;
         _options = options;
         _logger = logger;
-        
+
         // Validate CORS configuration on startup
         _hasInsecureConfiguration = ValidateCorsConfiguration(options.Value.Cors);
     }
 
     /// <summary>
-    /// Validates CORS configuration and logs warnings for insecure settings.
-    /// Returns true if configuration has security issues.
+    ///     Validates CORS configuration and logs warnings for insecure settings.
+    ///     Returns true if configuration has security issues.
     /// </summary>
     private bool ValidateCorsConfiguration(CorsOptions corsOptions)
     {
@@ -55,21 +54,17 @@ public class CorsMiddleware
 
         // Warn about overly permissive wildcard origins without credentials
         if (corsOptions.AllowedOrigins.Contains("*") && !corsOptions.AllowCredentials)
-        {
             _logger.LogWarning(
                 "CORS is configured with wildcard (*) origin. " +
                 "This allows any website to make requests to your API. " +
                 "Consider restricting to specific trusted origins in production.");
-        }
 
         // Warn about allowing credentials (even with explicit origins)
         if (corsOptions.AllowCredentials && !corsOptions.AllowedOrigins.Contains("*"))
-        {
             _logger.LogInformation(
                 "CORS is configured with AllowCredentials=true for specific origins: {Origins}. " +
                 "Ensure these origins are trusted as they can make authenticated requests.",
                 string.Join(", ", corsOptions.AllowedOrigins));
-        }
 
         return hasIssues;
     }
@@ -86,7 +81,7 @@ public class CorsMiddleware
         }
 
         // Handle preflight requests
-        if (context.Request.Method == "OPTIONS" && 
+        if (context.Request.Method == "OPTIONS" &&
             context.Request.Headers.ContainsKey("Origin"))
         {
             await HandlePreflightRequest(context, corsOptions);
@@ -101,7 +96,7 @@ public class CorsMiddleware
     private bool IsBrowserRequest(HttpRequest request)
     {
         var userAgent = request.Headers["User-Agent"].ToString();
-        return !string.IsNullOrEmpty(userAgent) && 
+        return !string.IsNullOrEmpty(userAgent) &&
                (userAgent.Contains("Mozilla", StringComparison.OrdinalIgnoreCase) ||
                 userAgent.Contains("Chrome", StringComparison.OrdinalIgnoreCase) ||
                 userAgent.Contains("Safari", StringComparison.OrdinalIgnoreCase));
@@ -110,27 +105,29 @@ public class CorsMiddleware
     private async Task HandlePreflightRequest(HttpContext context, CorsOptions corsOptions)
     {
         context.Response.StatusCode = StatusCodes.Status204NoContent;
-        
+
         await AddCorsHeaders(context.Response, context.Request, corsOptions);
 
         // Set preflight response headers
         context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS";
-        context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-LLM-Backend, X-Shape, X-Auto-Shape, X-Renew-Shape, X-Use-Tool, X-Rate-Limit-Delay, X-Rate-Limit-Strategy";
+        context.Response.Headers["Access-Control-Allow-Headers"] =
+            "Content-Type, Authorization, X-Requested-With, X-LLM-Backend, X-Shape, X-Auto-Shape, X-Renew-Shape, X-Use-Tool, X-Rate-Limit-Delay, X-Rate-Limit-Strategy";
         context.Response.Headers["Access-Control-Max-Age"] = corsOptions.PreflightMaxAge.ToString();
-        
-        _logger.LogInformation("Handled CORS preflight request from {Origin}", context.Request.Headers["Origin"]);
+
+        _logger.LogInformation("Handled CORS preflight request from {Origin}",
+            context.Request.Headers["Origin"].ToString());
     }
 
     private Task AddCorsHeaders(HttpResponse response, HttpRequest request, CorsOptions corsOptions)
     {
         var origin = request.Headers["Origin"].ToString();
-        
+
         // Check if origin is allowed
         if (IsOriginAllowed(origin, corsOptions))
         {
             // Handle credentials + wildcard safely
             var effectiveAllowCredentials = corsOptions.AllowCredentials;
-            
+
             if (corsOptions.AllowedOrigins.Contains("*"))
             {
                 // When using wildcard, we must set the actual origin header (not *)
@@ -144,7 +141,7 @@ public class CorsMiddleware
                         origin);
                     effectiveAllowCredentials = false;
                 }
-                
+
                 // Set the specific origin instead of * for better compatibility
                 response.Headers["Access-Control-Allow-Origin"] = origin;
             }
@@ -152,18 +149,13 @@ public class CorsMiddleware
             {
                 response.Headers["Access-Control-Allow-Origin"] = origin;
             }
-            
+
             response.Headers["Vary"] = "Origin";
-            
-            if (effectiveAllowCredentials)
-            {
-                response.Headers["Access-Control-Allow-Credentials"] = "true";
-            }
+
+            if (effectiveAllowCredentials) response.Headers["Access-Control-Allow-Credentials"] = "true";
 
             if (!string.IsNullOrEmpty(corsOptions.ExposedHeaders))
-            {
                 response.Headers["Access-Control-Expose-Headers"] = corsOptions.ExposedHeaders;
-            }
 
             _logger.LogDebug("Added CORS headers for origin: {Origin}", origin);
         }
@@ -171,7 +163,7 @@ public class CorsMiddleware
         {
             _logger.LogWarning("CORS request blocked from unauthorized origin: {Origin}", origin);
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -190,7 +182,7 @@ public class CorsMiddleware
 }
 
 /// <summary>
-/// Extension method to add CORS middleware
+///     Extension method to add CORS middleware
 /// </summary>
 public static class CorsMiddlewareExtensions
 {
@@ -202,32 +194,32 @@ public static class CorsMiddlewareExtensions
 }
 
 /// <summary>
-/// CORS configuration options
+///     CORS configuration options
 /// </summary>
 public class CorsOptions
 {
     /// <summary>
-    /// Enable CORS (default: false)
+    ///     Enable CORS (default: false)
     /// </summary>
     public bool Enabled { get; set; } = false;
 
     /// <summary>
-    /// List of allowed origins (default: ["*"])
+    ///     List of allowed origins (default: ["*"])
     /// </summary>
     public List<string> AllowedOrigins { get; set; } = new() { "*" };
 
     /// <summary>
-    /// Allow credentials (cookies, authorization headers, etc.) (default: false)
+    ///     Allow credentials (cookies, authorization headers, etc.) (default: false)
     /// </summary>
     public bool AllowCredentials { get; set; } = false;
 
     /// <summary>
-    /// Comma-separated list of exposed headers (default: empty)
+    ///     Comma-separated list of exposed headers (default: empty)
     /// </summary>
     public string? ExposedHeaders { get; set; }
 
     /// <summary>
-    /// Preflight request max age in seconds (default: 86400 = 24 hours)
+    ///     Preflight request max age in seconds (default: 86400 = 24 hours)
     /// </summary>
     public int PreflightMaxAge { get; set; } = 86400;
 }

@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
 using mostlylucid.mockllmapi.Services.Providers;
-using Moq;
-using Xunit;
 
 namespace LLMApi.Tests;
 
@@ -172,7 +171,7 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig
+                new()
                 {
                     Name = "ollama-llama3",
                     Provider = "ollama",
@@ -201,9 +200,21 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true },
-                new LlmBackendConfig { Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/", ModelName = "gemma3:4b", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/",
+                    ModelName = "gemma3:4b", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -215,6 +226,10 @@ public class LlmBackendSelectorTests
         var backend4 = selector.SelectBackend();
 
         // Assert
+        Assert.NotNull(backend1);
+        Assert.NotNull(backend2);
+        Assert.NotNull(backend3);
+        Assert.NotNull(backend4);
         Assert.Equal("backend1", backend1.Name);
         Assert.Equal("backend2", backend2.Name);
         Assert.Equal("backend3", backend3.Name);
@@ -229,9 +244,21 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = false },
-                new LlmBackendConfig { Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/", ModelName = "gemma3:4b", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = false
+                },
+                new()
+                {
+                    Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/",
+                    ModelName = "gemma3:4b", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -242,6 +269,9 @@ public class LlmBackendSelectorTests
         var backend3 = selector.SelectBackend();
 
         // Assert
+        Assert.NotNull(backend1);
+        Assert.NotNull(backend2);
+        Assert.NotNull(backend3);
         Assert.Equal("backend1", backend1.Name);
         Assert.Equal("backend3", backend2.Name); // Skips backend2
         Assert.Equal("backend1", backend3.Name); // Wraps around
@@ -255,8 +285,16 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -279,8 +317,16 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -303,8 +349,16 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -328,7 +382,11 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "test-backend", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true }
+                new()
+                {
+                    Name = "test-backend", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -349,7 +407,11 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "Test-Backend", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true }
+                new()
+                {
+                    Name = "Test-Backend", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -370,7 +432,11 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -390,8 +456,16 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -411,8 +485,16 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = false }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = false
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -432,9 +514,21 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true },
-                new LlmBackendConfig { Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/", ModelName = "mistral", Enabled = true },
-                new LlmBackendConfig { Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/", ModelName = "gemma3:4b", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend2", Provider = "ollama", BaseUrl = "http://localhost:11435/v1/",
+                    ModelName = "mistral", Enabled = true
+                },
+                new()
+                {
+                    Name = "backend3", Provider = "ollama", BaseUrl = "http://localhost:11436/v1/",
+                    ModelName = "gemma3:4b", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -446,6 +540,9 @@ public class LlmBackendSelectorTests
         var backend3 = selector.SelectFromBackends(backendNames);
 
         // Assert
+        Assert.NotNull(backend1);
+        Assert.NotNull(backend2);
+        Assert.NotNull(backend3);
         Assert.Contains(backend1.Name, backendNames);
         Assert.Contains(backend2.Name, backendNames);
         Assert.Contains(backend3.Name, backendNames);
@@ -460,7 +557,11 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);
@@ -482,7 +583,11 @@ public class LlmBackendSelectorTests
         {
             LlmBackends = new List<LlmBackendConfig>
             {
-                new LlmBackendConfig { Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/", ModelName = "llama3", Enabled = true }
+                new()
+                {
+                    Name = "backend1", Provider = "ollama", BaseUrl = "http://localhost:11434/v1/",
+                    ModelName = "llama3", Enabled = true
+                }
             }
         };
         var selector = new LlmBackendSelector(Options.Create(options), _loggerMock.Object);

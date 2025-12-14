@@ -1,7 +1,7 @@
 namespace mostlylucid.mockllmapi.Models;
 
 /// <summary>
-/// Configuration model for journey step prompt hints (JSON-serializable).
+///     Configuration model for journey step prompt hints (JSON-serializable).
 /// </summary>
 public class JourneyStepPromptHintsConfig
 {
@@ -14,19 +14,22 @@ public class JourneyStepPromptHintsConfig
     public string? RandomnessSeed { get; set; }
     public string? AdditionalInstructions { get; set; }
 
-    public JourneyStepPromptHints ToRecord() => new(
-        HighlightFields?.AsReadOnly(),
-        ContextKeys?.AsReadOnly(),
-        PromoteKeys?.AsReadOnly(),
-        DemoteKeys?.AsReadOnly(),
-        LureFields?.AsReadOnly(),
-        Tone,
-        RandomnessSeed,
-        AdditionalInstructions);
+    public JourneyStepPromptHints ToRecord()
+    {
+        return new JourneyStepPromptHints(
+            HighlightFields?.AsReadOnly(),
+            ContextKeys?.AsReadOnly(),
+            PromoteKeys?.AsReadOnly(),
+            DemoteKeys?.AsReadOnly(),
+            LureFields?.AsReadOnly(),
+            Tone,
+            RandomnessSeed,
+            AdditionalInstructions);
+    }
 }
 
 /// <summary>
-/// Configuration model for journey prompt hints (JSON-serializable).
+///     Configuration model for journey prompt hints (JSON-serializable).
 /// </summary>
 public class JourneyPromptHintsConfig
 {
@@ -35,15 +38,18 @@ public class JourneyPromptHintsConfig
     public string? RiskFlavor { get; set; }
     public string? RandomnessProfile { get; set; }
 
-    public JourneyPromptHints ToRecord() => new(
-        Scenario,
-        DataStyle,
-        RiskFlavor,
-        RandomnessProfile);
+    public JourneyPromptHints ToRecord()
+    {
+        return new JourneyPromptHints(
+            Scenario,
+            DataStyle,
+            RiskFlavor,
+            RandomnessProfile);
+    }
 }
 
 /// <summary>
-/// Configuration model for a journey step (JSON-serializable).
+///     Configuration model for a journey step (JSON-serializable).
 /// </summary>
 public class JourneyStepConfig
 {
@@ -54,17 +60,20 @@ public class JourneyStepConfig
     public string? Description { get; set; }
     public JourneyStepPromptHintsConfig? PromptHints { get; set; }
 
-    public JourneyStepTemplate ToRecord() => new(
-        Method,
-        Path,
-        ShapeJson,
-        BodyTemplateJson,
-        Description,
-        PromptHints?.ToRecord());
+    public JourneyStepTemplate ToRecord()
+    {
+        return new JourneyStepTemplate(
+            Method,
+            Path,
+            ShapeJson,
+            BodyTemplateJson,
+            Description,
+            PromptHints?.ToRecord());
+    }
 }
 
 /// <summary>
-/// Configuration model for a journey template (JSON-serializable).
+///     Configuration model for a journey template (JSON-serializable).
 /// </summary>
 public class JourneyTemplateConfig
 {
@@ -74,31 +83,34 @@ public class JourneyTemplateConfig
     public JourneyPromptHintsConfig? PromptHints { get; set; }
     public List<JourneyStepConfig> Steps { get; set; } = new();
 
-    public JourneyTemplate ToRecord() => new(
-        Name,
-        Enum.TryParse<JourneyModality>(Modality, true, out var modality) ? modality : JourneyModality.Other,
-        Weight,
-        PromptHints?.ToRecord(),
-        Steps.Select(s => s.ToRecord()).ToList().AsReadOnly());
+    public JourneyTemplate ToRecord()
+    {
+        return new JourneyTemplate(
+            Name,
+            Enum.TryParse<JourneyModality>(Modality, true, out var modality) ? modality : JourneyModality.Other,
+            Weight,
+            PromptHints?.ToRecord(),
+            Steps.Select(s => s.ToRecord()).ToList().AsReadOnly());
+    }
 }
 
 /// <summary>
-/// Root configuration for journeys in appsettings.json.
+///     Root configuration for journeys in appsettings.json.
 /// </summary>
 public class JourneysConfig
 {
     /// <summary>
-    /// Whether journeys are enabled.
+    ///     Whether journeys are enabled.
     /// </summary>
     public bool Enabled { get; set; } = false;
 
     /// <summary>
-    /// Default variables available to all journeys (can be overridden per-session).
+    ///     Default variables available to all journeys (can be overridden per-session).
     /// </summary>
     public Dictionary<string, string> DefaultVariables { get; set; } = new();
 
     /// <summary>
-    /// List of journey templates.
+    ///     List of journey templates.
     /// </summary>
     public List<JourneyTemplateConfig> Journeys { get; set; } = new();
 }

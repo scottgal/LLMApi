@@ -7,7 +7,7 @@ using System.Windows.Threading;
 namespace LLMockApiClient.Controls;
 
 /// <summary>
-/// Non-intrusive toast notification for user feedback
+///     Non-intrusive toast notification for user feedback
 /// </summary>
 public class ToastNotification
 {

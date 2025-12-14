@@ -1,18 +1,18 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi.Models;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Provides gRPC server reflection information for uploaded proto files
-/// Note: This is a simplified implementation for tracking protos.
-/// Full gRPC reflection protocol (grpc.reflection.v1alpha.ServerReflection) is not yet implemented.
+///     Provides gRPC server reflection information for uploaded proto files
+///     Note: This is a simplified implementation for tracking protos.
+///     Full gRPC reflection protocol (grpc.reflection.v1alpha.ServerReflection) is not yet implemented.
 /// </summary>
 public class GrpcReflectionService
 {
-    private readonly ProtoDefinitionManager _protoManager;
     private readonly ILogger<GrpcReflectionService> _logger;
+    private readonly ProtoDefinitionManager _protoManager;
     private readonly ConcurrentDictionary<string, ProtoReflectionInfo> _reflectionInfo = new();
 
     public GrpcReflectionService(
@@ -24,7 +24,7 @@ public class GrpcReflectionService
     }
 
     /// <summary>
-    /// Records that a proto file was uploaded and parsed
+    ///     Records that a proto file was uploaded and parsed
     /// </summary>
     public void RegisterProto(string protoName, ProtoDefinition definition)
     {
@@ -42,30 +42,28 @@ public class GrpcReflectionService
     }
 
     /// <summary>
-    /// Get all service names from registered protos
+    ///     Get all service names from registered protos
     /// </summary>
     public IEnumerable<string> GetServiceNames()
     {
         var serviceNames = new List<string>();
 
         foreach (var info in _reflectionInfo.Values)
+        foreach (var serviceName in info.Services)
         {
-            foreach (var serviceName in info.Services)
-            {
-                // Format as fully qualified name if package exists
-                var fullName = string.IsNullOrEmpty(info.Package)
-                    ? serviceName
-                    : $"{info.Package}.{serviceName}";
+            // Format as fully qualified name if package exists
+            var fullName = string.IsNullOrEmpty(info.Package)
+                ? serviceName
+                : $"{info.Package}.{serviceName}";
 
-                serviceNames.Add(fullName);
-            }
+            serviceNames.Add(fullName);
         }
 
         return serviceNames;
     }
 
     /// <summary>
-    /// Get reflection info for a specific proto
+    ///     Get reflection info for a specific proto
     /// </summary>
     public ProtoReflectionInfo? GetProtoInfo(string protoName)
     {
@@ -74,7 +72,7 @@ public class GrpcReflectionService
     }
 
     /// <summary>
-    /// Remove proto reflection info when proto is deleted
+    ///     Remove proto reflection info when proto is deleted
     /// </summary>
     public void RemoveProto(string protoName)
     {
@@ -83,7 +81,7 @@ public class GrpcReflectionService
     }
 
     /// <summary>
-    /// Clear all reflection info
+    ///     Clear all reflection info
     /// </summary>
     public void ClearAll()
     {
@@ -93,7 +91,7 @@ public class GrpcReflectionService
 }
 
 /// <summary>
-/// Stores reflection information for a proto file
+///     Stores reflection information for a proto file
 /// </summary>
 public class ProtoReflectionInfo
 {

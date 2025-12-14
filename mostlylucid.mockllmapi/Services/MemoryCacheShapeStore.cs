@@ -1,23 +1,24 @@
+using System.Collections.Concurrent;
+using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// In-memory shape store with configurable automatic expiration (default: 15 minutes of inactivity).
-/// Uses IMemoryCache with sliding expiration to prevent memory leaks.
-/// Shapes are automatically removed when not accessed within the expiration window.
+///     In-memory shape store with configurable automatic expiration (default: 15 minutes of inactivity).
+///     Uses IMemoryCache with sliding expiration to prevent memory leaks.
+///     Shapes are automatically removed when not accessed within the expiration window.
 /// </summary>
 public class MemoryCacheShapeStore : IShapeStore
 {
+    private const string CacheKeyPrefix = "AutoShape_";
     private readonly IMemoryCache _cache;
     private readonly ILogger<MemoryCacheShapeStore> _logger;
     private readonly ConcurrentDictionary<string, byte> _paths; // Tracks all paths
+    private readonly object _sizeLock = new();
     private readonly TimeSpan _slidingExpiration;
-    private const string CacheKeyPrefix = "AutoShape_";
     private long _currentCacheSizeBytes;
-    private readonly object _sizeLock = new object();
 
     public MemoryCacheShapeStore(
         IMemoryCache cache,
@@ -66,13 +67,11 @@ public class MemoryCacheShapeStore : IShapeStore
         }
 
         var cacheKey = GetCacheKey(path);
-        var found = _cache.TryGetValue<string>(cacheKey, out shape);
+        var found = _cache.TryGetValue(cacheKey, out shape);
 
         if (found && shape != null)
-        {
             // Refresh sliding expiration
             SetShapeInCache(cacheKey, path, shape);
-        }
 
         return found && shape != null;
     }
@@ -100,7 +99,7 @@ public class MemoryCacheShapeStore : IShapeStore
         }
 
         var cacheKey = GetCacheKey(path);
-        var found = _cache.TryGetValue<string>(cacheKey, out shape);
+        var found = _cache.TryGetValue(cacheKey, out shape);
 
         if (found)
         {
@@ -137,15 +136,12 @@ public class MemoryCacheShapeStore : IShapeStore
             {
                 var cacheKey = GetCacheKey(path);
                 if (_cache.TryGetValue<string>(cacheKey, out _))
-                {
                     validCount++;
-                }
                 else
-                {
                     // Remove stale entry
                     _paths.TryRemove(path, out _);
-                }
             }
+
             return validCount;
         }
     }
@@ -157,10 +153,8 @@ public class MemoryCacheShapeStore : IShapeStore
 
         var cacheKey = GetCacheKey(path);
         if (_cache.TryGetValue<string>(cacheKey, out var shape) && shape != null)
-        {
             // Refresh cache expiration
             SetShapeInCache(cacheKey, path, shape);
-        }
     }
 
     private string GetCacheKey(string path)
@@ -171,13 +165,13 @@ public class MemoryCacheShapeStore : IShapeStore
 
     private void SetShapeInCache(string cacheKey, string path, string shape)
     {
-        var shapeSize = System.Text.Encoding.UTF8.GetByteCount(shape);
-        
+        var shapeSize = Encoding.UTF8.GetByteCount(shape);
+
         lock (_sizeLock)
         {
             _currentCacheSizeBytes += shapeSize;
         }
-        
+
         _cache.Set(cacheKey, shape, _slidingExpiration);
         _paths[path] = 0; // Mark path as having a shape
     }
@@ -185,30 +179,29 @@ public class MemoryCacheShapeStore : IShapeStore
     public void RemoveShape(string path)
     {
         var cacheKey = GetCacheKey(path);
-        if (_cache.TryGetValue<string>(cacheKey, out var shape))
+        if (_cache.TryGetValue<string>(cacheKey, out var shape) && shape != null)
         {
-            var shapeSize = System.Text.Encoding.UTF8.GetByteCount(shape);
+            var shapeSize = Encoding.UTF8.GetByteCount(shape);
             lock (_sizeLock)
             {
                 _currentCacheSizeBytes -= shapeSize;
                 if (_currentCacheSizeBytes < 0) _currentCacheSizeBytes = 0;
             }
         }
+
         _cache.Remove(cacheKey);
         _paths.TryRemove(path, out _);
     }
 
     public void ClearAllShapes()
     {
-        foreach (var path in _paths.Keys.ToList())
-        {
-            RemoveShape(path);
-        }
+        foreach (var path in _paths.Keys.ToList()) RemoveShape(path);
         _paths.Clear();
         lock (_sizeLock)
         {
             _currentCacheSizeBytes = 0;
         }
+
         _logger.LogInformation("Cleared all shapes from cache");
     }
 
@@ -223,7 +216,7 @@ public class MemoryCacheShapeStore : IShapeStore
     }
 
     /// <summary>
-    /// Gets the current cache size in bytes
+    ///     Gets the current cache size in bytes
     /// </summary>
     public long GetCurrentCacheSizeBytes()
     {
@@ -231,7 +224,7 @@ public class MemoryCacheShapeStore : IShapeStore
     }
 
     /// <summary>
-    /// Gets the current cache size in megabytes
+    ///     Gets the current cache size in megabytes
     /// </summary>
     public double GetCurrentCacheSizeMB()
     {
@@ -239,7 +232,7 @@ public class MemoryCacheShapeStore : IShapeStore
     }
 
     /// <summary>
-    /// Checks if the cache has exceeded the maximum size
+    ///     Checks if the cache has exceeded the maximum size
     /// </summary>
     public bool HasExceededMaxSize(long maxCacheSizeBytes)
     {
@@ -247,7 +240,7 @@ public class MemoryCacheShapeStore : IShapeStore
     }
 
     /// <summary>
-    /// Trims the cache to the specified size by removing oldest entries
+    ///     Trims the cache to the specified size by removing oldest entries
     /// </summary>
     public void TrimCacheToSize(long targetSizeBytes)
     {
@@ -263,18 +256,15 @@ public class MemoryCacheShapeStore : IShapeStore
                 break;
 
             var cacheKey = GetCacheKey(path);
-            if (_cache.TryGetValue<string>(cacheKey, out var shape))
+            if (_cache.TryGetValue<string>(cacheKey, out var shape) && shape != null)
             {
-                var shapeSize = System.Text.Encoding.UTF8.GetByteCount(shape);
+                var shapeSize = Encoding.UTF8.GetByteCount(shape);
                 entriesToRemove.Add(path);
                 currentSize -= shapeSize;
             }
         }
 
-        foreach (var path in entriesToRemove)
-        {
-            RemoveShape(path);
-        }
+        foreach (var path in entriesToRemove) RemoveShape(path);
 
         _logger.LogInformation("Trimmed cache: removed {Count} entries", entriesToRemove.Count);
     }

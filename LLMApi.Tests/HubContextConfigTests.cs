@@ -1,5 +1,4 @@
 using mostlylucid.mockllmapi.Models;
-using Xunit;
 
 namespace LLMApi.Tests;
 

@@ -1,22 +1,24 @@
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using System.Runtime.CompilerServices;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles requests for OpenAPI-based mock endpoints.
-/// Matches incoming requests to OpenAPI operations and generates responses based on the spec.
+///     Handles requests for OpenAPI-based mock endpoints.
+///     Matches incoming requests to OpenAPI operations and generates responses based on the spec.
 /// </summary>
 public class OpenApiRequestHandler
 {
-    private readonly ILogger<OpenApiRequestHandler> _logger;
-    private readonly LlmClient _llmClient;
-    private readonly OpenApiSchemaConverter _schemaConverter;
     private readonly OpenApiContextManager _contextManager;
+    private readonly LlmClient _llmClient;
+    private readonly ILogger<OpenApiRequestHandler> _logger;
+    private readonly OpenApiSchemaConverter _schemaConverter;
 
     public OpenApiRequestHandler(
         ILogger<OpenApiRequestHandler> logger,
@@ -31,7 +33,7 @@ public class OpenApiRequestHandler
     }
 
     /// <summary>
-    /// Handles a request using an OpenAPI operation definition.
+    ///     Handles a request using an OpenAPI operation definition.
     /// </summary>
     public async Task<string> HandleRequestAsync(
         HttpContext context,
@@ -100,21 +102,19 @@ public class OpenApiRequestHandler
 
             // Store in context if context name is provided
             if (!string.IsNullOrWhiteSpace(contextName))
-            {
                 _contextManager.AddToContext(contextName, method.ToString().ToUpper(), path, requestBody, jsonResponse);
-            }
 
             return jsonResponse;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling OpenAPI request: {Method} {Path}", method, path);
-            return JsonSerializer.Serialize(new { error = "Failed to generate mock response", message = ex.Message });
+            return LLMockSerializerContext.SerializeError($"Failed to generate mock response: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Handles a streaming request using an OpenAPI operation definition.
+    ///     Handles a streaming request using an OpenAPI operation definition.
     /// </summary>
     public async IAsyncEnumerable<string> HandleStreamingRequestAsync(
         HttpContext context,
@@ -129,10 +129,7 @@ public class OpenApiRequestHandler
 
         // Get the response shape
         var shape = _schemaConverter.GetResponseShape(operation);
-        if (string.IsNullOrEmpty(shape))
-        {
-            shape = "{\"message\":\"string\",\"data\":{}}";
-        }
+        if (string.IsNullOrEmpty(shape)) shape = "{\"message\":\"string\",\"data\":{}}";
 
         // Get operation description
         var description = _schemaConverter.GetOperationDescription(operation, path, method);
@@ -145,7 +142,7 @@ public class OpenApiRequestHandler
         await using var stream = await httpRes.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
 
-        var accumulated = new System.Text.StringBuilder();
+        var accumulated = new StringBuilder();
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -159,7 +156,7 @@ public class OpenApiRequestHandler
                 if (payload == "[DONE]")
                 {
                     var finalJson = accumulated.ToString();
-                    yield return JsonSerializer.Serialize(new { content = finalJson, done = true });
+                    yield return LLMockSerializerContext.SerializeSseFinal(finalJson);
                     yield break;
                 }
 
@@ -168,7 +165,7 @@ public class OpenApiRequestHandler
                 if (token != null)
                 {
                     accumulated.Append(token);
-                    yield return JsonSerializer.Serialize(new { chunk = token, done = false });
+                    yield return LLMockSerializerContext.SerializeSseChunk(token, accumulated.ToString());
                 }
             }
         }
@@ -183,10 +180,7 @@ public class OpenApiRequestHandler
             if (choices.HasValue && choices.Value.GetArrayLength() > 0)
             {
                 var delta = choices.Value[0].GetProperty("delta");
-                if (delta.TryGetProperty("content", out var contentProp))
-                {
-                    return contentProp.GetString();
-                }
+                if (delta.TryGetProperty("content", out var contentProp)) return contentProp.GetString();
             }
         }
         catch (JsonException ex)
@@ -207,10 +201,12 @@ public class OpenApiRequestHandler
             _logger.LogWarning(ex, "Unexpected error parsing streaming chunk: {Payload}",
                 payload.Length > 100 ? payload.Substring(0, 100) + "..." : payload);
         }
+
         return null;
     }
 
-    private string BuildOpenApiPrompt(string description, string shape, OpenApiOperation operation, string? contextHistory)
+    private string BuildOpenApiPrompt(string description, string shape, OpenApiOperation operation,
+        string? contextHistory)
     {
         var seed = Guid.NewGuid().ToString()[..8];
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -224,11 +220,9 @@ Expected JSON structure:
 
         // Include context history if available
         if (!string.IsNullOrWhiteSpace(contextHistory))
-        {
             prompt += $@"
 
 {contextHistory}";
-        }
 
         prompt += $@"
 
@@ -250,7 +244,7 @@ Generate the JSON now:";
     }
 
     /// <summary>
-    /// Finds a matching operation in the OpenAPI document for the given request.
+    ///     Finds a matching operation in the OpenAPI document for the given request.
     /// </summary>
     public (OpenApiOperation? Operation, OperationType? Method) FindMatchingOperation(
         OpenApiDocument document,
@@ -272,7 +266,6 @@ Generate the JSON now:";
 
         // Try to match with path parameters (e.g., /users/{id})
         foreach (var path in document.Paths)
-        {
             if (PathMatches(path.Key, requestPath))
             {
                 var operation = GetOperationFromPathItem(path.Value, requestMethod);
@@ -282,7 +275,6 @@ Generate the JSON now:";
                     return (operation, method);
                 }
             }
-        }
 
         return (null, null);
     }
@@ -322,23 +314,18 @@ Generate the JSON now:";
         if (specSegments.Length != requestSegments.Length)
             return false;
 
-        for (int i = 0; i < specSegments.Length; i++)
+        for (var i = 0; i < specSegments.Length; i++)
         {
             var specSegment = specSegments[i];
             var requestSegment = requestSegments[i];
 
             // Check if it's a parameter (surrounded by curly braces)
             if (specSegment.StartsWith('{') && specSegment.EndsWith('}'))
-            {
                 // Parameter segment - matches anything
                 continue;
-            }
 
             // Regular segment - must match exactly (case-insensitive)
-            if (!specSegment.Equals(requestSegment, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            if (!specSegment.Equals(requestSegment, StringComparison.OrdinalIgnoreCase)) return false;
         }
 
         return true;

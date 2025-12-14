@@ -9,7 +9,7 @@
 ###
 
 ### Variables (customize for your setup)
-@baseUrl = http://localhost:5000
+@baseUrl = http://localhost:5555
 @ollamaBackend = ollama
 @openaiBackend = openai
 

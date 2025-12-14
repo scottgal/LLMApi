@@ -5,13 +5,13 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages proto file definitions and provides lookups for gRPC services
+///     Manages proto file definitions and provides lookups for gRPC services
 /// </summary>
 public class ProtoDefinitionManager
 {
     private readonly ConcurrentDictionary<string, ProtoDefinition> _definitions = new();
-    private readonly ProtoParser _parser = new();
     private readonly ILogger<ProtoDefinitionManager> _logger;
+    private readonly ProtoParser _parser = new();
     private GrpcReflectionService? _reflectionService;
 
     public ProtoDefinitionManager(ILogger<ProtoDefinitionManager> logger)
@@ -20,7 +20,7 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Sets the reflection service (called by DI after both services are created)
+    ///     Sets the reflection service (called by DI after both services are created)
     /// </summary>
     public void SetReflectionService(GrpcReflectionService reflectionService)
     {
@@ -28,7 +28,7 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Adds a proto definition from raw proto content
+    ///     Adds a proto definition from raw proto content
     /// </summary>
     public ProtoDefinition AddProtoDefinition(string protoContent, string fileName = "uploaded.proto")
     {
@@ -36,16 +36,13 @@ public class ProtoDefinitionManager
         _definitions[definition.Name] = definition;
 
         // Register with gRPC reflection service if available
-        if (_reflectionService != null)
-        {
-            _reflectionService.RegisterProto(definition.Name, definition);
-        }
+        if (_reflectionService != null) _reflectionService.RegisterProto(definition.Name, definition);
 
         return definition;
     }
 
     /// <summary>
-    /// Gets all registered proto definitions
+    ///     Gets all registered proto definitions
     /// </summary>
     public List<ProtoDefinition> GetAllDefinitions()
     {
@@ -53,7 +50,7 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Gets a specific proto definition by name
+    ///     Gets a specific proto definition by name
     /// </summary>
     public ProtoDefinition? GetDefinition(string name)
     {
@@ -62,7 +59,7 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Finds a service across all definitions
+    ///     Finds a service across all definitions
     /// </summary>
     public (ProtoDefinition? Definition, ProtoService? Service) FindService(string serviceName)
     {
@@ -71,27 +68,21 @@ public class ProtoDefinitionManager
             var service = definition.Services.FirstOrDefault(s =>
                 s.Name.Equals(serviceName, StringComparison.OrdinalIgnoreCase));
 
-            if (service != null)
-            {
-                return (definition, service);
-            }
+            if (service != null) return (definition, service);
         }
 
         return (null, null);
     }
 
     /// <summary>
-    /// Finds a method in a service
+    ///     Finds a method in a service
     /// </summary>
     public (ProtoDefinition? Definition, ProtoService? Service, ProtoMethod? Method)
         FindMethod(string serviceName, string methodName)
     {
         var (definition, service) = FindService(serviceName);
 
-        if (service == null)
-        {
-            return (null, null, null);
-        }
+        if (service == null) return (null, null, null);
 
         var method = service.Methods.FirstOrDefault(m =>
             m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
@@ -100,7 +91,7 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Gets a message definition by name from a specific proto definition
+    ///     Gets a message definition by name from a specific proto definition
     /// </summary>
     public ProtoMessage? GetMessage(ProtoDefinition definition, string messageName)
     {
@@ -109,35 +100,32 @@ public class ProtoDefinitionManager
     }
 
     /// <summary>
-    /// Removes a proto definition
+    ///     Removes a proto definition
     /// </summary>
     public bool RemoveDefinition(string name)
     {
         var removed = _definitions.TryRemove(name, out _);
 
-        if (removed && _reflectionService != null)
-        {
-            _reflectionService.RemoveProto(name);
-        }
+        if (removed && _reflectionService != null) _reflectionService.RemoveProto(name);
 
         return removed;
     }
 
     /// <summary>
-    /// Clears all definitions
+    ///     Clears all definitions
     /// </summary>
     public void ClearAll()
     {
         _definitions.Clear();
 
-        if (_reflectionService != null)
-        {
-            _reflectionService.ClearAll();
-        }
+        if (_reflectionService != null) _reflectionService.ClearAll();
     }
 
     /// <summary>
-    /// Gets parser instance for generating JSON shapes
+    ///     Gets parser instance for generating JSON shapes
     /// </summary>
-    public ProtoParser GetParser() => _parser;
+    public ProtoParser GetParser()
+    {
+        return _parser;
+    }
 }

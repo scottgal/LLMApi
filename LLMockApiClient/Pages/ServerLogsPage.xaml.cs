@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using LLMockApiClient.Services;
 
 namespace LLMockApiClient.Pages;
@@ -44,10 +45,7 @@ public partial class ServerLogsPage : Page
         LogCountText.Text = _logCapture.Logs.Count.ToString();
 
         // Auto-scroll to top (logs are inserted at index 0)
-        if (AutoScrollCheckBox.IsChecked == true && _logCapture.Logs.Count > 0)
-        {
-            LogScrollViewer.ScrollToTop();
-        }
+        if (AutoScrollCheckBox.IsChecked == true && _logCapture.Logs.Count > 0) LogScrollViewer.ScrollToTop();
     }
 
     private void UpdateServerStatus()
@@ -55,12 +53,12 @@ public partial class ServerLogsPage : Page
         if (_webServer.IsRunning)
         {
             ServerStatusText.Text = $"✅ Running at {_webServer.BaseUrl}";
-            ServerStatusText.Foreground = System.Windows.Media.Brushes.Green;
+            ServerStatusText.Foreground = Brushes.Green;
         }
         else
         {
             ServerStatusText.Text = "❌ Stopped";
-            ServerStatusText.Foreground = System.Windows.Media.Brushes.Red;
+            ServerStatusText.Foreground = Brushes.Red;
         }
 
         LogCountText.Text = _logCapture.Logs.Count.ToString();

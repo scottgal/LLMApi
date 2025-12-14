@@ -1,5 +1,5 @@
 @page
-@model LLMApi.Pages.OpenApiModel
+@model OpenApiModel
 
 @{
     ViewData["Title"] = "OpenAPI Manager";
@@ -220,127 +220,131 @@
     </div>
 </div>
 
-    <div class="container">
-        <!-- Left Panel: Load Spec -->
-        <div>
-            <div class="card">
-                <h2>Load OpenAPI Spec</h2>
+<div class="container">
+    <!-- Left Panel: Load Spec -->
+    <div>
+        <div class="card">
+            <h2>Load OpenAPI Spec</h2>
 
-                <div class="help-section">
-                    <h4>Quick Start</h4>
-                    <ul>
-                        <li>Enter a URL to a live OpenAPI spec</li>
-                        <li>Or paste raw JSON/YAML directly</li>
-                        <li>Spec will be parsed and all endpoints created</li>
-                        <li>Test endpoints directly in the browser</li>
-                    </ul>
-                </div>
+            <div class="help-section">
+                <h4>Quick Start</h4>
+                <ul>
+                    <li>Enter a URL to a live OpenAPI spec</li>
+                    <li>Or paste raw JSON/YAML directly</li>
+                    <li>Spec will be parsed and all endpoints created</li>
+                    <li>Test endpoints directly in the browser</li>
+                </ul>
+            </div>
 
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('url')">From URL</button>
-                    <button class="tab" onclick="switchTab('json')">Raw JSON/YAML</button>
-                </div>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('url')">From URL</button>
+                <button class="tab" onclick="switchTab('json')">Raw JSON/YAML</button>
+            </div>
 
-                <div id="urlTab" class="tab-content active">
-                    <form id="loadUrlForm" hx-post="/api/openapi/specs" hx-ext="json-enc" hx-swap="none">
-                        <div class="form-group">
-                            <label for="specName">Spec Name:</label>
-                            <input type="text" id="specName" name="name" placeholder="e.g., petstore" required />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="specUrl">OpenAPI Spec URL:</label>
-                            <input type="text" id="specUrl" name="source" placeholder="https://petstore3.swagger.io/api/v3/openapi.json" required />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="basePath">Base Path (optional):</label>
-                            <input type="text" id="basePath" name="basePath" placeholder="/api/v1" />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="contextName">Context Name (optional):</label>
-                            <input type="text" id="contextName" name="contextName" placeholder="e.g., demo-session-1" />
-                            <small style="color: #666; font-size: 0.85em;">
-                                Specs sharing the same context maintain consistent data (IDs, names, etc.)
-                            </small>
-                        </div>
-
-                        <button type="submit">Load Spec</button>
-                    </form>
-
-                    <div class="help-section" style="margin-top: 15px;">
-                        <h4>Example URLs</h4>
-                        <ul>
-                            <li><code>https://petstore3.swagger.io/api/v3/openapi.json</code></li>
-                            <li><code>https://api.apis.guru/v2/specs/github.com/1.1.4/openapi.yaml</code></li>
-                        </ul>
+            <div id="urlTab" class="tab-content active">
+                <form id="loadUrlForm" hx-post="/api/openapi/specs" hx-ext="json-enc" hx-swap="none">
+                    <div class="form-group">
+                        <label for="specName">Spec Name:</label>
+                        <input type="text" id="specName" name="name" placeholder="e.g., petstore" required/>
                     </div>
-                </div>
 
-                <div id="jsonTab" class="tab-content">
-                    <form id="loadJsonForm">
-                        <div class="form-group">
-                            <label for="specNameJson">Spec Name:</label>
-                            <input type="text" id="specNameJson" placeholder="e.g., myapi" required />
-                        </div>
+                    <div class="form-group">
+                        <label for="specUrl">OpenAPI Spec URL:</label>
+                        <input type="text" id="specUrl" name="source" placeholder="https://petstore3.swagger.io/api/v3/openapi.json" required/>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="rawSpec">Raw OpenAPI JSON/YAML:</label>
-                            <textarea id="rawSpec" placeholder='{"openapi": "3.0.0", "info": {...}, "paths": {...}}'></textarea>
-                        </div>
+                    <div class="form-group">
+                        <label for="basePath">Base Path (optional):</label>
+                        <input type="text" id="basePath" name="basePath" placeholder="/api/v1"/>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="basePathJson">Base Path (optional):</label>
-                            <input type="text" id="basePathJson" placeholder="/api" />
-                        </div>
+                    <div class="form-group">
+                        <label for="contextName">Context Name (optional):</label>
+                        <input type="text" id="contextName" name="contextName" placeholder="e.g., demo-session-1"/>
+                        <small style="color: #666; font-size: 0.85em;">
+                            Specs sharing the same context maintain consistent data (IDs, names, etc.)
+                        </small>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="contextNameJson">Context Name (optional):</label>
-                            <input type="text" id="contextNameJson" placeholder="e.g., demo-session-1" />
-                            <small style="color: #666; font-size: 0.85em;">
-                                Specs sharing the same context maintain consistent data
-                            </small>
-                        </div>
+                    <button type="submit">Load Spec</button>
+                </form>
 
-                        <button type="button" onclick="loadRawSpec()">Load Spec</button>
-                    </form>
+                <div class="help-section" style="margin-top: 15px;">
+                    <h4>Example URLs</h4>
+                    <ul>
+                        <li>
+                            <code>https://petstore3.swagger.io/api/v3/openapi.json</code>
+                        </li>
+                        <li>
+                            <code>https://api.apis.guru/v2/specs/github.com/1.1.4/openapi.yaml</code>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
-            <!-- Context Viewer Card -->
-            <div class="card" style="margin-top: 20px;">
-                <h2>API Contexts <button class="secondary" style="margin-left: 10px; padding: 5px 10px; font-size: 0.85em;" onclick="refreshContexts()">Refresh</button></h2>
+            <div id="jsonTab" class="tab-content">
+                <form id="loadJsonForm">
+                    <div class="form-group">
+                        <label for="specNameJson">Spec Name:</label>
+                        <input type="text" id="specNameJson" placeholder="e.g., myapi" required/>
+                    </div>
 
-                <div class="help-section">
-                    <p>Contexts maintain consistency across related API calls. View shared data and recent activity here.</p>
-                </div>
+                    <div class="form-group">
+                        <label for="rawSpec">Raw OpenAPI JSON/YAML:</label>
+                        <textarea id="rawSpec" placeholder='{"openapi": "3.0.0", "info": {...}, "paths": {...}}'></textarea>
+                    </div>
 
-                <div id="contextsList" class="spec-list"></div>
+                    <div class="form-group">
+                        <label for="basePathJson">Base Path (optional):</label>
+                        <input type="text" id="basePathJson" placeholder="/api"/>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="contextNameJson">Context Name (optional):</label>
+                        <input type="text" id="contextNameJson" placeholder="e.g., demo-session-1"/>
+                        <small style="color: #666; font-size: 0.85em;">
+                            Specs sharing the same context maintain consistent data
+                        </small>
+                    </div>
+
+                    <button type="button" onclick="loadRawSpec()">Load Spec</button>
+                </form>
             </div>
         </div>
 
-        <!-- Right Panel: Loaded Specs & Endpoints -->
-        <div>
-            <div class="card">
-                <h2>Loaded Specs <span id="specCount" style="color: #999; font-size: 0.9em;">(0)</span></h2>
+        <!-- Context Viewer Card -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>API Contexts <button class="secondary" style="margin-left: 10px; padding: 5px 10px; font-size: 0.85em;" onclick="refreshContexts()">Refresh</button></h2>
 
-                <div class="help-section">
-                    <h4>What You Get</h4>
-                    <ul>
-                        <li>All endpoints from the spec are automatically created</li>
-                        <li>Test any endpoint directly from this page</li>
-                        <li>LLM generates realistic mock data based on schemas</li>
-                        <li>Reload or delete specs anytime</li>
-                    </ul>
-                </div>
+            <div class="help-section">
+                <p>Contexts maintain consistency across related API calls. View shared data and recent activity here.</p>
+            </div>
 
-                <div id="specList" class="spec-list">
-                    <p style="color: #999; text-align: center; padding: 40px;">No specs loaded yet. Load one using the form on the left!</p>
-                </div>
+            <div id="contextsList" class="spec-list"></div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Loaded Specs & Endpoints -->
+    <div>
+        <div class="card">
+            <h2>Loaded Specs <span id="specCount" style="color: #999; font-size: 0.9em;">(0)</span></h2>
+
+            <div class="help-section">
+                <h4>What You Get</h4>
+                <ul>
+                    <li>All endpoints from the spec are automatically created</li>
+                    <li>Test any endpoint directly from this page</li>
+                    <li>LLM generates realistic mock data based on schemas</li>
+                    <li>Reload or delete specs anytime</li>
+                </ul>
+            </div>
+
+            <div id="specList" class="spec-list">
+                <p style="color: #999; text-align: center; padding: 40px;">No specs loaded yet. Load one using the form on the left!</p>
             </div>
         </div>
     </div>
+</div>
 
 <!-- Notification Toast -->
 <div id="notification" class="notification"></div>

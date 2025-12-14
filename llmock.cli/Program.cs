@@ -156,10 +156,7 @@ internal class Program
         builder.Configuration.AddEnvironmentVariables("LLMOCK_");
 
         // Read port from config if not specified on command line (default 5000 means not specified)
-        if (port == 5000)
-        {
-            port = builder.Configuration.GetValue<int?>("LLMockCli:Port") ?? 5555;
-        }
+        if (port == 5000) port = builder.Configuration.GetValue<int?>("LLMockCli:Port") ?? 5555;
 
         // Configure URLs
         builder.WebHost.UseUrls($"http://localhost:{port}");
@@ -241,10 +238,13 @@ internal class Program
 
         // Map LLMock API endpoints (includes management endpoints)
         app.MapLLMockApi();
+        
+        // Also map GraphQL at /api/graphql for convenience (in addition to /api/mock/graphql)
+        app.MapLLMockGraphQL("/api");
 
         // Read catch-all configuration
         var catchAllPath = builder.Configuration.GetValue<string?>("LLMockCli:CatchAllMockPath");
-        var showDetailedErrors = builder.Configuration.GetValue<bool>("LLMockCli:ShowDetailedErrors", true);
+        var showDetailedErrors = builder.Configuration.GetValue("LLMockCli:ShowDetailedErrors", true);
 
         // Add catch-all route for any unmatched paths (acts as dynamic mock)
         // This comes AFTER specific routes so management endpoints take precedence
@@ -252,7 +252,7 @@ internal class Program
         {
             Log.Information("Catch-all mock enabled for paths starting with: {CatchAllPath}", catchAllPath);
 
-            app.MapFallback(async (HttpContext context) =>
+            app.MapFallback(async context =>
             {
                 var path = context.Request.Path.Value ?? "/";
 
@@ -261,21 +261,22 @@ internal class Program
                 {
                     context.Response.StatusCode = 404;
                     context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync($"{{\"error\":\"Not Found\",\"path\":\"{path.Replace("\"", "\\\"")}\"}}");
+                    await context.Response.WriteAsync(
+                        $"{{\"error\":\"Not Found\",\"path\":\"{path.Replace("\"", "\\\"")}\"}}");
                     return;
                 }
 
-                // Skip management endpoints (always excluded)
+                // Skip management endpoints (always excluded from catch-all - they have their own routes)
                 if (path.StartsWith("/api/openapi/", StringComparison.OrdinalIgnoreCase) ||
                     path.StartsWith("/api/contexts", StringComparison.OrdinalIgnoreCase) ||
                     path.StartsWith("/api/grpc-protos", StringComparison.OrdinalIgnoreCase) ||
                     path.StartsWith("/api/signalr/", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/graphql", StringComparison.OrdinalIgnoreCase) ||
                     path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Response.StatusCode = 404;
                     context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync($"{{\"error\":\"Not Found\",\"path\":\"{path.Replace("\"", "\\\"")}\"}}");
+                    await context.Response.WriteAsync(
+                        $"{{\"error\":\"Not Found\",\"path\":\"{path.Replace("\"", "\\\"")}\"}}");
                     return;
                 }
 
@@ -292,7 +293,8 @@ internal class Program
                     var fullPathWithQuery = path + (query ?? "");
 
                     var handler = context.RequestServices.GetRequiredService<RegularRequestHandler>();
-                    var response = await handler.HandleRequestAsync(method, fullPathWithQuery, body, context.Request, context);
+                    var response =
+                        await handler.HandleRequestAsync(method, fullPathWithQuery, body, context.Request, context);
 
                     context.Response.StatusCode = 200;
                     context.Response.ContentType = "application/json";
@@ -306,12 +308,15 @@ internal class Program
 
                     if (showDetailedErrors)
                     {
-                        var stackTrace = ex.StackTrace?.Replace("\"", "\\\"").Replace("\r\n", "\\n").Replace("\n", "\\n") ?? "";
-                        await context.Response.WriteAsync($"{{\"error\":\"Internal Server Error\",\"message\":\"{ex.Message.Replace("\"", "\\\"")}\",\"stackTrace\":\"{stackTrace}\"}}");
+                        var stackTrace = ex.StackTrace?.Replace("\"", "\\\"").Replace("\r\n", "\\n")
+                            .Replace("\n", "\\n") ?? "";
+                        await context.Response.WriteAsync(
+                            $"{{\"error\":\"Internal Server Error\",\"message\":\"{ex.Message.Replace("\"", "\\\"")}\",\"stackTrace\":\"{stackTrace}\"}}");
                     }
                     else
                     {
-                        await context.Response.WriteAsync("{\"error\":\"Internal Server Error\",\"message\":\"An error occurred while processing your request\"}");
+                        await context.Response.WriteAsync(
+                            "{\"error\":\"Internal Server Error\",\"message\":\"An error occurred while processing your request\"}");
                     }
                 }
             });
@@ -378,6 +383,7 @@ internal class Program
                             📚 Available endpoints:
                                • /api/mock/**           - Shape-based mock endpoints
                                • /api/mock/stream/**    - Streaming mock endpoints
+                               • /api/graphql           - GraphQL endpoint
                                • /api/openapi/specs     - Manage OpenAPI specs
                                • /api/contexts          - View API contexts
 

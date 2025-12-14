@@ -1,24 +1,17 @@
-using LLMApi.Tests.Helpers;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Moq;
-using mostlylucid.mockllmapi;
-using mostlylucid.mockllmapi.Models;
-using mostlylucid.mockllmapi.Services;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using LLMApi.Tests.Helpers;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using mostlylucid.mockllmapi.Services;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Integration tests for form bodies, file uploads, and arbitrary path lengths
+///     Integration tests for form bodies, file uploads, and arbitrary path lengths
 /// </summary>
 [Trait("Category", "Integration")]
 public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
@@ -32,18 +25,33 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
             builder.ConfigureTestServices(services =>
             {
                 // Replace real LLM client with fake for predictable testing
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(LlmClient));
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(LlmClient));
 
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
+                if (descriptor != null) services.Remove(descriptor);
 
                 services.AddScoped<LlmClient, FakeLlmClient>();
             });
         });
     }
+
+    #region Error Handling Tests
+
+    [Fact]
+    public async Task PostFormData_InvalidContentType_HandlesGracefully()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var content = new StringContent("not a form", Encoding.UTF8, "text/plain");
+
+        // Act
+        var response = await client.PostAsync("/api/mock/test", content);
+
+        // Assert
+        // Should still return OK (treats as raw text body)
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    #endregion
 
     #region Form URL-Encoded Integration Tests
 
@@ -278,7 +286,8 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         // Arrange
         var client = _factory.CreateClient();
         var path = "/api/mock/products/search";
-        var query = "?brand=Dell&model=XPS15&color=silver&storage=1TB&ram=32GB&year=2024&condition=new&price_min=1000&price_max=2000";
+        var query =
+            "?brand=Dell&model=XPS15&color=silver&storage=1TB&ram=32GB&year=2024&condition=new&price_min=1000&price_max=2000";
 
         // Act
         var response = await client.GetAsync(path + query);
@@ -355,25 +364,6 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
         Assert.NotEqual(JsonValueKind.Undefined, json.RootElement.ValueKind);
-    }
-
-    #endregion
-
-    #region Error Handling Tests
-
-    [Fact]
-    public async Task PostFormData_InvalidContentType_HandlesGracefully()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        var content = new StringContent("not a form", Encoding.UTF8, "text/plain");
-
-        // Act
-        var response = await client.PostAsync("/api/mock/test", content);
-
-        // Assert
-        // Should still return OK (treats as raw text body)
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
@@ -5,15 +6,15 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Registry for managing available tools
-/// Provides tool discovery and validation
+///     Registry for managing available tools
+///     Provides tool discovery and validation
 /// </summary>
 public class ToolRegistry
 {
-    private readonly Dictionary<string, ToolConfig> _tools = new();
     private readonly Dictionary<string, IToolExecutor> _executors = new();
     private readonly ILogger<ToolRegistry> _logger;
     private readonly LLMockApiOptions _options;
+    private readonly Dictionary<string, ToolConfig> _tools = new();
 
     public ToolRegistry(
         IEnumerable<IToolExecutor> executors,
@@ -35,7 +36,7 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Get tool by name
+    ///     Get tool by name
     /// </summary>
     public ToolConfig? GetTool(string name)
     {
@@ -43,7 +44,7 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Get all available tools
+    ///     Get all available tools
     /// </summary>
     public IEnumerable<ToolConfig> GetAllTools()
     {
@@ -51,7 +52,7 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Get tool executor for a given tool type
+    ///     Get tool executor for a given tool type
     /// </summary>
     public IToolExecutor? GetExecutor(string toolType)
     {
@@ -59,7 +60,7 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Check if a tool exists and is enabled
+    ///     Check if a tool exists and is enabled
     /// </summary>
     public bool IsToolAvailable(string name)
     {
@@ -67,8 +68,8 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Get tool definitions formatted for LLM prompts (Phase 2)
-    /// Returns JSON schema compatible with MCP format
+    ///     Get tool definitions formatted for LLM prompts (Phase 2)
+    ///     Returns JSON schema compatible with MCP format
     /// </summary>
     public string GetToolDefinitionsForLlm()
     {
@@ -88,14 +89,14 @@ public class ToolRegistry
                 })
         });
 
-        return System.Text.Json.JsonSerializer.Serialize(new { tools }, new System.Text.Json.JsonSerializerOptions
+        return JsonSerializer.Serialize(new { tools }, new JsonSerializerOptions
         {
             WriteIndented = true
         });
     }
 
     /// <summary>
-    /// Load tools from configuration and validate them
+    ///     Load tools from configuration and validate them
     /// </summary>
     private void LoadTools()
     {
@@ -106,7 +107,6 @@ public class ToolRegistry
         }
 
         foreach (var tool in _options.Tools)
-        {
             try
             {
                 // Validate tool has required fields
@@ -144,7 +144,6 @@ public class ToolRegistry
                 _logger.LogError(ex, "Failed to register tool '{ToolName}': {Error}",
                     tool.Name, ex.Message);
             }
-        }
 
         _logger.LogInformation("Tool registry initialized with {Count} tools", _tools.Count);
     }

@@ -1,12 +1,15 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using LLMockApiClient.Controls;
 using LLMockApiClient.Pages;
 using LLMockApiClient.Services;
+using ModernWpf;
 
 namespace LLMockApiClient;
 
 /// <summary>
-/// Interaction logic for MainWindow.xaml
+///     Interaction logic for MainWindow.xaml
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -26,22 +29,22 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
     }
 
-    public void ShowToast(string message, Controls.ToastNotification.ToastType type = Controls.ToastNotification.ToastType.Success)
+    public void ShowToast(string message, ToastNotification.ToastType type = ToastNotification.ToastType.Success)
     {
-        Controls.ToastNotification.Show(message, type);
+        ToastNotification.Show(message, type);
     }
 
     private void OnActivityOccurred(object? sender, ActivityType type)
     {
         var color = type switch
         {
-            ActivityType.SignalR => System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C),
-            ActivityType.SSE => System.Windows.Media.Color.FromRgb(0x34, 0x98, 0xDB),
-            ActivityType.OpenAPI => System.Windows.Media.Color.FromRgb(0xF3, 0x9C, 0x12),
-            ActivityType.Grpc => System.Windows.Media.Color.FromRgb(0x9B, 0x59, 0xB6),
-            ActivityType.MockAPI => System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60),
-            ActivityType.Server => System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4),
-            _ => System.Windows.Media.Colors.Gray
+            ActivityType.SignalR => Color.FromRgb(0xE7, 0x4C, 0x3C),
+            ActivityType.SSE => Color.FromRgb(0x34, 0x98, 0xDB),
+            ActivityType.OpenAPI => Color.FromRgb(0xF3, 0x9C, 0x12),
+            ActivityType.Grpc => Color.FromRgb(0x9B, 0x59, 0xB6),
+            ActivityType.MockAPI => Color.FromRgb(0x27, 0xAE, 0x60),
+            ActivityType.Server => Color.FromRgb(0x00, 0x78, 0xD4),
+            _ => Colors.Gray
         };
 
         var indicator = type switch
@@ -55,22 +58,19 @@ public partial class MainWindow : Window
             _ => null
         };
 
-        if (indicator != null)
-        {
-            ActivityIndicatorService.BlinkIndicator(indicator, color);
-        }
+        if (indicator != null) ActivityIndicatorService.BlinkIndicator(indicator, color);
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         // Initialize toast notification system
-        Controls.ToastNotification.Initialize(ToastContainer);
+        ToastNotification.Initialize(ToastContainer);
 
         // Navigate to Dashboard by default
         ContentFrame.Navigate(new DashboardPage(_apiService));
 
         // Show welcome message
-        ShowToast("Welcome to LLMock API Client!", Controls.ToastNotification.ToastType.Info);
+        ShowToast("Welcome to LLMock API Client!", ToastNotification.ToastType.Info);
     }
 
     private void NavigationList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -127,7 +127,7 @@ public partial class MainWindow : Window
             app.ToggleTheme();
 
             // Update button text based on current theme
-            var isDark = ModernWpf.ThemeManager.Current.ActualApplicationTheme == ModernWpf.ApplicationTheme.Dark;
+            var isDark = ThemeManager.Current.ActualApplicationTheme == ApplicationTheme.Dark;
             ThemeToggleButton.Content = isDark ? "🌙 Dark Mode" : "☀️ Light Mode";
         }
     }
@@ -152,12 +152,10 @@ public partial class MainWindow : Window
 
         // Find and select the corresponding navigation item
         foreach (var item in NavigationList.Items)
-        {
             if (item is ListBoxItem listBoxItem && listBoxItem.Tag?.ToString() == tag)
             {
                 NavigationList.SelectedItem = listBoxItem;
                 break;
             }
-        }
     }
 }

@@ -1,11 +1,11 @@
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using System.Text;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Converts OpenAPI schemas to JSON shape strings that can be used as prompts for LLM mock data generation.
+///     Converts OpenAPI schemas to JSON shape strings that can be used as prompts for LLM mock data generation.
 /// </summary>
 public class OpenApiSchemaConverter
 {
@@ -17,8 +17,8 @@ public class OpenApiSchemaConverter
     }
 
     /// <summary>
-    /// Converts an OpenAPI operation's response schema to a JSON shape string.
-    /// This shape will be used as the template for LLM-generated mock data.
+    ///     Converts an OpenAPI operation's response schema to a JSON shape string.
+    ///     This shape will be used as the template for LLM-generated mock data.
     /// </summary>
     /// <param name="operation">The OpenAPI operation</param>
     /// <param name="statusCode">The HTTP status code to generate shape for (default: "200")</param>
@@ -27,7 +27,8 @@ public class OpenApiSchemaConverter
     {
         if (operation.Responses == null || !operation.Responses.TryGetValue(statusCode, out var response))
         {
-            _logger.LogWarning("No {StatusCode} response found for operation: {OperationId}", statusCode, operation.OperationId);
+            _logger.LogWarning("No {StatusCode} response found for operation: {OperationId}", statusCode,
+                operation.OperationId);
             return null;
         }
 
@@ -51,8 +52,8 @@ public class OpenApiSchemaConverter
     }
 
     /// <summary>
-    /// Converts an OpenAPI schema to a JSON shape template.
-    /// Properly handles $ref references that have been resolved by ResolveReferences().
+    ///     Converts an OpenAPI schema to a JSON shape template.
+    ///     Properly handles $ref references that have been resolved by ResolveReferences().
     /// </summary>
     private string ConvertSchemaToShape(OpenApiSchema schema, int depth = 0)
     {
@@ -72,15 +73,16 @@ public class OpenApiSchemaConverter
         {
             // If the reference is resolved, it should have type/properties/items
             var isResolved = !string.IsNullOrEmpty(schema.Type) ||
-                           schema.Properties?.Count > 0 ||
-                           schema.Items != null ||
-                           schema.AllOf?.Count > 0 ||
-                           schema.AnyOf?.Count > 0 ||
-                           schema.OneOf?.Count > 0;
+                             schema.Properties?.Count > 0 ||
+                             schema.Items != null ||
+                             schema.AllOf?.Count > 0 ||
+                             schema.AnyOf?.Count > 0 ||
+                             schema.OneOf?.Count > 0;
 
             if (!isResolved)
             {
-                _logger.LogWarning("Unresolved schema reference: {Reference}. Ensure ResolveReferences() was called.", schema.Reference.Id);
+                _logger.LogWarning("Unresolved schema reference: {Reference}. Ensure ResolveReferences() was called.",
+                    schema.Reference.Id);
                 return $"\"<{schema.Reference.Id}>\"";
             }
 
@@ -88,24 +90,17 @@ public class OpenApiSchemaConverter
         }
 
         // Handle allOf (used when $ref is combined with other properties)
-        if (schema.AllOf?.Count > 0)
-        {
-            return ConvertAllOfSchema(schema, depth);
-        }
+        if (schema.AllOf?.Count > 0) return ConvertAllOfSchema(schema, depth);
 
         // Handle anyOf (union types)
         if (schema.AnyOf?.Count > 0)
-        {
             // Use first option for mock data
             return ConvertSchemaToShape(schema.AnyOf[0], depth + 1);
-        }
 
         // Handle oneOf (discriminated unions)
         if (schema.OneOf?.Count > 0)
-        {
             // Use first option for mock data
             return ConvertSchemaToShape(schema.OneOf[0], depth + 1);
-        }
 
         // Handle different schema types
         return schema.Type switch
@@ -115,7 +110,8 @@ public class OpenApiSchemaConverter
             "string" => ConvertStringSchema(schema),
             "integer" or "number" => ConvertNumberSchema(schema),
             "boolean" => "true",
-            null when schema.Properties?.Count > 0 => ConvertObjectSchema(schema, depth), // Infer object from properties
+            null when schema.Properties?.Count > 0 => ConvertObjectSchema(schema,
+                depth), // Infer object from properties
             null when schema.Items != null => ConvertArraySchema(schema, depth), // Infer array from items
             _ => $"\"{schema.Type ?? "unknown"}\""
         };
@@ -128,44 +124,28 @@ public class OpenApiSchemaConverter
         var mergedProperties = new Dictionary<string, OpenApiSchema>();
 
         foreach (var subSchema in schema.AllOf)
-        {
             if (subSchema.Properties != null)
-            {
                 foreach (var prop in subSchema.Properties)
-                {
                     mergedProperties[prop.Key] = prop.Value;
-                }
-            }
-        }
 
         // Also include any properties from the main schema
         if (schema.Properties != null)
-        {
             foreach (var prop in schema.Properties)
-            {
                 mergedProperties[prop.Key] = prop.Value;
-            }
-        }
 
-        if (mergedProperties.Count == 0)
-        {
-            return "{}";
-        }
+        if (mergedProperties.Count == 0) return "{}";
 
         var sb = new StringBuilder();
         sb.Append('{');
 
         var properties = mergedProperties.ToList();
-        for (int i = 0; i < properties.Count; i++)
+        for (var i = 0; i < properties.Count; i++)
         {
             var prop = properties[i];
             sb.Append($"\"{prop.Key}\":");
             sb.Append(ConvertSchemaToShape(prop.Value, depth + 1));
 
-            if (i < properties.Count - 1)
-            {
-                sb.Append(',');
-            }
+            if (i < properties.Count - 1) sb.Append(',');
         }
 
         sb.Append('}');
@@ -174,25 +154,19 @@ public class OpenApiSchemaConverter
 
     private string ConvertObjectSchema(OpenApiSchema schema, int depth)
     {
-        if (schema.Properties == null || schema.Properties.Count == 0)
-        {
-            return "{}";
-        }
+        if (schema.Properties == null || schema.Properties.Count == 0) return "{}";
 
         var sb = new StringBuilder();
         sb.Append('{');
 
         var properties = schema.Properties.ToList();
-        for (int i = 0; i < properties.Count; i++)
+        for (var i = 0; i < properties.Count; i++)
         {
             var prop = properties[i];
             sb.Append($"\"{prop.Key}\":");
             sb.Append(ConvertSchemaToShape(prop.Value, depth + 1));
 
-            if (i < properties.Count - 1)
-            {
-                sb.Append(',');
-            }
+            if (i < properties.Count - 1) sb.Append(',');
         }
 
         sb.Append('}');
@@ -201,10 +175,7 @@ public class OpenApiSchemaConverter
 
     private string ConvertArraySchema(OpenApiSchema schema, int depth)
     {
-        if (schema.Items == null)
-        {
-            return "[]";
-        }
+        if (schema.Items == null) return "[]";
 
         var itemShape = ConvertSchemaToShape(schema.Items, depth + 1);
         return $"[{itemShape}]";
@@ -220,10 +191,7 @@ public class OpenApiSchemaConverter
         }
 
         // Use example if available
-        if (schema.Example != null)
-        {
-            return $"\"{schema.Example}\"";
-        }
+        if (schema.Example != null) return $"\"{schema.Example}\"";
 
         // Use format-specific placeholders
         return schema.Format switch
@@ -240,16 +208,10 @@ public class OpenApiSchemaConverter
     private string ConvertNumberSchema(OpenApiSchema schema)
     {
         // Use example if available
-        if (schema.Example != null)
-        {
-            return schema.Example.ToString() ?? "0";
-        }
+        if (schema.Example != null) return schema.Example.ToString() ?? "0";
 
         // Use minimum if available
-        if (schema.Minimum.HasValue)
-        {
-            return schema.Minimum.Value.ToString();
-        }
+        if (schema.Minimum.HasValue) return schema.Minimum.Value.ToString();
 
         // Default based on format
         return schema.Format switch
@@ -261,7 +223,7 @@ public class OpenApiSchemaConverter
     }
 
     /// <summary>
-    /// Generates a description of the operation for context in the LLM prompt.
+    ///     Generates a description of the operation for context in the LLM prompt.
     /// </summary>
     public string GetOperationDescription(OpenApiOperation operation, string path, OperationType method)
     {
@@ -269,15 +231,9 @@ public class OpenApiSchemaConverter
 
         sb.Append($"{method.ToString().ToUpper()} {path}");
 
-        if (!string.IsNullOrEmpty(operation.Summary))
-        {
-            sb.Append($" - {operation.Summary}");
-        }
+        if (!string.IsNullOrEmpty(operation.Summary)) sb.Append($" - {operation.Summary}");
 
-        if (!string.IsNullOrEmpty(operation.Description))
-        {
-            sb.Append($"\n{operation.Description}");
-        }
+        if (!string.IsNullOrEmpty(operation.Description)) sb.Append($"\n{operation.Description}");
 
         return sb.ToString();
     }

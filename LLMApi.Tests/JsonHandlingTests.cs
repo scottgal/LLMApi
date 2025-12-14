@@ -1,10 +1,11 @@
-using mostlylucid.mockllmapi.Services.Providers;
 using System.Reflection;
+using System.Text.Json;
+using mostlylucid.mockllmapi.Services.Providers;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Tests for manual JSON escaping and extraction to avoid .NET 10 reflection serialization
+///     Tests for manual JSON escaping and extraction to avoid .NET 10 reflection serialization
 /// </summary>
 public class JsonHandlingTests
 {
@@ -208,7 +209,7 @@ public class JsonHandlingTests
         var result = "{" + string.Join(",", jsonParts) + "}";
 
         // Assert
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        var parsed = JsonDocument.Parse(result);
         Assert.Equal("john_doe", parsed.RootElement.GetProperty("username").GetString());
         Assert.Equal("john@example.com", parsed.RootElement.GetProperty("email").GetString());
         Assert.Equal("Developer\nEnthusiast", parsed.RootElement.GetProperty("bio").GetString());
@@ -225,7 +226,7 @@ public class JsonHandlingTests
         var result = "[" + string.Join(",", escapedTags) + "]";
 
         // Assert
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        var parsed = JsonDocument.Parse(result);
         Assert.Equal(3, parsed.RootElement.GetArrayLength());
         Assert.Equal("tag1", parsed.RootElement[0].GetString());
         Assert.Equal("tag with spaces", parsed.RootElement[1].GetString());
@@ -242,15 +243,15 @@ public class JsonHandlingTests
 
         // Act
         var fileJson = $"{{" +
-            $"\"fieldName\":{InvokePrivateEscapeMethod("upload")}," +
-            $"\"fileName\":{InvokePrivateEscapeMethod(fileName)}," +
-            $"\"contentType\":{InvokePrivateEscapeMethod(contentType)}," +
-            $"\"size\":{size}," +
-            $"\"processed\":true" +
-            $"}}";
+                       $"\"fieldName\":{InvokePrivateEscapeMethod("upload")}," +
+                       $"\"fileName\":{InvokePrivateEscapeMethod(fileName)}," +
+                       $"\"contentType\":{InvokePrivateEscapeMethod(contentType)}," +
+                       $"\"size\":{size}," +
+                       $"\"processed\":true" +
+                       $"}}";
 
         // Assert
-        var parsed = System.Text.Json.JsonDocument.Parse(fileJson);
+        var parsed = JsonDocument.Parse(fileJson);
         Assert.Equal("upload", parsed.RootElement.GetProperty("fieldName").GetString());
         Assert.Equal("document.pdf", parsed.RootElement.GetProperty("fileName").GetString());
         Assert.Equal("application/pdf", parsed.RootElement.GetProperty("contentType").GetString());
@@ -278,7 +279,7 @@ public class JsonHandlingTests
 
         // Should be valid JSON when used in object
         var json = $"{{\"field\":{result}}}";
-        var parsed = System.Text.Json.JsonDocument.Parse(json);
+        var parsed = JsonDocument.Parse(json);
         Assert.Equal(input, parsed.RootElement.GetProperty("field").GetString());
     }
 
@@ -315,7 +316,7 @@ public class JsonHandlingTests
         Assert.Contains("Laura Gonzalez", result);
 
         // Should be valid JSON
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        var parsed = JsonDocument.Parse(result);
         Assert.True(parsed.RootElement.TryGetProperty("users", out _));
     }
 

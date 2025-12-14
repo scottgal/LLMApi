@@ -5,13 +5,13 @@ using mostlylucid.mockllmapi.Services;
 namespace mostlylucid.mockllmapi.Hubs;
 
 /// <summary>
-/// SignalR hub for streaming LLM-generated mock data
-/// Supports multiple contexts/topics (weather, cars, stocks, etc.)
+///     SignalR hub for streaming LLM-generated mock data
+///     Supports multiple contexts/topics (weather, cars, stocks, etc.)
 /// </summary>
 public class MockLlmHub : Hub
 {
-    private readonly ILogger<MockLlmHub> _logger;
     private readonly DynamicHubContextManager _contextManager;
+    private readonly ILogger<MockLlmHub> _logger;
 
     public MockLlmHub(ILogger<MockLlmHub> logger, DynamicHubContextManager contextManager)
     {
@@ -20,11 +20,12 @@ public class MockLlmHub : Hub
     }
 
     /// <summary>
-    /// Subscribe to a specific context (e.g., "weather", "cars")
+    ///     Subscribe to a specific context (e.g., "weather", "cars")
     /// </summary>
     public async Task SubscribeToContext(string context)
     {
-        _logger.LogInformation("SubscribeToContext called: ConnectionId={ConnectionId}, Context={Context}", Context.ConnectionId, context);
+        _logger.LogInformation("SubscribeToContext called: ConnectionId={ConnectionId}, Context={Context}",
+            Context.ConnectionId, context);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, context);
         _logger.LogInformation("Added to SignalR group: {Context}", context);
@@ -42,19 +43,20 @@ public class MockLlmHub : Hub
     }
 
     /// <summary>
-    /// Unsubscribe from a specific context
+    ///     Unsubscribe from a specific context
     /// </summary>
     public async Task UnsubscribeFromContext(string context)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, context);
         _contextManager.DecrementConnectionCount(context);
-        _logger.LogInformation("Client {ConnectionId} unsubscribed from context: {Context}", Context.ConnectionId, context);
+        _logger.LogInformation("Client {ConnectionId} unsubscribed from context: {Context}", Context.ConnectionId,
+            context);
 
         await Clients.Caller.SendAsync("Unsubscribed", new { context, message = $"Unsubscribed from {context}" });
     }
 
     /// <summary>
-    /// Get list of available contexts
+    ///     Get list of available contexts
     /// </summary>
     public async Task GetAvailableContexts()
     {

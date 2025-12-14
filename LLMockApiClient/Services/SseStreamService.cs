@@ -1,6 +1,5 @@
-using System.Net.Http;
 using System.IO;
-using System.Threading;
+using System.Net.Http;
 
 namespace LLMockApiClient.Services;
 
@@ -8,12 +7,6 @@ public class SseStreamService
 {
     private readonly HttpClient _httpClient;
     private CancellationTokenSource? _cancellationTokenSource;
-
-    public event EventHandler<string>? MessageReceived;
-    public event EventHandler<string>? ErrorOccurred;
-    public event EventHandler? StreamEnded;
-
-    public bool IsStreaming => _cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested;
 
     public SseStreamService(string baseUrl)
     {
@@ -24,12 +17,15 @@ public class SseStreamService
         };
     }
 
+    public bool IsStreaming => _cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested;
+
+    public event EventHandler<string>? MessageReceived;
+    public event EventHandler<string>? ErrorOccurred;
+    public event EventHandler? StreamEnded;
+
     public async Task StartStreamAsync(string endpoint)
     {
-        if (IsStreaming)
-        {
-            throw new InvalidOperationException("Stream is already running");
-        }
+        if (IsStreaming) throw new InvalidOperationException("Stream is already running");
 
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
@@ -50,10 +46,8 @@ public class SseStreamService
                 var line = await reader.ReadLineAsync();
 
                 if (line == null)
-                {
                     // End of stream
                     break;
-                }
 
                 // SSE format: "data: {...}"
                 if (line.StartsWith("data: "))
@@ -64,12 +58,10 @@ public class SseStreamService
                 else if (line.StartsWith(": "))
                 {
                     // Comment line (heartbeat), ignore
-                    continue;
                 }
                 else if (string.IsNullOrWhiteSpace(line))
                 {
                     // Empty line marks end of event, continue
-                    continue;
                 }
             }
 

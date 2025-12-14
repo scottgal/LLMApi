@@ -1,21 +1,19 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Executes mock endpoint tool calls to other mock endpoints
-/// Enables decision trees and workflow composition
+///     Executes mock endpoint tool calls to other mock endpoints
+///     Enables decision trees and workflow composition
 /// </summary>
 public class MockToolExecutor : IToolExecutor
 {
+    private readonly string _baseUrl;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<MockToolExecutor> _logger;
-    private readonly string _baseUrl;
-
-    public string ToolType => "mock";
 
     public MockToolExecutor(
         IHttpClientFactory httpClientFactory,
@@ -26,6 +24,8 @@ public class MockToolExecutor : IToolExecutor
         _logger = logger;
         _baseUrl = baseUrl.TrimEnd('/');
     }
+
+    public string ToolType => "mock";
 
     public async Task<ToolResult> ExecuteAsync(
         ToolConfig tool,
@@ -38,9 +38,7 @@ public class MockToolExecutor : IToolExecutor
         try
         {
             if (tool.MockConfig == null)
-            {
                 throw new InvalidOperationException($"Tool '{tool.Name}' is missing MockConfig");
-            }
 
             // Substitute parameters in endpoint path
             var endpoint = SubstituteParameters(tool.MockConfig.Endpoint, parameters);
@@ -81,18 +79,16 @@ public class MockToolExecutor : IToolExecutor
 
             // Add context header if specified
             if (!string.IsNullOrWhiteSpace(tool.MockConfig.ContextName))
-            {
                 request.Headers.Add("X-Context-Name", tool.MockConfig.ContextName);
-            }
 
             // Add body for POST/PUT
             if (tool.MockConfig.Method.ToUpperInvariant() is "POST" or "PUT" &&
                 !string.IsNullOrWhiteSpace(tool.MockConfig.Body))
             {
                 var body = SubstituteParameters(tool.MockConfig.Body, parameters);
-                request.Content = new System.Net.Http.StringContent(
+                request.Content = new StringContent(
                     body,
-                    System.Text.Encoding.UTF8,
+                    Encoding.UTF8,
                     "application/json");
             }
 
@@ -138,32 +134,23 @@ public class MockToolExecutor : IToolExecutor
 
     public void ValidateConfiguration(ToolConfig tool)
     {
-        if (tool.MockConfig == null)
-        {
-            throw new InvalidOperationException($"Tool '{tool.Name}' is missing MockConfig");
-        }
+        if (tool.MockConfig == null) throw new InvalidOperationException($"Tool '{tool.Name}' is missing MockConfig");
 
         if (string.IsNullOrWhiteSpace(tool.MockConfig.Endpoint))
-        {
             throw new InvalidOperationException($"Tool '{tool.Name}' has empty Endpoint");
-        }
 
         if (!tool.MockConfig.Endpoint.StartsWith("/"))
-        {
             throw new InvalidOperationException(
                 $"Tool '{tool.Name}' Endpoint must start with '/': {tool.MockConfig.Endpoint}");
-        }
 
         var validMethods = new[] { "GET", "POST", "PUT", "DELETE", "PATCH" };
         if (!validMethods.Contains(tool.MockConfig.Method.ToUpperInvariant()))
-        {
             throw new InvalidOperationException(
                 $"Tool '{tool.Name}' has invalid HTTP method: {tool.MockConfig.Method}");
-        }
     }
 
     /// <summary>
-    /// Substitute {paramName} placeholders with actual values
+    ///     Substitute {paramName} placeholders with actual values
     /// </summary>
     private string SubstituteParameters(string template, Dictionary<string, object> parameters)
     {

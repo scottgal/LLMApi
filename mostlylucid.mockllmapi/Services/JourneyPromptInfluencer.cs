@@ -5,40 +5,39 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Builds prompt influence data from journey instances for use in LLM prompts.
+///     Builds prompt influence data from journey instances for use in LLM prompts.
 /// </summary>
 public class JourneyPromptInfluencer
 {
     /// <summary>
-    /// Builds a combined "prompt influencer" for the current journey step,
-    /// based on:
-    ///  - the active journey instance (including its template-level hints)
-    ///  - the specific step within that journey
-    ///  - the current API context memory snapshot
-    ///
-    /// This function does NOT build the full LLM prompt. It only produces a
-    /// structured description that the prompt builder can embed into its
-    /// template (e.g. as JSON or formatted text).
+    ///     Builds a combined "prompt influencer" for the current journey step,
+    ///     based on:
+    ///     - the active journey instance (including its template-level hints)
+    ///     - the specific step within that journey
+    ///     - the current API context memory snapshot
+    ///     This function does NOT build the full LLM prompt. It only produces a
+    ///     structured description that the prompt builder can embed into its
+    ///     template (e.g. as JSON or formatted text).
     /// </summary>
     /// <param name="journeyInstance">
-    /// The materialised journey instance for the current session.
-    /// Must contain the resolved JourneyTemplate and the current step index.
+    ///     The materialised journey instance for the current session.
+    ///     Must contain the resolved JourneyTemplate and the current step index.
     /// </param>
     /// <param name="step">
-    /// The journey step being executed for this HTTP request.
+    ///     The journey step being executed for this HTTP request.
     /// </param>
     /// <param name="contextSnapshot">
-    /// Snapshot of the current API context memory for this session,
-    /// pre-extracted from your existing context store. May be empty.
+    ///     Snapshot of the current API context memory for this session,
+    ///     pre-extracted from your existing context store. May be empty.
     /// </param>
     /// <param name="fallbackRandomnessSeed">
-    /// A fallback seed to use if neither the step-level nor journey-level
-    /// configuration defines a seed. Recommended to be a stable hash of
-    /// (SessionId + Path + Method + StepIndex).
+    ///     A fallback seed to use if neither the step-level nor journey-level
+    ///     configuration defines a seed. Recommended to be a stable hash of
+    ///     (SessionId + Path + Method + StepIndex).
     /// </param>
     /// <returns>
-    /// A JourneyPromptInfluence containing merged hints and selected context
-    /// keys ready to be embedded into the LLM prompt.
+    ///     A JourneyPromptInfluence containing merged hints and selected context
+    ///     keys ready to be embedded into the LLM prompt.
     /// </returns>
     public JourneyPromptInfluence BuildJourneyPromptInfluence(
         JourneyInstance journeyInstance,
@@ -70,34 +69,20 @@ public class JourneyPromptInfluencer
         {
             var filtered = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var key in stepHints.PromoteKeys!)
-            {
                 if (contextSnapshot.AllKeys.TryGetValue(key, out var value))
-                {
                     filtered[key] = value;
-                }
-            }
 
-            if (filtered.Count > 0)
-            {
-                promoted = filtered;
-            }
+            if (filtered.Count > 0) promoted = filtered;
         }
 
         if (stepHints.DemoteKeys is { Count: > 0 })
         {
             var filtered = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var key in stepHints.DemoteKeys!)
-            {
                 if (contextSnapshot.AllKeys.TryGetValue(key, out var value))
-                {
                     filtered[key] = value;
-                }
-            }
 
-            if (filtered.Count > 0)
-            {
-                demoted = filtered;
-            }
+            if (filtered.Count > 0) demoted = filtered;
         }
 
         var highlightFields = stepHints.HighlightFields ?? Array.Empty<string>();
@@ -112,40 +97,35 @@ public class JourneyPromptInfluencer
             ["PromoteKeys"] = stepHints.PromoteKeys ?? Array.Empty<string>(),
             ["DemoteKeys"] = stepHints.DemoteKeys ?? Array.Empty<string>(),
             ["LureFields"] = lureFields,
-            ["RandomnessSeed"] = randomnessSeed,
+            ["RandomnessSeed"] = randomnessSeed
         };
 
-        if (!string.IsNullOrWhiteSpace(stepHints.Tone))
-        {
-            rawStepHints["Tone"] = stepHints.Tone!;
-        }
+        if (!string.IsNullOrWhiteSpace(stepHints.Tone)) rawStepHints["Tone"] = stepHints.Tone!;
 
         if (!string.IsNullOrWhiteSpace(stepHints.AdditionalInstructions))
-        {
             rawStepHints["AdditionalInstructions"] = stepHints.AdditionalInstructions!;
-        }
 
         var influence = new JourneyPromptInfluence(
-            JourneyName: template.Name,
-            Modality: template.Modality,
-            Scenario: journeyHints.Scenario,
-            DataStyle: journeyHints.DataStyle,
-            RiskFlavor: journeyHints.RiskFlavor,
-            RandomnessProfile: journeyHints.RandomnessProfile,
-            StepDescription: step.Description,
-            Tone: stepHints.Tone,
-            RandomnessSeed: randomnessSeed,
-            PromotedContext: promoted,
-            DemotedContext: demoted,
-            HighlightFields: highlightFields,
-            LureFields: lureFields,
-            RawStepHints: rawStepHints);
+            template.Name,
+            template.Modality,
+            journeyHints.Scenario,
+            journeyHints.DataStyle,
+            journeyHints.RiskFlavor,
+            journeyHints.RandomnessProfile,
+            step.Description,
+            stepHints.Tone,
+            randomnessSeed,
+            promoted,
+            demoted,
+            highlightFields,
+            lureFields,
+            rawStepHints);
 
         return influence;
     }
 
     /// <summary>
-    /// Generates a stable randomness seed based on session and request details.
+    ///     Generates a stable randomness seed based on session and request details.
     /// </summary>
     public static string GenerateRandomnessSeed(string sessionId, string method, string path, int stepIndex)
     {
@@ -155,7 +135,7 @@ public class JourneyPromptInfluencer
     }
 
     /// <summary>
-    /// Builds an ApiContextSnapshot from the OpenApiContextManager's shared data.
+    ///     Builds an ApiContextSnapshot from the OpenApiContextManager's shared data.
     /// </summary>
     public static ApiContextSnapshot BuildContextSnapshot(
         IReadOnlyDictionary<string, string>? sharedData,
@@ -168,28 +148,20 @@ public class JourneyPromptInfluencer
         var demoted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         if (promoteKeys != null)
-        {
             foreach (var key in promoteKeys)
-            {
                 if (allKeys.TryGetValue(key, out var value))
                     promoted[key] = value;
-            }
-        }
 
         if (demoteKeys != null)
-        {
             foreach (var key in demoteKeys)
-            {
                 if (allKeys.TryGetValue(key, out var value))
                     demoted[key] = value;
-            }
-        }
 
         return new ApiContextSnapshot(allKeys, promoted, demoted);
     }
 
     /// <summary>
-    /// Formats the journey prompt influence as a string for embedding in prompts.
+    ///     Formats the journey prompt influence as a string for embedding in prompts.
     /// </summary>
     public static string FormatInfluenceForPrompt(JourneyPromptInfluence influence)
     {

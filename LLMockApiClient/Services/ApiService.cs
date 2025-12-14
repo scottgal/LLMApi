@@ -1,20 +1,20 @@
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
 
 namespace LLMockApiClient.Services;
 
 public class ApiService
 {
     private readonly HttpClient _httpClient;
-    public string BaseUrl { get; set; }
 
     public ApiService(string baseUrl)
     {
         BaseUrl = baseUrl;
         _httpClient = new HttpClient { BaseAddress = new Uri(baseUrl) };
     }
+
+    public string BaseUrl { get; set; }
 
     // Mock API
     public async Task<string> CallMockApiAsync(string method, string path, string? shape = null, string? body = null)
@@ -98,7 +98,8 @@ public class ApiService
     }
 
     // Generic HTTP request
-    public async Task<string> SendRequestAsync(string method, string url, string? body = null, Dictionary<string, string>? headers = null)
+    public async Task<string> SendRequestAsync(string method, string url, string? body = null,
+        Dictionary<string, string>? headers = null)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), url);
 
@@ -106,10 +107,8 @@ public class ApiService
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
         if (headers != null)
-        {
             foreach (var header in headers)
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value);
-        }
 
         var response = await _httpClient.SendAsync(request);
         return await response.Content.ReadAsStringAsync();

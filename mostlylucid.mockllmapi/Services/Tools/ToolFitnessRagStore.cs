@@ -1,19 +1,20 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Storage and retrieval system for tool fitness data in RAG-optimized format.
-/// Supports querying, filtering, and exporting for vector embedding and LLM consumption.
+///     Storage and retrieval system for tool fitness data in RAG-optimized format.
+///     Supports querying, filtering, and exporting for vector embedding and LLM consumption.
 /// </summary>
 public class ToolFitnessRagStore
 {
+    private readonly ConcurrentDictionary<string, List<ToolFitnessSnapshot>> _fitnessHistory;
     private readonly ILogger<ToolFitnessRagStore> _logger;
     private readonly LLMockApiOptions _options;
-    private readonly ConcurrentDictionary<string, List<ToolFitnessSnapshot>> _fitnessHistory;
     private readonly string _storageDirectory;
 
     public ToolFitnessRagStore(
@@ -34,7 +35,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Stores a complete fitness report
+    ///     Stores a complete fitness report
     /// </summary>
     public async Task StoreReportAsync(ToolFitnessReport report)
     {
@@ -81,7 +82,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Persists the full report to disk as JSON
+    ///     Persists the full report to disk as JSON
     /// </summary>
     private async Task PersistReportAsync(ToolFitnessReport report)
     {
@@ -101,7 +102,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Exports RAG-optimized documents for vector embedding and semantic search
+    ///     Exports RAG-optimized documents for vector embedding and semantic search
     /// </summary>
     private async Task ExportRagDocumentsAsync(ToolFitnessReport report)
     {
@@ -165,7 +166,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Builds semantic text for vector embedding
+    ///     Builds semantic text for vector embedding
     /// </summary>
     private string BuildSemanticText(ToolTestResult toolResult)
     {
@@ -186,14 +187,13 @@ public class ToolFitnessRagStore
                 text += $"  Expected: {validation.Expected}\n";
                 text += $"  Actual: {validation.Actual}\n";
             }
+
             text += "\n";
         }
 
         // Add execution error
         if (!string.IsNullOrEmpty(toolResult.ExecutionError))
-        {
             text += $"Execution Error: {toolResult.ExecutionError}\n\n";
-        }
 
         // Add passed validations summary
         var passedCount = toolResult.ValidationResults.Count(v => v.Passed);
@@ -203,20 +203,17 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Retrieves fitness history for a specific tool
+    ///     Retrieves fitness history for a specific tool
     /// </summary>
     public List<ToolFitnessSnapshot> GetToolHistory(string toolName, int maxResults = 10)
     {
-        if (_fitnessHistory.TryGetValue(toolName, out var history))
-        {
-            return history.TakeLast(maxResults).ToList();
-        }
+        if (_fitnessHistory.TryGetValue(toolName, out var history)) return history.TakeLast(maxResults).ToList();
 
         return new List<ToolFitnessSnapshot>();
     }
 
     /// <summary>
-    /// Gets all tools with fitness below threshold
+    ///     Gets all tools with fitness below threshold
     /// </summary>
     public Dictionary<string, ToolFitnessSnapshot> GetLowFitnessTools(double threshold = 60.0)
     {
@@ -225,17 +222,14 @@ public class ToolFitnessRagStore
         foreach (var (toolName, history) in _fitnessHistory)
         {
             var latest = history.LastOrDefault();
-            if (latest != null && latest.FitnessScore < threshold)
-            {
-                result[toolName] = latest;
-            }
+            if (latest != null && latest.FitnessScore < threshold) result[toolName] = latest;
         }
 
         return result;
     }
 
     /// <summary>
-    /// Gets tools with improving fitness trends
+    ///     Gets tools with improving fitness trends
     /// </summary>
     public Dictionary<string, FitnessTrend> GetFitnessTrends(int minSnapshots = 3)
     {
@@ -266,7 +260,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Exports complete fitness history to JSON for backup/analysis
+    ///     Exports complete fitness history to JSON for backup/analysis
     /// </summary>
     public async Task<string> ExportFullHistoryAsync()
     {
@@ -296,7 +290,7 @@ public class ToolFitnessRagStore
     }
 
     /// <summary>
-    /// Loads fitness history from disk
+    ///     Loads fitness history from disk
     /// </summary>
     public async Task LoadHistoryAsync()
     {
@@ -311,7 +305,6 @@ public class ToolFitnessRagStore
         var reportFiles = Directory.GetFiles(_storageDirectory, "fitness_report_*.json");
 
         foreach (var file in reportFiles.OrderBy(f => f))
-        {
             try
             {
                 var json = await File.ReadAllTextAsync(file);
@@ -321,28 +314,28 @@ public class ToolFitnessRagStore
                 });
 
                 if (report != null)
-                {
                     // Re-add to in-memory cache
                     await StoreReportAsync(report);
-                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to load fitness report from: {File}", file);
             }
-        }
 
         _logger.LogInformation("Loaded fitness history for {Count} tools", _fitnessHistory.Count);
     }
 
     /// <summary>
-    /// Gets the storage directory path
+    ///     Gets the storage directory path
     /// </summary>
-    public string GetStorageDirectory() => _storageDirectory;
+    public string GetStorageDirectory()
+    {
+        return _storageDirectory;
+    }
 }
 
 /// <summary>
-/// Snapshot of tool fitness at a point in time
+///     Snapshot of tool fitness at a point in time
 /// </summary>
 public class ToolFitnessSnapshot
 {
@@ -361,7 +354,7 @@ public class ToolFitnessSnapshot
 }
 
 /// <summary>
-/// RAG-optimized document for vector embedding
+///     RAG-optimized document for vector embedding
 /// </summary>
 public class ToolRagDocument
 {
@@ -373,23 +366,23 @@ public class ToolRagDocument
     public bool Passed { get; set; }
 
     /// <summary>
-    /// Human-readable text optimized for semantic embedding
+    ///     Human-readable text optimized for semantic embedding
     /// </summary>
     public string SemanticText { get; set; } = string.Empty;
 
     /// <summary>
-    /// Structured metadata for filtering and retrieval
+    ///     Structured metadata for filtering and retrieval
     /// </summary>
     public Dictionary<string, object> Metadata { get; set; } = new();
 
     /// <summary>
-    /// Full test result for detailed analysis
+    ///     Full test result for detailed analysis
     /// </summary>
     public ToolTestResult? FullTestResult { get; set; }
 }
 
 /// <summary>
-/// Fitness trend analysis
+///     Fitness trend analysis
 /// </summary>
 public class FitnessTrend
 {

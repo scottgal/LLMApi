@@ -1,4 +1,3 @@
-using Xunit;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 
@@ -66,7 +65,7 @@ public class ContinuousStreamingTests
     }
 
     [Theory]
-    [InlineData(0)]  // Unlimited
+    [InlineData(0)] // Unlimited
     [InlineData(60)]
     [InlineData(600)]
     public void ContinuousStreaming_CustomMaxDuration(int duration)

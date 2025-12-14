@@ -1,18 +1,16 @@
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using mostlylucid.mockllmapi.Models;
-using System.Text;
 using System.Text.Json;
+using Google.Protobuf;
+using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Handles dynamic Protobuf serialization/deserialization for runtime proto definitions
+///     Handles dynamic Protobuf serialization/deserialization for runtime proto definitions
 /// </summary>
 public class DynamicProtobufHandler
 {
     /// <summary>
-    /// Deserializes a Protobuf binary message to JSON
+    ///     Deserializes a Protobuf binary message to JSON
     /// </summary>
     public string DeserializeToJson(byte[] protobufData, ProtoMessage messageDefinition, List<ProtoMessage> allMessages)
     {
@@ -26,7 +24,7 @@ public class DynamicProtobufHandler
     }
 
     /// <summary>
-    /// Serializes JSON to Protobuf binary format
+    ///     Serializes JSON to Protobuf binary format
     /// </summary>
     public byte[] SerializeFromJson(string json, ProtoMessage messageDefinition, List<ProtoMessage> allMessages)
     {
@@ -39,10 +37,8 @@ public class DynamicProtobufHandler
             // Write each field according to the proto definition
             foreach (var field in messageDefinition.Fields.OrderBy(f => f.Number))
             {
-                if (!jsonDoc.RootElement.TryGetProperty(field.Name, out var fieldValue))
-                {
-                    continue; // Skip missing fields
-                }
+                if (!jsonDoc.RootElement.TryGetProperty(field.Name,
+                        out var fieldValue)) continue; // Skip missing fields
 
                 WriteField(writer, field, fieldValue, allMessages);
             }
@@ -57,7 +53,8 @@ public class DynamicProtobufHandler
         }
     }
 
-    private void WriteField(CodedOutputStream writer, ProtoField field, JsonElement value, List<ProtoMessage> allMessages)
+    private void WriteField(CodedOutputStream writer, ProtoField field, JsonElement value,
+        List<ProtoMessage> allMessages)
     {
         var fieldNumber = field.Number;
         var wireType = GetWireType(field.Type);
@@ -84,7 +81,8 @@ public class DynamicProtobufHandler
         writer.WriteTag(fieldNumber, wireType);
     }
 
-    private void WriteValue(CodedOutputStream writer, string fieldType, JsonElement value, List<ProtoMessage> allMessages)
+    private void WriteValue(CodedOutputStream writer, string fieldType, JsonElement value,
+        List<ProtoMessage> allMessages)
     {
         switch (fieldType)
         {
@@ -141,6 +139,7 @@ public class DynamicProtobufHandler
                     var nestedBytes = SerializeFromJson(nestedJson, nestedMessage, allMessages);
                     writer.WriteBytes(ByteString.CopyFrom(nestedBytes));
                 }
+
                 break;
         }
     }
@@ -158,8 +157,8 @@ public class DynamicProtobufHandler
     }
 
     /// <summary>
-    /// Creates a JSON template from a Protobuf message definition
-    /// This is used to show what the binary message contains
+    ///     Creates a JSON template from a Protobuf message definition
+    ///     This is used to show what the binary message contains
     /// </summary>
     public string CreateJsonTemplate(ProtoMessage messageDefinition, List<ProtoMessage> allMessages)
     {
@@ -194,10 +193,7 @@ public class DynamicProtobufHandler
         if (nestedMessage == null) return null;
 
         var fields = new Dictionary<string, object?>();
-        foreach (var field in nestedMessage.Fields)
-        {
-            fields[field.Name] = GetDefaultValue(field, allMessages);
-        }
+        foreach (var field in nestedMessage.Fields) fields[field.Name] = GetDefaultValue(field, allMessages);
         return fields;
     }
 }

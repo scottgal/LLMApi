@@ -1,11 +1,11 @@
 using System.IO;
-using System.Windows;
+using System.Text.Json;
+using System.Windows.Controls;
 using System.Windows.Media;
+using System.Xml;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
-using System.Xml;
-using System.Text.Json;
 
 namespace LLMockApiClient.Controls;
 
@@ -19,8 +19,8 @@ public class JsonViewer : TextEditor
         FontFamily = new FontFamily("Consolas");
         FontSize = 11;
         WordWrap = true;
-        VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto;
-        HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto;
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
 
         // Load JSON syntax highlighting
         LoadJsonHighlighting();

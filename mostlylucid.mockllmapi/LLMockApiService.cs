@@ -1,16 +1,10 @@
-using System.IO;
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Options;
-using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Main service facade for LLMock API operations
+///     Main service facade for LLMock API operations
 /// </summary>
 public class LLMockApiService
 {
@@ -26,7 +20,7 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Reads the request body as a string, supporting JSON, form data, and multipart uploads
+    ///     Reads the request body as a string, supporting JSON, form data, and multipart uploads
     /// </summary>
     public async Task<string> ReadBodyAsync(HttpRequest request)
     {
@@ -37,15 +31,11 @@ public class LLMockApiService
 
         // Handle multipart/form-data (file uploads)
         if (contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
-        {
             return await ReadMultipartFormAsync(request);
-        }
 
         // Handle application/x-www-form-urlencoded
         if (contentType.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
-        {
             return await ReadFormUrlEncodedAsync(request);
-        }
 
         // Handle JSON and other text-based content
         using var reader = new StreamReader(request.Body);
@@ -53,7 +43,7 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Reads form URL-encoded body and converts to JSON
+    ///     Reads form URL-encoded body and converts to JSON
     /// </summary>
     private async Task<string> ReadFormUrlEncodedAsync(HttpRequest request)
     {
@@ -81,22 +71,22 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Manually escapes a string for JSON to avoid reflection-based serialization
+    ///     Manually escapes a string for JSON to avoid reflection-based serialization
     /// </summary>
     private static string EscapeJsonString(string str)
     {
         return "\"" + str
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t")
-            + "\"";
+                        .Replace("\\", "\\\\")
+                        .Replace("\"", "\\\"")
+                        .Replace("\n", "\\n")
+                        .Replace("\r", "\\r")
+                        .Replace("\t", "\\t")
+                    + "\"";
     }
 
-/// <summary>
-    /// Reads multipart form data including file uploads with streaming support
-    /// For large files, streams content to temporary storage instead of loading into memory
+    /// <summary>
+    ///     Reads multipart form data including file uploads with streaming support
+    ///     For large files, streams content to temporary storage instead of loading into memory
     /// </summary>
     private async Task<string> ReadMultipartFormAsync(HttpRequest request)
     {
@@ -126,13 +116,9 @@ public class LLMockApiService
         }
 
         if (fieldParts.Count > 0)
-        {
             jsonParts.Add($"\"fields\":{{{string.Join(",", fieldParts)}}}");
-        }
         else
-        {
             jsonParts.Add("\"fields\":{}");
-        }
 
         // Read file uploads with streaming support
         if (form.Files.Count > 0)
@@ -144,9 +130,8 @@ public class LLMockApiService
                 // Validate file size
                 const long maxFileSize = 10 * 1024 * 1024; // 10MB limit
                 if (file.Length > maxFileSize)
-                {
-                    throw new InvalidOperationException($"File size exceeds maximum allowed size of {maxFileSize / (1024 * 1024)}MB");
-                }
+                    throw new InvalidOperationException(
+                        $"File size exceeds maximum allowed size of {maxFileSize / (1024 * 1024)}MB");
 
                 // For small files, read directly into memory
                 if (file.Length < 1024 * 1024) // 1MB threshold
@@ -156,18 +141,15 @@ public class LLMockApiService
                     long totalRead = 0;
                     int bytesRead;
 
-                    while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
-                    {
-                        totalRead += bytesRead;
-                        // Content is discarded, we only track the size
-                    }
-
+                    while ((bytesRead = await stream.ReadAsync(buffer)) > 0) totalRead += bytesRead;
+                    // Content is discarded, we only track the size
                     // Manual JSON construction
                     var fieldName = EscapeJsonString(file.Name ?? "unknown");
                     var fileName = EscapeJsonString(file.FileName ?? "unknown");
                     var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
 
-                    var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead}}}";
+                    var fileJson =
+                        $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead}}}";
                     fileParts.Add(fileJson);
                 }
                 else
@@ -180,7 +162,8 @@ public class LLMockApiService
                     try
                     {
                         using var inputStream = file.OpenReadStream();
-                        using var outputStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        using var outputStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write,
+                            FileShare.None, 8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
                         var buffer = new byte[8192];
                         long totalRead = 0;
@@ -197,14 +180,14 @@ public class LLMockApiService
                         var fileName = EscapeJsonString(file.FileName ?? "unknown");
                         var contentType = EscapeJsonString(file.ContentType ?? "application/octet-stream");
 
-                        var fileJson = $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead},\"streamed\":true,\"tempPath\":\"{EscapeJsonString(tempFilePath)}\"}}";
+                        var fileJson =
+                            $"{{{fieldName}:{fileName},\"contentType\":{contentType},\"size\":{file.Length},\"processed\":true,\"actualBytesRead\":{totalRead},\"streamed\":true,\"tempPath\":\"{EscapeJsonString(tempFilePath)}\"}}";
                         fileParts.Add(fileJson);
                     }
                     finally
                     {
                         // Clean up temporary file
                         if (File.Exists(tempFilePath))
-                        {
                             try
                             {
                                 File.Delete(tempFilePath);
@@ -213,7 +196,6 @@ public class LLMockApiService
                             {
                                 // Ignore cleanup errors
                             }
-                        }
                     }
                 }
             }
@@ -225,7 +207,7 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Handles a regular (non-streaming) request
+    ///     Handles a regular (non-streaming) request
     /// </summary>
     public Task<string> HandleRequestAsync(
         string method,
@@ -239,7 +221,7 @@ public class LLMockApiService
     }
 
     /// <summary>
-    /// Handles a streaming request
+    ///     Handles a streaming request
     /// </summary>
     public Task HandleStreamingRequestAsync(
         string method,
@@ -249,6 +231,7 @@ public class LLMockApiService
         HttpContext context,
         CancellationToken cancellationToken = default)
     {
-        return _streamingHandler.HandleStreamingRequestAsync(method, fullPathWithQuery, body, request, context, cancellationToken);
+        return _streamingHandler.HandleStreamingRequestAsync(method, fullPathWithQuery, body, request, context,
+            cancellationToken);
     }
 }

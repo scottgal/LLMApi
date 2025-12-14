@@ -1,26 +1,26 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles gRPC-style requests with LLM-generated responses based on proto definitions
-/// Supports both JSON over HTTP (for browser testing) and binary Protobuf (for true gRPC clients)
+///     Handles gRPC-style requests with LLM-generated responses based on proto definitions
+///     Supports both JSON over HTTP (for browser testing) and binary Protobuf (for true gRPC clients)
 /// </summary>
 public class GrpcRequestHandler
 {
-    private readonly ILogger<GrpcRequestHandler> _logger;
-    private readonly ProtoDefinitionManager _protoManager;
-    private readonly LlmClient _llmClient;
-    private readonly PromptBuilder _promptBuilder;
-    private readonly IOptions<LLMockApiOptions> _options;
-    private readonly DynamicProtobufHandler _protobufHandler;
     private readonly ContextExtractor _contextExtractor;
     private readonly OpenApiContextManager _contextManager;
+    private readonly LlmClient _llmClient;
+    private readonly ILogger<GrpcRequestHandler> _logger;
+    private readonly IOptions<LLMockApiOptions> _options;
+    private readonly PromptBuilder _promptBuilder;
+    private readonly ProtoDefinitionManager _protoManager;
+    private readonly DynamicProtobufHandler _protobufHandler;
 
     public GrpcRequestHandler(
         ILogger<GrpcRequestHandler> logger,
@@ -43,7 +43,7 @@ public class GrpcRequestHandler
     }
 
     /// <summary>
-    /// Handles a gRPC unary call (simple request-response)
+    ///     Handles a gRPC unary call (simple request-response)
     /// </summary>
     public async Task<string> HandleUnaryCall(
         string serviceName,
@@ -61,20 +61,19 @@ public class GrpcRequestHandler
         if (method == null || definition == null)
         {
             _logger.LogWarning("gRPC method not found: {Service}/{Method}", serviceName, methodName);
-            throw new InvalidOperationException($"Method {serviceName}/{methodName} not found. Upload proto file first.");
+            throw new InvalidOperationException(
+                $"Method {serviceName}/{methodName} not found. Upload proto file first.");
         }
 
         if (method.GetMethodType() != MethodType.Unary)
-        {
-            throw new InvalidOperationException($"Method {methodName} is not a unary call. Type: {method.GetMethodType()}");
-        }
+            throw new InvalidOperationException(
+                $"Method {methodName} is not a unary call. Type: {method.GetMethodType()}");
 
         // Get the output message definition
         var outputMessage = _protoManager.GetMessage(definition, method.OutputType);
         if (outputMessage == null)
-        {
-            throw new InvalidOperationException($"Output message type '{method.OutputType}' not found in proto definition");
-        }
+            throw new InvalidOperationException(
+                $"Output message type '{method.OutputType}' not found in proto definition");
 
         // Generate JSON shape for the output
         var parser = _protoManager.GetParser();
@@ -125,7 +124,7 @@ Return ONLY valid JSON matching the structure above. Be creative with realistic 
     }
 
     /// <summary>
-    /// Handles a gRPC unary call with binary Protobuf request/response
+    ///     Handles a gRPC unary call with binary Protobuf request/response
     /// </summary>
     public async Task<byte[]> HandleUnaryCallBinary(
         string serviceName,
@@ -140,22 +139,21 @@ Return ONLY valid JSON matching the structure above. Be creative with realistic 
         if (method == null || definition == null)
         {
             _logger.LogWarning("gRPC method not found: {Service}/{Method}", serviceName, methodName);
-            throw new InvalidOperationException($"Method {serviceName}/{methodName} not found. Upload proto file first.");
+            throw new InvalidOperationException(
+                $"Method {serviceName}/{methodName} not found. Upload proto file first.");
         }
 
         if (method.GetMethodType() != MethodType.Unary)
-        {
-            throw new InvalidOperationException($"Method {methodName} is not a unary call. Type: {method.GetMethodType()}");
-        }
+            throw new InvalidOperationException(
+                $"Method {methodName} is not a unary call. Type: {method.GetMethodType()}");
 
         // Get the input and output message definitions
         var inputMessage = _protoManager.GetMessage(definition, method.InputType);
         var outputMessage = _protoManager.GetMessage(definition, method.OutputType);
 
         if (outputMessage == null)
-        {
-            throw new InvalidOperationException($"Output message type '{method.OutputType}' not found in proto definition");
-        }
+            throw new InvalidOperationException(
+                $"Output message type '{method.OutputType}' not found in proto definition");
 
         // Convert binary request to JSON for LLM (simplified - full impl would parse Protobuf)
         var requestJson = requestData.Length > 0
@@ -219,18 +217,12 @@ Return ONLY valid JSON matching the structure above. Be creative with realistic 
     private string ExtractJson(string llmResponse)
     {
         // Try to extract JSON from markdown code blocks
-        var match = System.Text.RegularExpressions.Regex.Match(llmResponse, @"```(?:json)?\s*(\{[\s\S]*?\})\s*```");
-        if (match.Success)
-        {
-            return match.Groups[1].Value.Trim();
-        }
+        var match = Regex.Match(llmResponse, @"```(?:json)?\s*(\{[\s\S]*?\})\s*```");
+        if (match.Success) return match.Groups[1].Value.Trim();
 
         // Try to find JSON object
-        match = System.Text.RegularExpressions.Regex.Match(llmResponse, @"\{[\s\S]*\}");
-        if (match.Success)
-        {
-            return match.Value.Trim();
-        }
+        match = Regex.Match(llmResponse, @"\{[\s\S]*\}");
+        if (match.Success) return match.Value.Trim();
 
         return llmResponse.Trim();
     }

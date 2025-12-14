@@ -2,14 +2,13 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
 public class DynamicHubContextManagerTests
 {
-    private readonly Mock<ILogger<DynamicHubContextManager>> _mockLogger;
     private readonly DynamicHubContextManager _manager;
+    private readonly Mock<ILogger<DynamicHubContextManager>> _mockLogger;
 
     public DynamicHubContextManagerTests()
     {
@@ -198,13 +197,13 @@ public class DynamicHubContextManagerTests
     }
 
     [Fact]
-    public void RegisterContext_ThreadSafe_HandlesMultipleRegistrations()
+    public async Task RegisterContext_ThreadSafe_HandlesMultipleRegistrations()
     {
         // Arrange
         var tasks = new List<Task<bool>>();
 
         // Act
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             var index = i;
             tasks.Add(Task.Run(() =>
@@ -214,7 +213,7 @@ public class DynamicHubContextManagerTests
             }));
         }
 
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
 
         // Assert
         Assert.All(tasks, task => Assert.True(task.Result));

@@ -7,15 +7,15 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Coordinates batched LLM requests with rate limiting strategies
-/// Implements different execution patterns for n-completions
+///     Coordinates batched LLM requests with rate limiting strategies
+///     Implements different execution patterns for n-completions
 /// </summary>
 public class BatchingCoordinator
 {
     private readonly LlmClient _llmClient;
-    private readonly RateLimitService _rateLimitService;
-    private readonly LLMockApiOptions _options;
     private readonly ILogger<BatchingCoordinator> _logger;
+    private readonly LLMockApiOptions _options;
+    private readonly RateLimitService _rateLimitService;
 
     public BatchingCoordinator(
         LlmClient llmClient,
@@ -30,7 +30,7 @@ public class BatchingCoordinator
     }
 
     /// <summary>
-    /// Executes n-completions with configured rate limiting and batching strategy
+    ///     Executes n-completions with configured rate limiting and batching strategy
     /// </summary>
     /// <param name="prompt">The prompt to generate completions for</param>
     /// <param name="n">Number of completions to generate</param>
@@ -70,8 +70,8 @@ public class BatchingCoordinator
     }
 
     /// <summary>
-    /// Sequential execution: Complete one request, delay, start next
-    /// Predictable timing but slower overall
+    ///     Sequential execution: Complete one request, delay, start next
+    ///     Predictable timing but slower overall
     /// </summary>
     private async Task<BatchCompletionResult> ExecuteSequentialAsync(
         string prompt,
@@ -84,7 +84,7 @@ public class BatchingCoordinator
         var result = new BatchCompletionResult { Strategy = RateLimitStrategy.Sequential };
         var overallStopwatch = Stopwatch.StartNew();
 
-        for (int i = 0; i < n; i++)
+        for (var i = 0; i < n; i++)
         {
             var itemStopwatch = Stopwatch.StartNew();
 
@@ -125,8 +125,8 @@ public class BatchingCoordinator
     }
 
     /// <summary>
-    /// Parallel execution: Start all requests simultaneously, stagger responses
-    /// Faster overall but more resource-intensive
+    ///     Parallel execution: Start all requests simultaneously, stagger responses
+    ///     Faster overall but more resource-intensive
     /// </summary>
     private async Task<BatchCompletionResult> ExecuteParallelAsync(
         string prompt,
@@ -142,9 +142,9 @@ public class BatchingCoordinator
         // Start all requests in parallel
         var tasks = new List<Task<(string content, long timeMs, int index)>>();
 
-        for (int i = 0; i < n; i++)
+        for (var i = 0; i < n; i++)
         {
-            int index = i; // Capture loop variable
+            var index = i; // Capture loop variable
             var task = Task.Run(async () =>
             {
                 var stopwatch = Stopwatch.StartNew();
@@ -174,7 +174,7 @@ public class BatchingCoordinator
             if (appliedDelay.HasValue && index < n - 1)
             {
                 // Stagger delays to simulate rate limiting
-                var staggeredDelay = appliedDelay.Value + (index * 100); // Add 100ms per index
+                var staggeredDelay = appliedDelay.Value + index * 100; // Add 100ms per index
                 await Task.Delay(staggeredDelay, cancellationToken);
                 appliedDelay = staggeredDelay;
             }
@@ -198,8 +198,8 @@ public class BatchingCoordinator
     }
 
     /// <summary>
-    /// Streaming execution: Return results as they complete with delays
-    /// Best for real-time UIs and SSE endpoints
+    ///     Streaming execution: Return results as they complete with delays
+    ///     Best for real-time UIs and SSE endpoints
     /// </summary>
     private async Task<BatchCompletionResult> ExecuteStreamingAsync(
         string prompt,
@@ -227,17 +227,14 @@ public class BatchingCoordinator
         _rateLimitService.RecordResponseTime(endpointPath, avgTimeMs);
 
         // Build result with simulated streaming delays
-        for (int i = 0; i < completions.Count; i++)
+        for (var i = 0; i < completions.Count; i++)
         {
             // Apply delay between "streamed" results
             int? appliedDelay = null;
             if (i > 0)
             {
                 appliedDelay = _rateLimitService.CalculateDelay(effectiveDelayRange, avgTimeMs, endpointPath);
-                if (appliedDelay.HasValue)
-                {
-                    await Task.Delay(appliedDelay.Value, cancellationToken);
-                }
+                if (appliedDelay.HasValue) await Task.Delay(appliedDelay.Value, cancellationToken);
             }
 
             result.Completions.Add(new CompletionItem
@@ -260,7 +257,7 @@ public class BatchingCoordinator
 }
 
 /// <summary>
-/// Result of a batched completion request with timing information
+///     Result of a batched completion request with timing information
 /// </summary>
 public class BatchCompletionResult
 {
@@ -273,7 +270,7 @@ public class BatchCompletionResult
 }
 
 /// <summary>
-/// Individual completion item with timing information
+///     Individual completion item with timing information
 /// </summary>
 public class CompletionItem
 {

@@ -29,16 +29,15 @@ static async Task Example1_BasicUsage()
 {
     // Create a client configured for a single endpoint
     var client = HttpClientExtensions.CreateMockLlmClient(
-        baseAddress: "http://localhost:5116",
-        pathPattern: "/users",
-        configure: endpoint => endpoint
+        "http://localhost:5116",
+        "/users",
+        endpoint => endpoint
             .WithShape(new { id = 0, name = "", email = "", active = true })
             .WithCache(3) // Generate 3 different variants
     );
 
     // Make multiple requests - each will return a different variant
-    for (int i = 0; i < 3; i++)
-    {
+    for (var i = 0; i < 3; i++)
         try
         {
             var response = await client.GetAsync("/users");
@@ -52,9 +51,8 @@ static async Task Example1_BasicUsage()
         catch (Exception ex)
         {
             Console.WriteLine($"  Error: {ex.Message}");
-            Console.WriteLine($"  Note: Make sure the mock API is running at http://localhost:5116");
+            Console.WriteLine("  Note: Make sure the mock API is running at http://localhost:5116");
         }
-    }
 }
 
 static async Task Example2_MultipleEndpoints()
@@ -108,13 +106,16 @@ static async Task Example3_ErrorSimulation()
     try
     {
         var notFoundResponse = await client.GetAsync("/not-found");
-        Console.WriteLine($"  Not Found: {notFoundResponse.StatusCode} - {await notFoundResponse.Content.ReadAsStringAsync()}");
+        Console.WriteLine(
+            $"  Not Found: {notFoundResponse.StatusCode} - {await notFoundResponse.Content.ReadAsStringAsync()}");
 
         var unauthorizedResponse = await client.GetAsync("/unauthorized");
-        Console.WriteLine($"  Unauthorized: {unauthorizedResponse.StatusCode} - {await unauthorizedResponse.Content.ReadAsStringAsync()}");
+        Console.WriteLine(
+            $"  Unauthorized: {unauthorizedResponse.StatusCode} - {await unauthorizedResponse.Content.ReadAsStringAsync()}");
 
         var serverErrorResponse = await client.GetAsync("/server-error");
-        Console.WriteLine($"  Server Error: {serverErrorResponse.StatusCode} - {await serverErrorResponse.Content.ReadAsStringAsync()}");
+        Console.WriteLine(
+            $"  Server Error: {serverErrorResponse.StatusCode} - {await serverErrorResponse.Content.ReadAsStringAsync()}");
     }
     catch (Exception ex)
     {
@@ -130,7 +131,7 @@ static async Task Example4_Streaming()
         "/data",
         config => config
             .WithShape(new { id = 0, value = "", timestamp = "" })
-            .WithStreaming(true)
+            .WithStreaming()
             .WithSseMode("CompleteObjects")
     );
 
@@ -145,7 +146,7 @@ static async Task Example4_Streaming()
         await using var stream = await response.Content.ReadAsStreamAsync();
         using var reader = new StreamReader(stream);
 
-        int eventCount = 0;
+        var eventCount = 0;
         while (!reader.EndOfStream && eventCount < 5)
         {
             var line = await reader.ReadLineAsync();

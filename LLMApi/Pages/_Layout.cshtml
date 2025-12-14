@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - LLMock API</title>
     <script src="https://unpkg.com/htmx.org@2.0.1"></script>
     <script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
@@ -269,49 +269,49 @@
         .badge.delete { background: #dc3545; color: white; }
     </style>
 
-    @RenderSection("Styles", required: false)
+    @RenderSection("Styles", false)
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <h1>LLMock API</h1>
-            <p class="subtitle">Dynamic mock API powered by local LLMs</p>
-            <nav class="nav">
-                @{
-                    var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
-                }
-                <a href="/Dashboard" class="nav-button @(currentPage == "/Dashboard" ? "active" : "")">
-                    🎛️ Dashboard
-                </a>
-                <a href="/ApiTester" class="nav-button @(currentPage == "/ApiTester" ? "active" : "")">
-                    🧪 API Tester
-                </a>
-                <a href="/Index" class="nav-button @(currentPage == "/Index" ? "active" : "")">
-                    📊 SignalR Demo
-                </a>
-                <a href="/Streaming" class="nav-button @(currentPage == "/Streaming" ? "active" : "")">
-                    🌊 Streaming Demo
-                </a>
-                <a href="/OpenApi" class="nav-button @(currentPage == "/OpenApi" ? "active" : "")">
-                    🔌 OpenAPI Manager
-                </a>
-                <a href="/OpenApiGenerator" class="nav-button @(currentPage == "/OpenApiGenerator" ? "active" : "")">
-                    ✨ OpenAPI Generator
-                </a>
-                <a href="/Grpc" class="nav-button @(currentPage == "/Grpc" ? "active" : "")">
-                    ⚡ gRPC Demo
-                </a>
-                <a href="/swagger" class="nav-button" target="_blank">
-                    📖 API Docs
-                </a>
-            </nav>
-        </div>
+<div class="header">
+    <div class="header-content">
+        <h1>LLMock API</h1>
+        <p class="subtitle">Dynamic mock API powered by local LLMs</p>
+        <nav class="nav">
+            @{
+                var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+            }
+            <a href="/Dashboard" class="nav-button @(currentPage == "/Dashboard" ? "active" : "")">
+                🎛️ Dashboard
+            </a>
+            <a href="/ApiTester" class="nav-button @(currentPage == "/ApiTester" ? "active" : "")">
+                🧪 API Tester
+            </a>
+            <a href="/Index" class="nav-button @(currentPage == "/Index" ? "active" : "")">
+                📊 SignalR Demo
+            </a>
+            <a href="/Streaming" class="nav-button @(currentPage == "/Streaming" ? "active" : "")">
+                🌊 Streaming Demo
+            </a>
+            <a href="/OpenApi" class="nav-button @(currentPage == "/OpenApi" ? "active" : "")">
+                🔌 OpenAPI Manager
+            </a>
+            <a href="/OpenApiGenerator" class="nav-button @(currentPage == "/OpenApiGenerator" ? "active" : "")">
+                ✨ OpenAPI Generator
+            </a>
+            <a href="/Grpc" class="nav-button @(currentPage == "/Grpc" ? "active" : "")">
+                ⚡ gRPC Demo
+            </a>
+            <a href="/swagger" class="nav-button" target="_blank">
+                📖 API Docs
+            </a>
+        </nav>
     </div>
+</div>
 
-    <div class="main-content">
-        @RenderBody()
-    </div>
+<div class="main-content">
+    @RenderBody()
+</div>
 
-    @RenderSection("Scripts", required: false)
+@RenderSection("Scripts", false)
 </body>
 </html>

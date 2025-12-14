@@ -1,27 +1,22 @@
+using System.Text.RegularExpressions;
+
 namespace mostlylucid.mockllmapi.Models;
 
 /// <summary>
-/// Configuration for simulating error responses
+///     Configuration for simulating error responses
 /// </summary>
 public class ErrorConfig
 {
     /// <summary>
-    /// HTTP status code to return (e.g., 400, 401, 404, 500)
+    ///     Parameterless constructor for AOT config binding
     /// </summary>
-    public int StatusCode { get; set; }
+    public ErrorConfig()
+    {
+        StatusCode = 500;
+    }
 
     /// <summary>
-    /// Custom error message. If null, uses default message for status code
-    /// </summary>
-    public string? Message { get; set; }
-
-    /// <summary>
-    /// Optional error details or additional context
-    /// </summary>
-    public string? Details { get; set; }
-
-    /// <summary>
-    /// Creates an ErrorConfig with just a status code
+    ///     Creates an ErrorConfig with just a status code
     /// </summary>
     public ErrorConfig(int statusCode)
     {
@@ -29,7 +24,7 @@ public class ErrorConfig
     }
 
     /// <summary>
-    /// Creates an ErrorConfig with status code and message
+    ///     Creates an ErrorConfig with status code and message
     /// </summary>
     public ErrorConfig(int statusCode, string? message, string? details = null)
     {
@@ -39,7 +34,22 @@ public class ErrorConfig
     }
 
     /// <summary>
-    /// Gets a default error message for common HTTP status codes
+    ///     HTTP status code to return (e.g., 400, 401, 404, 500)
+    /// </summary>
+    public int StatusCode { get; set; }
+
+    /// <summary>
+    ///     Custom error message. If null, uses default message for status code
+    /// </summary>
+    public string? Message { get; set; }
+
+    /// <summary>
+    ///     Optional error details or additional context
+    /// </summary>
+    public string? Details { get; set; }
+
+    /// <summary>
+    ///     Gets a default error message for common HTTP status codes
     /// </summary>
     public string GetDefaultMessage()
     {
@@ -64,15 +74,15 @@ public class ErrorConfig
     }
 
     /// <summary>
-    /// Gets the error message to use (custom or default)
+    ///     Gets the error message to use (custom or default)
     /// </summary>
     public string GetMessage()
     {
         return Message ?? GetDefaultMessage();
     }
 
-/// <summary>
-    /// Formats the error as a JSON response
+    /// <summary>
+    ///     Formats the error as a JSON response
     /// </summary>
     public string ToJson()
     {
@@ -80,30 +90,28 @@ public class ErrorConfig
         var details = SanitizeErrorMessage(Details);
 
         if (!string.IsNullOrWhiteSpace(details))
-        {
             return $$"""
-            {
-              "error": {
-                "code": {{StatusCode}},
-                "message": "{{EscapeJson(message)}}",
-                "details": "{{EscapeJson(details)}}"
-              }
-            }
-            """;
-        }
+                     {
+                       "error": {
+                         "code": {{StatusCode}},
+                         "message": "{{EscapeJson(message)}}",
+                         "details": "{{EscapeJson(details)}}"
+                       }
+                     }
+                     """;
 
         return $$"""
-        {
-          "error": {
-            "code": {{StatusCode}},
-            "message": "{{EscapeJson(message)}}"
-          }
-        }
-        """;
+                 {
+                   "error": {
+                     "code": {{StatusCode}},
+                     "message": "{{EscapeJson(message)}}"
+                   }
+                 }
+                 """;
     }
 
     /// <summary>
-    /// Formats the error as a GraphQL error response
+    ///     Formats the error as a GraphQL error response
     /// </summary>
     public string ToGraphQLJson()
     {
@@ -115,22 +123,22 @@ public class ErrorConfig
             : "";
 
         return $$"""
-        {
-          "errors": [
-            {
-              "message": "{{EscapeJson(message)}}",
-              "extensions": {
-                "code": {{StatusCode}}
-              }{{detailsSection}}
-            }
-          ],
-          "data": null
-        }
-        """;
+                 {
+                   "errors": [
+                     {
+                       "message": "{{EscapeJson(message)}}",
+                       "extensions": {
+                         "code": {{StatusCode}}
+                       }{{detailsSection}}
+                     }
+                   ],
+                   "data": null
+                 }
+                 """;
     }
 
     /// <summary>
-    /// Sanitizes error messages to prevent sensitive information disclosure
+    ///     Sanitizes error messages to prevent sensitive information disclosure
     /// </summary>
     private static string SanitizeErrorMessage(string? message)
     {
@@ -152,9 +160,9 @@ public class ErrorConfig
             .Replace("token=", "[REDACTED]", StringComparison.OrdinalIgnoreCase);
 
         // Remove any URLs or file paths
-        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"https?://\S+", "[REDACTED_URL]");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"file://\S+", "[REDACTED_FILE]");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"[a-zA-Z]:\\[^\\]+", "[REDACTED_PATH]");
+        sanitized = Regex.Replace(sanitized, @"https?://\S+", "[REDACTED_URL]");
+        sanitized = Regex.Replace(sanitized, @"file://\S+", "[REDACTED_FILE]");
+        sanitized = Regex.Replace(sanitized, @"[a-zA-Z]:\\[^\\]+", "[REDACTED_PATH]");
 
         return sanitized;
     }

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,29 +11,29 @@ using mostlylucid.mockllmapi.Services.Tools;
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles non-streaming mock API requests with automatic chunking, rate limiting, and tool execution support
+///     Handles non-streaming mock API requests with automatic chunking, rate limiting, and tool execution support
 /// </summary>
+[SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "Mock API library uses dynamic JSON serialization by design")]
 public class RegularRequestHandler
 {
-    private readonly LLMockApiOptions _options;
-    private readonly ShapeExtractor _shapeExtractor;
-    private readonly ContextExtractor _contextExtractor;
-    private readonly JourneyExtractor _journeyExtractor;
-    private readonly OpenApiContextManager _contextManager;
-    private readonly JourneySessionManager _journeySessionManager;
-    private readonly JourneyPromptInfluencer _journeyPromptInfluencer;
-    private readonly PromptBuilder _promptBuilder;
-    private readonly LlmClient _llmClient;
-    private readonly CacheManager _cacheManager;
-    private readonly DelayHelper _delayHelper;
-    private readonly ChunkingCoordinator _chunkingCoordinator;
-    private readonly RateLimitService _rateLimitService;
-    private readonly BatchingCoordinator _batchingCoordinator;
-    private readonly ToolOrchestrator _toolOrchestrator;
-    private readonly AutoShapeManager _autoShapeManager;
-    private readonly ILogger<RegularRequestHandler> _logger;
-
     private const int MaxSchemaHeaderLength = 4000;
+    private readonly AutoShapeManager _autoShapeManager;
+    private readonly BatchingCoordinator _batchingCoordinator;
+    private readonly CacheManager _cacheManager;
+    private readonly ChunkingCoordinator _chunkingCoordinator;
+    private readonly ContextExtractor _contextExtractor;
+    private readonly OpenApiContextManager _contextManager;
+    private readonly DelayHelper _delayHelper;
+    private readonly JourneyExtractor _journeyExtractor;
+    private readonly JourneyPromptInfluencer _journeyPromptInfluencer;
+    private readonly JourneySessionManager _journeySessionManager;
+    private readonly LlmClient _llmClient;
+    private readonly ILogger<RegularRequestHandler> _logger;
+    private readonly LLMockApiOptions _options;
+    private readonly PromptBuilder _promptBuilder;
+    private readonly RateLimitService _rateLimitService;
+    private readonly ShapeExtractor _shapeExtractor;
+    private readonly ToolOrchestrator _toolOrchestrator;
 
     public RegularRequestHandler(
         IOptions<LLMockApiOptions> options,
@@ -72,7 +74,7 @@ public class RegularRequestHandler
     }
 
     /// <summary>
-    /// Handles a regular (non-streaming) request with automatic chunking and rate limiting support
+    ///     Handles a regular (non-streaming) request with automatic chunking and rate limiting support
     /// </summary>
     public async Task<string> HandleRequestAsync(
         string method,
@@ -96,7 +98,6 @@ public class RegularRequestHandler
         {
             var autoShape = _autoShapeManager.GetShapeForRequest(request, shapeInfo);
             if (!string.IsNullOrWhiteSpace(autoShape))
-            {
                 shapeInfo = new ShapeInfo
                 {
                     Shape = autoShape,
@@ -104,7 +105,6 @@ public class RegularRequestHandler
                     IsJsonSchema = shapeInfo.IsJsonSchema,
                     ErrorConfig = shapeInfo.ErrorConfig
                 };
-            }
         }
 
         // Check if error simulation is requested
@@ -125,12 +125,10 @@ public class RegularRequestHandler
 
         // If n-completions and rate limiting are requested, use BatchingCoordinator
         if (nCompletions > 1 && (_options.EnableRateLimiting || rateLimitDelay != null))
-        {
             return await HandleBatchedRequestAsync(
                 method, fullPathWithQuery, body, request, context,
                 nCompletions, rateLimitDelay, rateLimitStrategy,
                 overallStopwatch, cancellationToken);
-        }
 
         // Extract context name
         var contextName = _contextExtractor.ExtractContextName(request, body);
@@ -148,9 +146,7 @@ public class RegularRequestHandler
         JourneyModality? journeyModality = null;
         if (!string.IsNullOrWhiteSpace(journeyModalityStr) &&
             Enum.TryParse<JourneyModality>(journeyModalityStr, true, out var parsedModality))
-        {
             journeyModality = parsedModality;
-        }
 
         // Get journey instance if applicable
         // Multiple journeys can run concurrently using different journeyIds
@@ -158,7 +154,8 @@ public class RegularRequestHandler
         string? journeyInfluenceText = null;
         string? journeyId = null;
 
-        if (!string.IsNullOrWhiteSpace(journeyName) || !string.IsNullOrWhiteSpace(journeyIdFromRequest) || journeyRandom)
+        if (!string.IsNullOrWhiteSpace(journeyName) || !string.IsNullOrWhiteSpace(journeyIdFromRequest) ||
+            journeyRandom)
         {
             // Determine journey ID:
             // 1. Use explicit journeyId from request if provided
@@ -172,31 +169,23 @@ public class RegularRequestHandler
 
             // If no explicit ID but we have a journey name, check if there's an existing journey for this context
             if (string.IsNullOrWhiteSpace(journeyId) && contextSharedData != null)
-            {
                 // Try to find existing journey ID in context
                 contextSharedData.TryGetValue("journey.id", out journeyId);
-            }
 
             // If starting a new journey (name specified but no existing ID), generate new ID
             if (!string.IsNullOrWhiteSpace(journeyName) && string.IsNullOrWhiteSpace(journeyId))
-            {
                 journeyId = JourneyExtractor.GenerateJourneyId();
-            }
             // If random journey requested and no ID, generate new ID
             else if (journeyRandom && string.IsNullOrWhiteSpace(journeyId))
-            {
                 journeyId = JourneyExtractor.GenerateJourneyId();
-            }
 
             if (!string.IsNullOrWhiteSpace(journeyId))
-            {
                 journeyInstance = _journeySessionManager.GetOrCreateJourney(
                     journeyId,
                     journeyName,
                     journeyRandom,
                     journeyModality,
                     contextSharedData);
-            }
 
             if (journeyInstance != null)
             {
@@ -221,13 +210,12 @@ public class RegularRequestHandler
                     journeyInfluenceText = JourneyPromptInfluencer.FormatInfluenceForPrompt(influence);
 
                     // Use step's shape if provided and no shape specified in request
-                    if (string.IsNullOrWhiteSpace(shapeInfo.Shape) && !string.IsNullOrWhiteSpace(matchingStep.ShapeJson))
-                    {
-                        shapeInfo.Shape = matchingStep.ShapeJson;
-                    }
+                    if (string.IsNullOrWhiteSpace(shapeInfo.Shape) &&
+                        !string.IsNullOrWhiteSpace(matchingStep.ShapeJson)) shapeInfo.Shape = matchingStep.ShapeJson;
 
                     _logger.LogDebug("Journey '{Journey}' (ID: {JourneyId}) step {Step} matched for {Method} {Path}",
-                        journeyInstance.Template.Name, journeyInstance.SessionId, journeyInstance.CurrentStepIndex, method, pathOnly);
+                        journeyInstance.Template.Name, journeyInstance.SessionId, journeyInstance.CurrentStepIndex,
+                        method, pathOnly);
                 }
 
                 // Store journey state in context for persistence
@@ -242,17 +230,16 @@ public class RegularRequestHandler
                 context.Response.Headers["X-Journey-Name"] = journeyInstance.Template.Name;
                 context.Response.Headers["X-Journey-Step"] = journeyInstance.CurrentStepIndex.ToString();
                 context.Response.Headers["X-Journey-TotalSteps"] = journeyInstance.ResolvedSteps.Count.ToString();
-                context.Response.Headers["X-Journey-Complete"] = journeyInstance.IsComplete.ToString().ToLowerInvariant();
+                context.Response.Headers["X-Journey-Complete"] =
+                    journeyInstance.IsComplete.ToString().ToLowerInvariant();
             }
         }
 
         // Combine journey influence with context history
         if (!string.IsNullOrWhiteSpace(journeyInfluenceText))
-        {
             contextHistory = string.IsNullOrWhiteSpace(contextHistory)
                 ? $"Journey Guidance:\n{journeyInfluenceText}"
                 : $"{contextHistory}\n\nJourney Guidance:\n{journeyInfluenceText}";
-        }
 
         // Execute tools if requested (Phase 1: Explicit mode)
         List<ToolResult>? toolResults = null;
@@ -290,16 +277,13 @@ public class RegularRequestHandler
                 // Combine context history with chunk context
                 var fullContext = contextHistory;
                 if (!string.IsNullOrWhiteSpace(chunkContext))
-                {
                     fullContext = string.IsNullOrWhiteSpace(fullContext)
                         ? chunkContext
                         : fullContext + "\n" + chunkContext;
-                }
 
                 // Get response (with caching if requested and not chunking)
                 // Note: Caching is disabled during chunking to avoid cache pollution
                 if (string.IsNullOrWhiteSpace(chunkContext))
-                {
                     // Single request - use cache
                     return await _cacheManager.GetOrFetchAsync(
                         method,
@@ -307,22 +291,19 @@ public class RegularRequestHandler
                         body,
                         chunkShape,
                         shapeInfo.CacheCount,
-                        async () => await ExecuteSingleRequestAsync(method, fullPathWithQuery, body, chunkShape, fullContext, cancellationToken));
-                }
-                else
-                {
-                    // Chunked request - bypass cache
-                    return await ExecuteSingleRequestAsync(method, fullPathWithQuery, body, chunkShape, fullContext, cancellationToken);
-                }
+                        async () => await ExecuteSingleRequestAsync(method, fullPathWithQuery, body, chunkShape,
+                            fullContext, cancellationToken));
+
+                // Chunked request - bypass cache
+                return await ExecuteSingleRequestAsync(method, fullPathWithQuery, body, chunkShape, fullContext,
+                    cancellationToken);
             },
-            modifyShapeForChunk: (originalShape, itemCount) => ModifyShapeForChunk(originalShape, itemCount),
-            cancellationToken: cancellationToken);
+            (originalShape, itemCount) => ModifyShapeForChunk(originalShape, itemCount),
+            cancellationToken);
 
         // Store in context if context name was provided
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, content);
-        }
 
         // Advance journey if a step was matched
         if (journeyInstance != null && !journeyInstance.IsComplete)
@@ -351,7 +332,7 @@ public class RegularRequestHandler
         // Optionally include tool results in response
         if (_options.IncludeToolResultsInResponse && toolResults != null && toolResults.Count > 0)
         {
-            var contentJson = System.Text.Json.JsonDocument.Parse(content);
+            var contentJson = JsonDocument.Parse(content);
             var wrappedResponse = new
             {
                 data = contentJson.RootElement,
@@ -359,13 +340,14 @@ public class RegularRequestHandler
                 {
                     toolName = r.ToolName,
                     success = r.Success,
-                    data = r.Data != null ? System.Text.Json.JsonDocument.Parse(r.Data).RootElement : (object?)null,
+                    data = r.Data != null ? JsonDocument.Parse(r.Data).RootElement : (object?)null,
                     error = r.Error,
                     executionTimeMs = r.ExecutionTimeMs,
                     metadata = r.Metadata
                 })
             };
-            var wrappedContent = System.Text.Json.JsonSerializer.Serialize(wrappedResponse, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var wrappedContent =
+                JsonSerializer.Serialize(wrappedResponse, new JsonSerializerOptions { WriteIndented = true });
 
             // Store shape from response if autoshape is enabled
             _autoShapeManager.StoreShapeFromResponse(request, wrappedContent);
@@ -380,7 +362,7 @@ public class RegularRequestHandler
     }
 
     /// <summary>
-    /// Executes a single LLM request (used by both cached and chunked requests)
+    ///     Executes a single LLM request (used by both cached and chunked requests)
     /// </summary>
     private async Task<string> ExecuteSingleRequestAsync(
         string method,
@@ -391,14 +373,15 @@ public class RegularRequestHandler
         CancellationToken cancellationToken)
     {
         var shapeInfo = new ShapeInfo { Shape = shape };
-        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false, contextHistory: contextHistory);
+        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, false,
+            contextHistory: contextHistory);
         var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken);
         // Extract clean JSON from LLM response (might include markdown or explanatory text)
         return JsonExtractor.ExtractJson(rawResponse);
     }
 
     /// <summary>
-    /// Modifies shape JSON to update count for a specific chunk
+    ///     Modifies shape JSON to update count for a specific chunk
     /// </summary>
     private string? ModifyShapeForChunk(string? originalShape, int itemCount)
     {
@@ -407,37 +390,38 @@ public class RegularRequestHandler
 
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(originalShape);
+            using var doc = JsonDocument.Parse(originalShape);
             var root = doc.RootElement;
 
             // Clone the shape and update count properties
             var modified = CloneAndUpdateCount(root, itemCount);
-            return System.Text.Json.JsonSerializer.Serialize(modified, new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
+            return JsonSerializer.Serialize(modified, new JsonSerializerOptions { WriteIndented = false });
         }
-        catch (System.Text.Json.JsonException)
+        catch (JsonException)
         {
             // If we can't parse/modify, return original
             return originalShape;
         }
     }
 
-    private System.Text.Json.JsonElement CloneAndUpdateCount(System.Text.Json.JsonElement element, int newCount)
+    private JsonElement CloneAndUpdateCount(JsonElement element, int newCount)
     {
-        using var stream = new System.IO.MemoryStream();
-        using (var writer = new System.Text.Json.Utf8JsonWriter(stream))
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
         {
             WriteElementWithUpdatedCount(writer, element, newCount);
         }
+
         stream.Position = 0;
-        using var doc = System.Text.Json.JsonDocument.Parse(stream);
+        using var doc = JsonDocument.Parse(stream);
         return doc.RootElement.Clone();
     }
 
-    private void WriteElementWithUpdatedCount(System.Text.Json.Utf8JsonWriter writer, System.Text.Json.JsonElement element, int newCount)
+    private void WriteElementWithUpdatedCount(Utf8JsonWriter writer, JsonElement element, int newCount)
     {
         switch (element.ValueKind)
         {
-            case System.Text.Json.JsonValueKind.Object:
+            case JsonValueKind.Object:
                 writer.WriteStartObject();
                 foreach (var prop in element.EnumerateObject())
                 {
@@ -445,25 +429,20 @@ public class RegularRequestHandler
 
                     // Update count-related properties
                     var lowerName = prop.Name.ToLowerInvariant();
-                    if ((lowerName == "count" || lowerName == "limit" || lowerName == "size" || lowerName == "length") &&
-                        prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
-                    {
+                    if ((lowerName == "count" || lowerName == "limit" || lowerName == "size" ||
+                         lowerName == "length") &&
+                        prop.Value.ValueKind == JsonValueKind.Number)
                         writer.WriteNumberValue(newCount);
-                    }
                     else
-                    {
                         WriteElementWithUpdatedCount(writer, prop.Value, newCount);
-                    }
                 }
+
                 writer.WriteEndObject();
                 break;
 
-            case System.Text.Json.JsonValueKind.Array:
+            case JsonValueKind.Array:
                 writer.WriteStartArray();
-                foreach (var item in element.EnumerateArray())
-                {
-                    WriteElementWithUpdatedCount(writer, item, newCount);
-                }
+                foreach (var item in element.EnumerateArray()) WriteElementWithUpdatedCount(writer, item, newCount);
                 writer.WriteEndArray();
                 break;
 
@@ -481,10 +460,7 @@ public class RegularRequestHandler
             if (string.IsNullOrWhiteSpace(shape)) return;
 
             // Only add header if shape is within limit
-            if (shape.Length <= MaxSchemaHeaderLength)
-            {
-                context.Response.Headers["X-Response-Schema"] = shape;
-            }
+            if (shape.Length <= MaxSchemaHeaderLength) context.Response.Headers["X-Response-Schema"] = shape;
         }
         catch (Exception ex)
         {
@@ -500,58 +476,46 @@ public class RegularRequestHandler
             var val = includeParam[0];
             return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
         }
+
         return _options.IncludeShapeInResponse;
     }
 
     /// <summary>
-    /// Extracts n-completions parameter from query string
+    ///     Extracts n-completions parameter from query string
     /// </summary>
     private int GetNCompletionsParameter(HttpRequest request)
     {
         if (request.Query.TryGetValue("n", out var nParam) && nParam.Count > 0)
-        {
             if (int.TryParse(nParam[0], out var n) && n > 0)
-            {
                 return n;
-            }
-        }
+
         return 1;
     }
 
     /// <summary>
-    /// Extracts rate limit delay parameter from query string or header
+    ///     Extracts rate limit delay parameter from query string or header
     /// </summary>
     private string? GetRateLimitDelayParameter(HttpRequest request)
     {
         // Check query parameter first
-        if (request.Query.TryGetValue("rateLimit", out var queryParam) && queryParam.Count > 0)
-        {
-            return queryParam[0];
-        }
+        if (request.Query.TryGetValue("rateLimit", out var queryParam) && queryParam.Count > 0) return queryParam[0];
 
         // Check header
-        if (request.Headers.TryGetValue("X-Rate-Limit-Delay", out var headerParam))
-        {
-            return headerParam.FirstOrDefault();
-        }
+        if (request.Headers.TryGetValue("X-Rate-Limit-Delay", out var headerParam)) return headerParam.FirstOrDefault();
 
         // Fall back to config
         return _options.RateLimitDelayRange;
     }
 
     /// <summary>
-    /// Extracts rate limit strategy parameter from query string or header
+    ///     Extracts rate limit strategy parameter from query string or header
     /// </summary>
     private RateLimitStrategy GetRateLimitStrategyParameter(HttpRequest request)
     {
         // Check query parameter first
         if (request.Query.TryGetValue("strategy", out var queryParam) && queryParam.Count > 0)
-        {
             if (Enum.TryParse<RateLimitStrategy>(queryParam[0], true, out var strategy))
-            {
                 return strategy;
-            }
-        }
 
         // Check header
         if (request.Headers.TryGetValue("X-Rate-Limit-Strategy", out var headerParam))
@@ -559,9 +523,7 @@ public class RegularRequestHandler
             var headerValue = headerParam.FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(headerValue) &&
                 Enum.TryParse<RateLimitStrategy>(headerValue, true, out var strategy))
-            {
                 return strategy;
-            }
         }
 
         // Fall back to config
@@ -569,7 +531,7 @@ public class RegularRequestHandler
     }
 
     /// <summary>
-    /// Handles a batched request with n-completions and rate limiting
+    ///     Handles a batched request with n-completions and rate limiting
     /// </summary>
     private async Task<string> HandleBatchedRequestAsync(
         string method,
@@ -587,7 +549,7 @@ public class RegularRequestHandler
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
         // Build prompt
-        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: false);
+        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, false);
 
         // Execute batched completions
         var result = await _batchingCoordinator.GetBatchedCompletionsAsync(
@@ -605,12 +567,12 @@ public class RegularRequestHandler
         AddRateLimitHeaders(context, request.Path, result);
 
         // Return JSON array of completions
-        return System.Text.Json.JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             completions = result.Completions.Select(c => new
             {
                 index = c.Index,
-                content = System.Text.Json.JsonSerializer.Deserialize<object>(c.Content),
+                content = JsonSerializer.Deserialize<object>(c.Content),
                 timing = new
                 {
                     requestTimeMs = c.RequestTimeMs,
@@ -625,13 +587,14 @@ public class RegularRequestHandler
                 totalElapsedMs = result.TotalElapsedMs,
                 averageRequestTimeMs = result.AverageRequestTimeMs
             }
-        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }, new JsonSerializerOptions { WriteIndented = true });
     }
 
     /// <summary>
-    /// Adds rate limiting headers to the response
+    ///     Adds rate limiting headers to the response
     /// </summary>
-    private void AddRateLimitHeaders(HttpContext context, string endpointPath, BatchCompletionResult? batchResult = null)
+    private void AddRateLimitHeaders(HttpContext context, string endpointPath,
+        BatchCompletionResult? batchResult = null)
     {
         try
         {
@@ -652,17 +615,12 @@ public class RegularRequestHandler
                 context.Response.Headers["X-LLMApi-Total-Elapsed"] = batchResult.TotalElapsedMs.ToString();
 
                 if (batchResult.TotalDelayMs > 0)
-                {
                     context.Response.Headers["X-LLMApi-Delay-Applied"] = batchResult.TotalDelayMs.ToString();
-                }
             }
 
             // Add endpoint average if available
             var stats = _rateLimitService.GetEndpointStats(endpointPath);
-            if (stats != null)
-            {
-                context.Response.Headers["X-LLMApi-Avg-Time"] = stats.AverageResponseTimeMs.ToString();
-            }
+            if (stats != null) context.Response.Headers["X-LLMApi-Avg-Time"] = stats.AverageResponseTimeMs.ToString();
         }
         catch (Exception ex)
         {
@@ -672,8 +630,8 @@ public class RegularRequestHandler
     }
 
     /// <summary>
-    /// Get list of requested tools from query parameters or headers
-    /// Supports: ?useTool=tool1,tool2 or X-Use-Tool: tool1,tool2
+    ///     Get list of requested tools from query parameters or headers
+    ///     Supports: ?useTool=tool1,tool2 or X-Use-Tool: tool1,tool2
     /// </summary>
     private List<string> GetRequestedTools(HttpRequest request)
     {
@@ -682,11 +640,9 @@ public class RegularRequestHandler
         // Check query parameter first
         if (request.Query.TryGetValue("useTool", out var queryParam) && queryParam.Count > 0)
         {
-            var toolNames = queryParam[0]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (toolNames != null)
-            {
-                tools.AddRange(toolNames);
-            }
+            var toolNames = queryParam[0]
+                ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (toolNames != null) tools.AddRange(toolNames);
         }
 
         // Check header
@@ -695,7 +651,8 @@ public class RegularRequestHandler
             var headerValue = headerParam.FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(headerValue))
             {
-                var toolNames = headerValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var toolNames = headerValue.Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 tools.AddRange(toolNames);
             }
         }
@@ -704,7 +661,7 @@ public class RegularRequestHandler
     }
 
     /// <summary>
-    /// Extract tool parameters from query string and request body
+    ///     Extract tool parameters from query string and request body
     /// </summary>
     private Dictionary<string, object> ExtractToolParameters(HttpRequest request, string? body)
     {
@@ -712,36 +669,28 @@ public class RegularRequestHandler
 
         // Add all query parameters
         foreach (var (key, value) in request.Query)
-        {
             if (key != "useTool" && value.Count > 0)
-            {
                 parameters[key] = value[0] ?? string.Empty;
-            }
-        }
 
         // Parse body as JSON and add fields as parameters
         if (!string.IsNullOrWhiteSpace(body))
-        {
             try
             {
-                var jsonDoc = System.Text.Json.JsonDocument.Parse(body);
+                var jsonDoc = JsonDocument.Parse(body);
                 foreach (var property in jsonDoc.RootElement.EnumerateObject())
-                {
                     parameters[property.Name] = property.Value.ValueKind switch
                     {
-                        System.Text.Json.JsonValueKind.String => property.Value.GetString() ?? string.Empty,
-                        System.Text.Json.JsonValueKind.Number => property.Value.GetDouble(),
-                        System.Text.Json.JsonValueKind.True => true,
-                        System.Text.Json.JsonValueKind.False => false,
+                        JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                        JsonValueKind.Number => property.Value.GetDouble(),
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
                         _ => property.Value.GetRawText()
                     };
-                }
             }
-            catch (System.Text.Json.JsonException ex)
+            catch (JsonException ex)
             {
                 _logger.LogWarning(ex, "Failed to parse request body as JSON for tool parameters");
             }
-        }
 
         return parameters;
     }

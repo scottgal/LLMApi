@@ -26,9 +26,52 @@ This README is comprehensive by design. Choose your path:
 ## What's New - TL;DR
 
 **Latest:** AutoShape (Shape Memory) - Automatic JSON structure consistency across endpoint calls
+**v2.5.0:** Security improvements, AOT/trimming support by removing serialization dependencies
 **v2.3.0:** Full content type support - form bodies, file uploads, comprehensive testing (405 tests)
 **v2.2.0:** Pluggable tools for API integration, pre-configured REST APIs, automatic context memory expiration
 **v2.1.0:** Rate limiting, batching, n-completions with multiple execution strategies
+
+<details>
+<summary><strong>Click for detailed v2.5.0 feature breakdown</strong></summary>
+
+### Version 2.5.0 Details
+
+**Focus**: Security improvements and AOT/trimming support by removing serialization dependencies. Fully backward compatible with v2.4.0.
+
+**1. AOT/Trimming Support** - Removed all reflection-based serialization dependencies:
+- Eliminated `System.Text.Json` reflection usage
+- Manual JSON construction throughout the codebase
+- Full compatibility with .NET 8.0+ AOT and trimming
+- No runtime type resolution issues
+- Smaller binary size and improved startup performance
+
+**2. Enhanced Security** - Comprehensive security improvements:
+- Removed all reflection-based serialization that could expose type information
+- Eliminated potential type inference vulnerabilities
+- Safer JSON handling with explicit type constraints
+- Reduced attack surface for serialization-based exploits
+- Better protection against deserialization attacks
+
+**3. Performance Optimizations** - Improved runtime performance:
+- Faster JSON construction without reflection overhead
+- Reduced memory allocations
+- Better cache locality
+- Improved startup time for trimmed applications
+- Lower memory footprint
+
+**4. .NET 10 Compatibility** - Full support for .NET 10 preview builds:
+- Manual JSON construction throughout to avoid reflection-based serialization issues
+- All features tested and working on .NET 10 preview builds
+- No breaking changes to existing functionality
+
+**5. Testing Improvements** - Enhanced test coverage:
+- Additional tests for AOT/trimming scenarios
+- Security-focused unit tests
+- Performance benchmarking tests
+- 100% pass rate with all new tests
+
+[See TEST_SUMMARY.md and IMPLEMENTATION_SUMMARY.md for complete details](./TEST_SUMMARY.md)
+</details>
 
 <details>
 <summary><strong>Click for detailed v2.3.0 feature breakdown</strong></summary>

@@ -9,14 +9,14 @@ using mostlylucid.mockllmapi.Services;
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Management endpoints for the Journeys system.
-/// Provides APIs to manage journey templates and active sessions.
+///     Management endpoints for the Journeys system.
+///     Provides APIs to manage journey templates and active sessions.
 /// </summary>
 public static class JourneyManagementEndpoints
 {
     /// <summary>
-    /// Maps all journey management endpoints under the specified pattern.
-    /// Default pattern: /api/journeys
+    ///     Maps all journey management endpoints under the specified pattern.
+    ///     Default pattern: /api/journeys
     /// </summary>
     public static IEndpointRouteBuilder MapJourneyManagement(
         this IEndpointRouteBuilder endpoints,
@@ -75,7 +75,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// GET /api/journeys/templates - List all journey templates
+    ///     GET /api/journeys/templates - List all journey templates
     /// </summary>
     private static IResult GetAllTemplates(HttpContext context)
     {
@@ -97,7 +97,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// GET /api/journeys/templates/{name} - Get a specific journey template
+    ///     GET /api/journeys/templates/{name} - Get a specific journey template
     /// </summary>
     private static IResult GetTemplate(string name, HttpContext context)
     {
@@ -127,7 +127,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// POST /api/journeys/templates - Create a new journey template
+    ///     POST /api/journeys/templates - Create a new journey template
     /// </summary>
     private static async Task<IResult> CreateTemplate(HttpContext context)
     {
@@ -163,7 +163,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// DELETE /api/journeys/templates/{name} - Delete a journey template
+    ///     DELETE /api/journeys/templates/{name} - Delete a journey template
     /// </summary>
     private static IResult DeleteTemplate(string name, HttpContext context)
     {
@@ -176,7 +176,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// GET /api/journeys/templates/by-modality/{modality} - Get templates by modality
+    ///     GET /api/journeys/templates/by-modality/{modality} - Get templates by modality
     /// </summary>
     private static IResult GetTemplatesByModality(string modality, HttpContext context)
     {
@@ -205,8 +205,8 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// POST /api/journeys/sessions/{sessionId}/start - Start a specific journey for a session
-    /// Body: { "journeyName": "...", "variables": { ... } }
+    ///     POST /api/journeys/sessions/{sessionId}/start - Start a specific journey for a session
+    ///     Body: { "journeyName": "...", "variables": { ... } }
     /// </summary>
     private static async Task<IResult> StartJourney(string sessionId, HttpContext context)
     {
@@ -231,12 +231,14 @@ public static class JourneyManagementEndpoints
                 currentStep = instance.CurrentStepIndex,
                 totalSteps = instance.ResolvedSteps.Count,
                 isComplete = instance.IsComplete,
-                currentStepDetails = instance.CurrentStep != null ? new
-                {
-                    method = instance.CurrentStep.Method,
-                    path = instance.CurrentStep.Path,
-                    description = instance.CurrentStep.Description
-                } : null,
+                currentStepDetails = instance.CurrentStep != null
+                    ? new
+                    {
+                        method = instance.CurrentStep.Method,
+                        path = instance.CurrentStep.Path,
+                        description = instance.CurrentStep.Description
+                    }
+                    : null,
                 variables = instance.Variables
             });
         }
@@ -251,8 +253,8 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// POST /api/journeys/sessions/{sessionId}/start-random - Start a random journey
-    /// Body: { "modality": "Rest", "variables": { ... } } (modality optional)
+    ///     POST /api/journeys/sessions/{sessionId}/start-random - Start a random journey
+    ///     Body: { "modality": "Rest", "variables": { ... } } (modality optional)
     /// </summary>
     private static async Task<IResult> StartRandomJourney(string sessionId, HttpContext context)
     {
@@ -294,12 +296,14 @@ public static class JourneyManagementEndpoints
                 currentStep = instance.CurrentStepIndex,
                 totalSteps = instance.ResolvedSteps.Count,
                 isComplete = instance.IsComplete,
-                currentStepDetails = instance.CurrentStep != null ? new
-                {
-                    method = instance.CurrentStep.Method,
-                    path = instance.CurrentStep.Path,
-                    description = instance.CurrentStep.Description
-                } : null,
+                currentStepDetails = instance.CurrentStep != null
+                    ? new
+                    {
+                        method = instance.CurrentStep.Method,
+                        path = instance.CurrentStep.Path,
+                        description = instance.CurrentStep.Description
+                    }
+                    : null,
                 variables = instance.Variables
             });
         }
@@ -310,7 +314,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// GET /api/journeys/sessions/{sessionId} - Get session status
+    ///     GET /api/journeys/sessions/{sessionId} - Get session status
     /// </summary>
     private static IResult GetSessionStatus(string sessionId, HttpContext context)
     {
@@ -328,12 +332,14 @@ public static class JourneyManagementEndpoints
             currentStep = instance.CurrentStepIndex,
             totalSteps = instance.ResolvedSteps.Count,
             isComplete = instance.IsComplete,
-            currentStepDetails = instance.CurrentStep != null ? new
-            {
-                method = instance.CurrentStep.Method,
-                path = instance.CurrentStep.Path,
-                description = instance.CurrentStep.Description
-            } : null,
+            currentStepDetails = instance.CurrentStep != null
+                ? new
+                {
+                    method = instance.CurrentStep.Method,
+                    path = instance.CurrentStep.Path,
+                    description = instance.CurrentStep.Description
+                }
+                : null,
             allSteps = instance.ResolvedSteps.Select((s, i) => new
             {
                 index = i,
@@ -348,7 +354,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// POST /api/journeys/sessions/{sessionId}/advance - Advance to next step
+    ///     POST /api/journeys/sessions/{sessionId}/advance - Advance to next step
     /// </summary>
     private static IResult AdvanceJourney(string sessionId, HttpContext context)
     {
@@ -365,18 +371,20 @@ public static class JourneyManagementEndpoints
             currentStep = instance.CurrentStepIndex,
             totalSteps = instance.ResolvedSteps.Count,
             isComplete = instance.IsComplete,
-            currentStepDetails = instance.CurrentStep != null ? new
-            {
-                method = instance.CurrentStep.Method,
-                path = instance.CurrentStep.Path,
-                description = instance.CurrentStep.Description
-            } : null,
+            currentStepDetails = instance.CurrentStep != null
+                ? new
+                {
+                    method = instance.CurrentStep.Method,
+                    path = instance.CurrentStep.Path,
+                    description = instance.CurrentStep.Description
+                }
+                : null,
             message = instance.IsComplete ? "Journey completed!" : "Advanced to next step"
         });
     }
 
     /// <summary>
-    /// DELETE /api/journeys/sessions/{sessionId} - End a journey
+    ///     DELETE /api/journeys/sessions/{sessionId} - End a journey
     /// </summary>
     private static IResult EndJourney(string sessionId, HttpContext context)
     {
@@ -389,7 +397,7 @@ public static class JourneyManagementEndpoints
     }
 
     /// <summary>
-    /// GET /api/journeys/status - Get journey system status
+    ///     GET /api/journeys/status - Get journey system status
     /// </summary>
     private static IResult GetJourneySystemStatus(HttpContext context)
     {

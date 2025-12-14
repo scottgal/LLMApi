@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,14 +7,13 @@ using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
 using mostlylucid.mockllmapi.Services.Providers;
-using Xunit;
 
 namespace LLMApi.Tests;
 
 public class SseModeTests
 {
-    private readonly ServiceProvider _serviceProvider;
     private readonly LLMockApiOptions _options;
+    private readonly ServiceProvider _serviceProvider;
 
     public SseModeTests()
     {
@@ -78,7 +76,7 @@ public class SseModeTests
     [InlineData("arrayitems", SseMode.ArrayItems)]
     public void SseMode_ParsesFromString_CaseInsensitive(string input, SseMode expected)
     {
-        var parsed = Enum.Parse<SseMode>(input, ignoreCase: true);
+        var parsed = Enum.Parse<SseMode>(input, true);
         Assert.Equal(expected, parsed);
     }
 
@@ -116,12 +114,12 @@ public class SseModeTests
         var httpContext = new DefaultHttpContext();
         httpContext.Request.QueryString = new QueryString($"?sseMode={mode}");
 
-        var expectedMode = Enum.Parse<SseMode>(mode, ignoreCase: true);
+        var expectedMode = Enum.Parse<SseMode>(mode, true);
 
         // This verifies the query parameter can be parsed correctly
         if (httpContext.Request.Query.TryGetValue("sseMode", out var modeParam))
         {
-            var parsed = Enum.Parse<SseMode>(modeParam.ToString(), ignoreCase: true);
+            var parsed = Enum.Parse<SseMode>(modeParam.ToString(), true);
             Assert.Equal(expectedMode, parsed);
         }
     }
@@ -134,7 +132,7 @@ public class SseModeTests
 
         if (httpContext.Request.Query.TryGetValue("sseMode", out var modeParam))
         {
-            var success = Enum.TryParse<SseMode>(modeParam.ToString(), ignoreCase: true, out var _);
+            var success = Enum.TryParse<SseMode>(modeParam.ToString(), true, out _);
             Assert.False(success); // Should fail to parse invalid mode
         }
     }

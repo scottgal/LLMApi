@@ -1,18 +1,18 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Readers;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Service for loading and parsing OpenAPI specifications from URLs or file paths.
-/// Caches parsed specs for reuse across requests.
+///     Service for loading and parsing OpenAPI specifications from URLs or file paths.
+///     Caches parsed specs for reuse across requests.
 /// </summary>
 public class OpenApiSpecLoader
 {
-    private readonly ILogger<OpenApiSpecLoader> _logger;
     private readonly HttpClient _httpClient;
+    private readonly ILogger<OpenApiSpecLoader> _logger;
     private readonly ConcurrentDictionary<string, OpenApiDocument> _specCache;
 
     public OpenApiSpecLoader(ILogger<OpenApiSpecLoader> logger, IHttpClientFactory httpClientFactory)
@@ -23,8 +23,8 @@ public class OpenApiSpecLoader
     }
 
     /// <summary>
-    /// Loads an OpenAPI specification from a URL or file path.
-    /// Results are cached for subsequent requests.
+    ///     Loads an OpenAPI specification from a URL or file path.
+    ///     Results are cached for subsequent requests.
     /// </summary>
     /// <param name="source">URL or file path to the OpenAPI spec (YAML or JSON)</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -56,10 +56,7 @@ public class OpenApiSpecLoader
             else
             {
                 // Load from file
-                if (!File.Exists(source))
-                {
-                    throw new FileNotFoundException($"OpenAPI spec file not found: {source}");
-                }
+                if (!File.Exists(source)) throw new FileNotFoundException($"OpenAPI spec file not found: {source}");
                 stream = File.OpenRead(source);
             }
 
@@ -106,23 +103,20 @@ public class OpenApiSpecLoader
     }
 
     /// <summary>
-    /// Gets all path definitions from an OpenAPI document.
+    ///     Gets all path definitions from an OpenAPI document.
     /// </summary>
-    public IEnumerable<(string Path, OperationType Method, OpenApiOperation Operation)> GetOperations(OpenApiDocument document)
+    public IEnumerable<(string Path, OperationType Method, OpenApiOperation Operation)> GetOperations(
+        OpenApiDocument document)
     {
         if (document.Paths == null) yield break;
 
         foreach (var path in document.Paths)
-        {
-            foreach (var operation in path.Value.Operations)
-            {
-                yield return (path.Key, operation.Key, operation.Value);
-            }
-        }
+        foreach (var operation in path.Value.Operations)
+            yield return (path.Key, operation.Key, operation.Value);
     }
 
     /// <summary>
-    /// Clears the specification cache.
+    ///     Clears the specification cache.
     /// </summary>
     public void ClearCache()
     {
@@ -131,15 +125,12 @@ public class OpenApiSpecLoader
     }
 
     /// <summary>
-    /// Removes a specific spec from the cache.
+    ///     Removes a specific spec from the cache.
     /// </summary>
     public bool RemoveFromCache(string source)
     {
         var removed = _specCache.TryRemove(source, out _);
-        if (removed)
-        {
-            _logger.LogDebug("Removed OpenAPI spec from cache: {Source}", source);
-        }
+        if (removed) _logger.LogDebug("Removed OpenAPI spec from cache: {Source}", source);
         return removed;
     }
 }

@@ -1,15 +1,15 @@
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using LLMockApiClient.Services;
-using System.Text.Json;
 
 namespace LLMockApiClient.Pages;
 
 public partial class SSEStreamingPage : Page
 {
     private readonly ApiService _apiService;
+    private int _eventCount;
     private SseStreamService? _sseService;
-    private int _eventCount = 0;
 
     public SSEStreamingPage(ApiService apiService)
     {
@@ -30,20 +30,14 @@ public partial class SSEStreamingPage : Page
         app.ActivityIndicator.TriggerActivity(ActivityType.SSE);
 
         var path = PathTextBox.Text?.Trim();
-        if (string.IsNullOrEmpty(path))
-        {
-            path = "products";
-        }
+        if (string.IsNullOrEmpty(path)) path = "products";
 
         var modeItem = ModeComboBox.SelectedItem as ComboBoxItem;
         var mode = modeItem?.Tag?.ToString() ?? "LlmTokens";
         var continuous = ContinuousCheckBox.IsChecked == true;
 
         var endpoint = $"/api/mock/stream/{path}?mode={mode}";
-        if (continuous)
-        {
-            endpoint += "&continuous=true";
-        }
+        if (continuous) endpoint += "&continuous=true";
 
         // Reset UI
         StreamTextBox.Text = "";
@@ -62,11 +56,11 @@ public partial class SSEStreamingPage : Page
         _sseService.StreamEnded += OnSseStreamEnded;
 
         // Start streaming
-        StreamTextBox.Text += $"🔄 Connecting to SSE stream...\n";
+        StreamTextBox.Text += "🔄 Connecting to SSE stream...\n";
         StreamTextBox.Text += $"📡 Endpoint: {endpoint}\n";
         StreamTextBox.Text += $"📦 Mode: {mode}\n";
         StreamTextBox.Text += $"🔁 Continuous: {continuous}\n";
-        StreamTextBox.Text += $"\n--- Stream Started ---\n\n";
+        StreamTextBox.Text += "\n--- Stream Started ---\n\n";
 
         try
         {
@@ -108,9 +102,7 @@ public partial class SSEStreamingPage : Page
 
             // Trim if getting too long (keep last 50000 characters)
             if (StreamTextBox.Text.Length > 50000)
-            {
                 StreamTextBox.Text = StreamTextBox.Text.Substring(StreamTextBox.Text.Length - 50000);
-            }
         });
     }
 
@@ -137,7 +129,7 @@ public partial class SSEStreamingPage : Page
     private void StopStreaming_Click(object sender, RoutedEventArgs e)
     {
         _sseService?.StopStream();
-        StreamTextBox.Text += $"\n⏹️ Stream Stopped by user\n";
+        StreamTextBox.Text += "\n⏹️ Stream Stopped by user\n";
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
     }

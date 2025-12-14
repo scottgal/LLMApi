@@ -1,22 +1,24 @@
-using System.Net.Http;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using Microsoft.AspNetCore.SignalR.Client;
-using LLMockApiClient.Services;
+using System.Windows.Media;
+using System.Windows.Navigation;
 using LLMockApiClient.Models;
-using System.Collections.ObjectModel;
+using LLMockApiClient.Services;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace LLMockApiClient.Pages;
 
 public partial class DashboardPage : Page
 {
     private readonly ApiService _apiService;
-    private HubConnection? _hubConnection;
-    private int _messageCount = 0;
-    private DateTime _sessionStart = DateTime.Now;
     private readonly ObservableCollection<OpenApiEndpointItem> _openApiEndpoints = new();
+    private HubConnection? _hubConnection;
+    private int _messageCount;
     private OpenApiEndpointItem? _selectedEndpoint;
+    private DateTime _sessionStart = DateTime.Now;
 
     public DashboardPage(ApiService apiService)
     {
@@ -56,7 +58,7 @@ public partial class DashboardPage : Page
                 .WithAutomaticReconnect()
                 .Build();
 
-            _hubConnection.On<object>("DataUpdate", (message) =>
+            _hubConnection.On<object>("DataUpdate", message =>
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -76,9 +78,7 @@ public partial class DashboardPage : Page
 
                     // Auto-scroll to bottom
                     if (LiveDataTextBox.Text.Length > 5000)
-                    {
                         LiveDataTextBox.Text = LiveDataTextBox.Text.Substring(LiveDataTextBox.Text.Length - 5000);
-                    }
 
                     UpdateStats();
                 });
@@ -86,10 +86,7 @@ public partial class DashboardPage : Page
 
             _hubConnection.Reconnecting += error =>
             {
-                Dispatcher.Invoke(() =>
-                {
-                    SignalRStatusText.Text = "⚠️ Reconnecting...";
-                });
+                Dispatcher.Invoke(() => { SignalRStatusText.Text = "⚠️ Reconnecting..."; });
                 return Task.CompletedTask;
             };
 
@@ -131,14 +128,14 @@ public partial class DashboardPage : Page
     {
         try
         {
-            var result = await _apiService.CallMockApiAsync("GET", "/health", null, null);
+            var result = await _apiService.CallMockApiAsync("GET", "/health");
             ConnectionStatusText.Text = "✅ Connected";
-            ConnectionStatusText.Foreground = System.Windows.Media.Brushes.Green;
+            ConnectionStatusText.Foreground = Brushes.Green;
         }
         catch
         {
             ConnectionStatusText.Text = "❌ Disconnected";
-            ConnectionStatusText.Foreground = System.Windows.Media.Brushes.Red;
+            ConnectionStatusText.Foreground = Brushes.Red;
         }
     }
 
@@ -146,7 +143,8 @@ public partial class DashboardPage : Page
     private async void TestConnection_Click(object sender, RoutedEventArgs e)
     {
         await TestConnectionAsync();
-        MessageBox.Show("Connection test completed!", "Test Connection", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show("Connection test completed!", "Test Connection", MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private async void QuickSignalR_Click(object sender, RoutedEventArgs e)
@@ -165,13 +163,13 @@ public partial class DashboardPage : Page
         {
             // Create context first
             var createPayload = JsonSerializer.Serialize(new { name = contextName });
-            await _apiService.SendRequestAsync("POST", "/api/signalr/contexts", createPayload, null);
+            await _apiService.SendRequestAsync("POST", "/api/signalr/contexts", createPayload);
 
             AddLiveMessage($"📡 Created SignalR context: {contextName}");
             SignalRQuickStatusText.Text = $"✅ Subscribed to context: {contextName}";
 
             // Subscribe to the context via SignalR
-            if (_hubConnection?.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected)
+            if (_hubConnection?.State == HubConnectionState.Connected)
             {
                 await _hubConnection.InvokeAsync("SubscribeToContext", contextName);
                 AddLiveMessage($"🔔 Listening for updates on: {contextName}");
@@ -208,7 +206,7 @@ public partial class DashboardPage : Page
             // Full SSE implementation would require background task with HttpClient streaming
             var sampleUrl = $"{_apiService.BaseUrl}/api/mock/stream/{path}?mode={mode}";
             SSEStatusText.Text = $"✅ Would stream from: {sampleUrl}";
-            AddLiveMessage($"💡 Full SSE streaming available on SSE page");
+            AddLiveMessage("💡 Full SSE streaming available on SSE page");
         }
         catch (Exception ex)
         {
@@ -235,7 +233,7 @@ public partial class DashboardPage : Page
             OpenApiStatusText.Text = $"📥 Loading spec from {specUrl}...";
 
             var payload = JsonSerializer.Serialize(new { url = specUrl });
-            var response = await _apiService.SendRequestAsync("POST", "/api/openapi/load", payload, null);
+            var response = await _apiService.SendRequestAsync("POST", "/api/openapi/load", payload);
 
             var doc = JsonDocument.Parse(response);
 
@@ -244,7 +242,6 @@ public partial class DashboardPage : Page
 
             // Parse and add endpoints
             if (doc.RootElement.TryGetProperty("endpoints", out var endpoints))
-            {
                 foreach (var endpoint in endpoints.EnumerateArray())
                 {
                     var method = endpoint.GetProperty("method").GetString() ?? "GET";
@@ -260,7 +257,6 @@ public partial class DashboardPage : Page
                         Summary = summary
                     });
                 }
-            }
 
             OpenApiStatusText.Text = $"✅ Loaded! Found {_openApiEndpoints.Count} endpoint(s) - Select one to test";
             OpenApiEndpointsPanel.Visibility = Visibility.Visible;
@@ -303,7 +299,7 @@ public partial class DashboardPage : Page
             OpenApiResultViewer.Visibility = Visibility.Visible;
 
             var fullPath = $"/api/openapi{_selectedEndpoint.Path}";
-            var response = await _apiService.SendRequestAsync(_selectedEndpoint.Method, fullPath, null, null);
+            var response = await _apiService.SendRequestAsync(_selectedEndpoint.Method, fullPath);
 
             OpenApiResultViewer.SetJson(response);
             AddLiveMessage($"📋 OpenAPI test: {_selectedEndpoint.Method} {_selectedEndpoint.Path} → Success");
@@ -334,7 +330,7 @@ public partial class DashboardPage : Page
         {
             QuickApiResultViewer.Text = $"Sending {method} {path}...";
 
-            var response = await _apiService.CallMockApiAsync(method, $"/api/mock{path}", null, null);
+            var response = await _apiService.CallMockApiAsync(method, $"/api/mock{path}");
 
             // Use JsonViewer to display with syntax highlighting
             QuickApiResultViewer.SetJson(response);
@@ -356,11 +352,11 @@ public partial class DashboardPage : Page
         AddLiveMessage("🗑️ Log cleared");
     }
 
-    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            Process.Start(new ProcessStartInfo
             {
                 FileName = e.Uri.AbsoluteUri,
                 UseShellExecute = true

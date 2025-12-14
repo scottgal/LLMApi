@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Text.Json;
 using LLMockApiClient.Services;
 
 namespace LLMockApiClient.Pages;
@@ -58,7 +58,8 @@ public partial class PlayWithApisPage : Page
             try
             {
                 var jsonDoc = JsonDocument.Parse(response);
-                ResponseTextBox.Text = JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
+                ResponseTextBox.Text =
+                    JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
             }
             catch
             {
@@ -81,14 +82,12 @@ public partial class PlayWithApisPage : Page
             BodyTextBox.Text = item.Body;
 
             // Set method
-            for (int i = 0; i < MethodComboBox.Items.Count; i++)
-            {
+            for (var i = 0; i < MethodComboBox.Items.Count; i++)
                 if (((ComboBoxItem)MethodComboBox.Items[i]).Content.ToString() == item.Method)
                 {
                     MethodComboBox.SelectedIndex = i;
                     break;
                 }
-            }
         }
     }
 

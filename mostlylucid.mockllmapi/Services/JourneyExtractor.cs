@@ -4,16 +4,16 @@ using Microsoft.AspNetCore.Http;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Extracts journey name from requests (query param, header, or body).
-/// Similar to ContextExtractor but for journey specification.
+///     Extracts journey name from requests (query param, header, or body).
+///     Similar to ContextExtractor but for journey specification.
 /// </summary>
 public class JourneyExtractor
 {
     /// <summary>
-    /// Extracts journey name from the request using precedence:
-    /// 1. Query parameter (journey)
-    /// 2. Header (X-Journey)
-    /// 3. Body property (journey)
+    ///     Extracts journey name from the request using precedence:
+    ///     1. Query parameter (journey)
+    ///     2. Header (X-Journey)
+    ///     3. Body property (journey)
     /// </summary>
     public string? ExtractJourneyName(HttpRequest request, string? body)
     {
@@ -37,32 +37,28 @@ public class JourneyExtractor
         if (!string.IsNullOrWhiteSpace(body) &&
             request.ContentType != null &&
             request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                {
                     if (doc.RootElement.TryGetProperty("journey", out var journeyNode))
                     {
                         var val = journeyNode.GetString();
                         if (!string.IsNullOrWhiteSpace(val))
                             return val;
                     }
-                }
             }
             catch
             {
                 // Ignore JSON parse errors
             }
-        }
 
         return null;
     }
 
     /// <summary>
-    /// Extracts journey modality filter from the request (for random journey selection).
-    /// Precedence: query param (journeyModality) > header (X-Journey-Modality)
+    ///     Extracts journey modality filter from the request (for random journey selection).
+    ///     Precedence: query param (journeyModality) > header (X-Journey-Modality)
     /// </summary>
     public string? ExtractJourneyModality(HttpRequest request)
     {
@@ -86,8 +82,8 @@ public class JourneyExtractor
     }
 
     /// <summary>
-    /// Extracts whether to start a random journey if no journey is active.
-    /// Query param: journeyRandom=true or header: X-Journey-Random: true
+    ///     Extracts whether to start a random journey if no journey is active.
+    ///     Query param: journeyRandom=true or header: X-Journey-Random: true
     /// </summary>
     public bool ExtractJourneyRandom(HttpRequest request)
     {
@@ -109,10 +105,10 @@ public class JourneyExtractor
     }
 
     /// <summary>
-    /// Extracts journey ID from the request. This is a unique identifier for tracking
-    /// a specific journey instance across requests. Multiple journeys can run concurrently
-    /// by using different IDs.
-    /// Precedence: query param (journeyId) > header (X-Journey-Id) > body property (journeyId)
+    ///     Extracts journey ID from the request. This is a unique identifier for tracking
+    ///     a specific journey instance across requests. Multiple journeys can run concurrently
+    ///     by using different IDs.
+    ///     Precedence: query param (journeyId) > header (X-Journey-Id) > body property (journeyId)
     /// </summary>
     public string? ExtractJourneyId(HttpRequest request, string? body)
     {
@@ -136,32 +132,28 @@ public class JourneyExtractor
         if (!string.IsNullOrWhiteSpace(body) &&
             request.ContentType != null &&
             request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                {
                     if (doc.RootElement.TryGetProperty("journeyId", out var idNode))
                     {
                         var val = idNode.GetString();
                         if (!string.IsNullOrWhiteSpace(val))
                             return val;
                     }
-                }
             }
             catch
             {
                 // Ignore JSON parse errors
             }
-        }
 
         return null;
     }
 
     /// <summary>
-    /// Generates a new unique journey ID.
-    /// Format: "jrn_{timestamp}_{random}" for readability and uniqueness.
+    ///     Generates a new unique journey ID.
+    ///     Format: "jrn_{timestamp}_{random}" for readability and uniqueness.
     /// </summary>
     public static string GenerateJourneyId()
     {

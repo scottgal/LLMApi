@@ -3,12 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace mostlylucid.mockllmapi.Testing;
 
 /// <summary>
-/// Extension methods for creating and configuring HttpClient instances with mock LLM API support
+///     Extension methods for creating and configuring HttpClient instances with mock LLM API support
 /// </summary>
 public static class HttpClientExtensions
 {
     /// <summary>
-    /// Creates an HttpClient configured for mock LLM API testing
+    ///     Creates an HttpClient configured for mock LLM API testing
     /// </summary>
     /// <param name="baseAddress">Base address for the API (e.g., "http://localhost:5116")</param>
     /// <param name="baseApiPath">Base API path for mock endpoints (e.g., "/api/mock")</param>
@@ -31,7 +31,7 @@ public static class HttpClientExtensions
     }
 
     /// <summary>
-    /// Creates an HttpClient configured for mock LLM API testing with a single endpoint
+    ///     Creates an HttpClient configured for mock LLM API testing with a single endpoint
     /// </summary>
     /// <param name="baseAddress">Base address for the API (e.g., "http://localhost:5116")</param>
     /// <param name="pathPattern">Path pattern for the endpoint (e.g., "/users")</param>
@@ -56,7 +56,7 @@ public static class HttpClientExtensions
     }
 
     /// <summary>
-    /// Adds a typed HttpClient with mock LLM API support to the service collection
+    ///     Adds a typed HttpClient with mock LLM API support to the service collection
     /// </summary>
     public static IHttpClientBuilder AddMockLlmHttpClient<TClient>(
         this IServiceCollection services,
@@ -74,7 +74,7 @@ public static class HttpClientExtensions
     }
 
     /// <summary>
-    /// Adds a named HttpClient with mock LLM API support to the service collection
+    ///     Adds a named HttpClient with mock LLM API support to the service collection
     /// </summary>
     public static IHttpClientBuilder AddMockLlmHttpClient(
         this IServiceCollection services,

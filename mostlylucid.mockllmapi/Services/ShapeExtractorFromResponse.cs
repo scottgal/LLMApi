@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Extracts JSON structure/shape from response data for autoshape memory.
-/// Converts actual data into a template shape that can guide future responses.
+///     Extracts JSON structure/shape from response data for autoshape memory.
+///     Converts actual data into a template shape that can guide future responses.
 /// </summary>
 public class ShapeExtractorFromResponse
 {
@@ -18,7 +18,7 @@ public class ShapeExtractorFromResponse
     }
 
     /// <summary>
-    /// Extracts a JSON shape from a response string.
+    ///     Extracts a JSON shape from a response string.
     /// </summary>
     /// <param name="jsonResponse">The JSON response to extract shape from</param>
     /// <returns>A simplified JSON shape template, or null if extraction fails</returns>
@@ -33,18 +33,13 @@ public class ShapeExtractorFromResponse
         try
         {
             using var doc = JsonDocument.Parse(jsonResponse);
-            var shape = ExtractShapeFromElement(doc.RootElement);
+            var shapeJson = ExtractShapeAsJson(doc.RootElement);
 
-            if (shape == null)
+            if (shapeJson == null)
             {
                 _logger.LogDebug("Failed to extract shape from response");
                 return null;
             }
-
-            var shapeJson = JsonSerializer.Serialize(shape, new JsonSerializerOptions
-            {
-                WriteIndented = false // Compact format for storage
-            });
 
             _logger.LogDebug("Extracted shape from response: {Shape}", shapeJson);
             return shapeJson;
@@ -62,87 +57,138 @@ public class ShapeExtractorFromResponse
     }
 
     /// <summary>
-    /// Recursively extracts shape from a JSON element.
+    ///     Extracts shape directly as JSON string without using reflection-based serialization.
     /// </summary>
-    private object? ExtractShapeFromElement(JsonElement element)
+    private string? ExtractShapeAsJson(JsonElement element)
     {
-        return element.ValueKind switch
-        {
-            JsonValueKind.Object => ExtractObjectShape(element),
-            JsonValueKind.Array => ExtractArrayShape(element),
-            JsonValueKind.String => "",
-            JsonValueKind.Number => DetermineNumberType(element),
-            JsonValueKind.True or JsonValueKind.False => true,
-            JsonValueKind.Null => null,
-            _ => null
-        };
+        var sb = new StringBuilder();
+        if (WriteShapeToBuilder(element, sb))
+            return sb.ToString();
+        return null;
     }
 
     /// <summary>
-    /// Extracts shape from an object by creating a template with all properties.
+    ///     Writes the shape of a JSON element to a StringBuilder.
     /// </summary>
-    private Dictionary<string, object?>? ExtractObjectShape(JsonElement element)
+    private bool WriteShapeToBuilder(JsonElement element, StringBuilder sb)
     {
-        var shape = new Dictionary<string, object?>();
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                return WriteObjectShape(element, sb);
+            case JsonValueKind.Array:
+                return WriteArrayShape(element, sb);
+            case JsonValueKind.String:
+                sb.Append("\"\"");
+                return true;
+            case JsonValueKind.Number:
+                WriteNumberShape(element, sb);
+                return true;
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                sb.Append("true");
+                return true;
+            case JsonValueKind.Null:
+                sb.Append("null");
+                return true;
+            default:
+                return false;
+        }
+    }
 
+    /// <summary>
+    ///     Writes an object shape to the StringBuilder.
+    /// </summary>
+    private bool WriteObjectShape(JsonElement element, StringBuilder sb)
+    {
+        sb.Append('{');
+        var first = true;
+        
         foreach (var property in element.EnumerateObject())
         {
-            var propertyShape = ExtractShapeFromElement(property.Value);
-            shape[property.Name] = propertyShape;
+            if (!first) sb.Append(',');
+            first = false;
+            
+            sb.Append('"');
+            sb.Append(EscapeJsonString(property.Name));
+            sb.Append("\":");
+            
+            if (!WriteShapeToBuilder(property.Value, sb))
+                sb.Append("null");
         }
-
-        return shape.Count > 0 ? shape : null;
+        
+        sb.Append('}');
+        return true;
     }
 
     /// <summary>
-    /// Extracts shape from an array by using the first item as a template.
-    /// For arrays of objects, extracts the object shape. For primitive arrays, uses a sample value.
+    ///     Writes an array shape to the StringBuilder (uses first item as template).
     /// </summary>
-    private object[]? ExtractArrayShape(JsonElement element)
+    private bool WriteArrayShape(JsonElement element, StringBuilder sb)
     {
+        sb.Append('[');
+        
         var arrayLength = element.GetArrayLength();
-
-        if (arrayLength == 0)
+        if (arrayLength > 0)
         {
-            // Empty array - return a generic array indicator
-            return Array.Empty<object>();
+            var firstItem = element.EnumerateArray().First();
+            WriteShapeToBuilder(firstItem, sb);
         }
-
-        // Use the first item as the template
-        var firstItem = element.EnumerateArray().First();
-        var itemShape = ExtractShapeFromElement(firstItem);
-
-        if (itemShape == null)
-        {
-            return Array.Empty<object>();
-        }
-
-        // Return an array with a single template item
-        return new[] { itemShape };
+        
+        sb.Append(']');
+        return true;
     }
 
     /// <summary>
-    /// Determines whether a number should be represented as integer (0) or decimal (0.0).
+    ///     Writes a number shape (0 for integers, 0.0 for decimals).
     /// </summary>
-    private object DetermineNumberType(JsonElement element)
+    private void WriteNumberShape(JsonElement element, StringBuilder sb)
     {
-        // Try to get as decimal to check for fractional part
         if (element.TryGetDecimal(out var decimalValue))
         {
-            // If it has a fractional part, use 0.0 as template
             if (decimalValue != Math.Floor(decimalValue))
             {
-                return 0.0;
+                sb.Append("0.0");
+                return;
             }
         }
-
-        // Otherwise, use 0 as template (integer)
-        return 0;
+        sb.Append('0');
     }
 
     /// <summary>
-    /// Validates if a response is suitable for shape extraction.
-    /// Returns false for error responses or malformed data.
+    ///     Escapes a string for JSON output.
+    /// </summary>
+    private static string EscapeJsonString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        var sb = new StringBuilder();
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\b': sb.Append("\\b"); break;
+                case '\f': sb.Append("\\f"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < ' ')
+                        sb.Append($"\\u{(int)c:X4}");
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    ///     Validates if a response is suitable for shape extraction.
+    ///     Returns false for error responses or malformed data.
     /// </summary>
     public bool IsValidForShapeExtraction(string jsonResponse)
     {
@@ -160,21 +206,15 @@ public class ShapeExtractorFromResponse
                 // Check for common error indicators
                 if (root.TryGetProperty("error", out _) &&
                     !root.TryGetProperty("data", out _)) // Allow GraphQL responses with both
-                {
                     return false;
-                }
 
                 if (root.TryGetProperty("errors", out var errorsArray) &&
                     errorsArray.ValueKind == JsonValueKind.Array)
-                {
                     return false;
-                }
 
                 if (root.TryGetProperty("message", out _) &&
                     root.TryGetProperty("statusCode", out _))
-                {
                     return false;
-                }
             }
 
             return true;

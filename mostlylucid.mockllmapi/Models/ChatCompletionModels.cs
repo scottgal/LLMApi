@@ -3,12 +3,11 @@ using System.Text.Json.Serialization;
 namespace mostlylucid.mockllmapi.Models;
 
 /// <summary>
-/// Lightweight chat completion response structure
+///     Lightweight chat completion response structure
 /// </summary>
 internal struct ChatCompletionLite
 {
-    [JsonPropertyName("choices")]
-    public ChoiceLite[] Choices { get; set; }
+    [JsonPropertyName("choices")] public ChoiceLite[] Choices { get; set; }
 
     [JsonIgnore]
     public string? FirstContent => Choices != null && Choices.Length > 0
@@ -18,19 +17,17 @@ internal struct ChatCompletionLite
 
 internal struct ChoiceLite
 {
-    [JsonPropertyName("message")]
-    public MessageLite Message { get; set; }
+    [JsonPropertyName("message")] public MessageLite Message { get; set; }
 }
 
 internal struct MessageLite
 {
-    [JsonPropertyName("content")]
-    public string Content { get; set; }
+    [JsonPropertyName("content")] public string Content { get; set; }
 }
 
 /// <summary>
-/// Source-generated JSON serialization context for chat completion models.
-/// AOT and trimming-friendly for .NET 10+.
+///     Source-generated JSON serialization context for chat completion models.
+///     AOT and trimming-friendly for .NET 10+.
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

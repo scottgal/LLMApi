@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace mostlylucid.mockllmapi.Hubs;
 
 /// <summary>
-/// SignalR hub for OpenAPI spec management real-time updates
+///     SignalR hub for OpenAPI spec management real-time updates
 /// </summary>
 public class OpenApiHub : Hub
 {
@@ -28,7 +28,7 @@ public class OpenApiHub : Hub
     }
 
     /// <summary>
-    /// Broadcasts spec loaded event to all clients
+    ///     Broadcasts spec loaded event to all clients
     /// </summary>
     public async Task NotifySpecLoaded(string specName, int endpointCount)
     {
@@ -41,7 +41,7 @@ public class OpenApiHub : Hub
     }
 
     /// <summary>
-    /// Broadcasts spec deleted event to all clients
+    ///     Broadcasts spec deleted event to all clients
     /// </summary>
     public async Task NotifySpecDeleted(string specName)
     {
@@ -53,7 +53,7 @@ public class OpenApiHub : Hub
     }
 
     /// <summary>
-    /// Broadcasts spec reloaded event to all clients
+    ///     Broadcasts spec reloaded event to all clients
     /// </summary>
     public async Task NotifySpecReloaded(string specName, int endpointCount)
     {
@@ -66,7 +66,7 @@ public class OpenApiHub : Hub
     }
 
     /// <summary>
-    /// Broadcasts endpoint test result to all clients
+    ///     Broadcasts endpoint test result to all clients
     /// </summary>
     public async Task NotifyEndpointTested(string specName, string path, string method, bool success)
     {

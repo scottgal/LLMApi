@@ -1,8 +1,11 @@
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using LLMockApiClient.Models;
 using LLMockApiClient.Services;
+using Microsoft.Win32;
 
 namespace LLMockApiClient;
 
@@ -53,7 +56,9 @@ public partial class SettingsDialog : Window
                 return JsonSerializer.Deserialize<AppConfiguration>(json) ?? CreateDefaultConfig();
             }
         }
-        catch { }
+        catch
+        {
+        }
 
         return CreateDefaultConfig();
     }
@@ -104,14 +109,12 @@ public partial class SettingsDialog : Window
             var editor = new BackendEditorDialog(backend);
             editor.Owner = this;
 
-            if (editor.ShowDialog() == true)
-            {
-                RefreshBackendLists();
-            }
+            if (editor.ShowDialog() == true) RefreshBackendLists();
         }
         else
         {
-            MessageBox.Show("Please select a backend to edit", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Please select a backend to edit", "No Selection", MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
     }
 
@@ -121,12 +124,10 @@ public partial class SettingsDialog : Window
         ActiveBackendComboBox.Items.Refresh();
     }
 
-    private void ActiveBackend_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ActiveBackend_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActiveBackendComboBox.SelectedItem is BackendConfiguration backend)
-        {
             _config.SelectedBackendName = backend.Name;
-        }
     }
 
     private void RemoveBackend_Click(object sender, RoutedEventArgs e)
@@ -148,19 +149,18 @@ public partial class SettingsDialog : Window
     {
         try
         {
-            var button = sender as System.Windows.Controls.Button;
+            var button = sender as Button;
             if (button != null)
             {
                 button.IsEnabled = false;
                 button.Content = "🔄 Refreshing...";
             }
 
-            var results = new System.Text.StringBuilder();
+            var results = new StringBuilder();
             results.AppendLine("Model Discovery Results:\n");
             var anyModelsFound = false;
 
             foreach (var backend in _config.Backends.Where(b => b.IsEnabled))
-            {
                 if (backend.Provider == "ollama" || backend.Provider == "lmstudio")
                 {
                     results.AppendLine($"🔍 Scanning {backend.Name} ({backend.BaseUrl})...");
@@ -186,12 +186,11 @@ public partial class SettingsDialog : Window
                     }
                     else
                     {
-                        results.AppendLine($"❌ No models found or connection failed\n");
+                        results.AppendLine("❌ No models found or connection failed\n");
                     }
 
                     results.AppendLine();
                 }
-            }
 
             BackendsListBox.Items.Refresh();
 
@@ -210,7 +209,8 @@ public partial class SettingsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error refreshing models: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error refreshing models: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -220,11 +220,12 @@ public partial class SettingsDialog : Window
         {
             if (Application.Current is not App app || !app.TrafficMonitor.Entries.Any())
             {
-                MessageBox.Show("No traffic data to export!", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No traffic data to export!", "Export", MessageBoxButton.OK,
+                    MessageBoxImage.Information);
                 return;
             }
 
-            var saveDialog = new Microsoft.Win32.SaveFileDialog
+            var saveDialog = new SaveFileDialog
             {
                 Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*",
                 FileName = $"traffic-log-{DateTime.Now:yyyy-MM-dd-HHmmss}.csv",
@@ -246,15 +247,18 @@ public partial class SettingsDialog : Window
                     var responseBody = EscapeCsv(entry.ResponseBody ?? "");
                     var duration = entry.Duration.TotalMilliseconds;
 
-                    writer.WriteLine($"\"{timestamp}\",\"{entry.Method}\",\"{entry.Url}\",{entry.StatusCode},{duration:F2},\"{requestBody}\",\"{responseBody}\"");
+                    writer.WriteLine(
+                        $"\"{timestamp}\",\"{entry.Method}\",\"{entry.Url}\",{entry.StatusCode},{duration:F2},\"{requestBody}\",\"{responseBody}\"");
                 }
 
-                MessageBox.Show($"Traffic log exported to:\n{saveDialog.FileName}", "Export Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Traffic log exported to:\n{saveDialog.FileName}", "Export Successful",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error exporting traffic log: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error exporting traffic log: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 

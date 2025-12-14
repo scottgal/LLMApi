@@ -1,3 +1,4 @@
+using System.Text.Json;
 using mostlylucid.mockllmapi.Services;
 
 namespace LLMApi.Tests;
@@ -11,11 +12,11 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "id": 1,
-            "name": "test"
-        }
-        """;
+                    {
+                        "id": 1,
+                        "name": "test"
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -30,11 +31,11 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        [
-            {"id": 1},
-            {"id": 2}
-        ]
-        """;
+                    [
+                        {"id": 1},
+                        {"id": 2}
+                    ]
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -53,16 +54,16 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        Here's the JSON you requested:
-        ```json
-        {
-            "users": [
-                {"id": 1, "name": "Alice"}
-            ]
-        }
-        ```
-        Hope this helps!
-        """;
+                    Here's the JSON you requested:
+                    ```json
+                    {
+                        "users": [
+                            {"id": 1, "name": "Alice"}
+                        ]
+                    }
+                    ```
+                    Hope this helps!
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -79,13 +80,13 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        ```
-        {
-            "id": 1,
-            "value": "test"
-        }
-        ```
-        """;
+                    ```
+                    {
+                        "id": 1,
+                        "value": "test"
+                    }
+                    ```
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -101,16 +102,16 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        First block:
-        ```json
-        {"id": 1}
-        ```
+                    First block:
+                    ```json
+                    {"id": 1}
+                    ```
 
-        Second block:
-        ```json
-        {"id": 2}
-        ```
-        """;
+                    Second block:
+                    ```json
+                    {"id": 2}
+                    ```
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -130,11 +131,11 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        Here is your data:
-        {
-            "result": "success"
-        }
-        """;
+                    Here is your data:
+                    {
+                        "result": "success"
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -149,11 +150,11 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "status": "ok"
-        }
-        This is some trailing text.
-        """;
+                    {
+                        "status": "ok"
+                    }
+                    This is some trailing text.
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -168,12 +169,12 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        Prefix text
-        {
-            "data": "value"
-        }
-        Suffix text
-        """;
+                    Prefix text
+                    {
+                        "data": "value"
+                    }
+                    Suffix text
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -232,14 +233,14 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "outer": {
-                "inner": {
-                    "value": "nested"
-                }
-            }
-        }
-        """;
+                    {
+                        "outer": {
+                            "inner": {
+                                "value": "nested"
+                            }
+                        }
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -255,10 +256,10 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "template": "Hello {name}, welcome to {place}!"
-        }
-        """;
+                    {
+                        "template": "Hello {name}, welcome to {place}!"
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -274,10 +275,10 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "message": "She said \"hello\" to me"
-        }
-        """;
+                    {
+                        "message": "She said \"hello\" to me"
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -296,27 +297,27 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        I've generated the following GraphQL response for your query:
+                    I've generated the following GraphQL response for your query:
 
-        ```json
-        {
-            "users": [
-                {
-                    "id": 1,
-                    "name": "Alice Smith",
-                    "email": "alice@example.com"
-                },
-                {
-                    "id": 2,
-                    "name": "Bob Jones",
-                    "email": "bob@example.com"
-                }
-            ]
-        }
-        ```
+                    ```json
+                    {
+                        "users": [
+                            {
+                                "id": 1,
+                                "name": "Alice Smith",
+                                "email": "alice@example.com"
+                            },
+                            {
+                                "id": 2,
+                                "name": "Bob Jones",
+                                "email": "bob@example.com"
+                            }
+                        ]
+                    }
+                    ```
 
-        This includes realistic user data with varied names and email addresses.
-        """;
+                    This includes realistic user data with varied names and email addresses.
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -334,11 +335,11 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        {
-            "description": "Line 1\nLine 2\nLine 3",
-            "id": 1
-        }
-        """;
+                    {
+                        "description": "Line 1\nLine 2\nLine 3",
+                        "id": 1
+                    }
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -353,17 +354,17 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        Some prefix text
-        {
-            "items": [1, 2, 3, 4, 5],
-            "names": ["Alice", "Bob", "Carol"],
-            "nested": [
-                {"id": 1},
-                {"id": 2}
-            ]
-        }
-        Some suffix text
-        """;
+                    Some prefix text
+                    {
+                        "items": [1, 2, 3, 4, 5],
+                        "names": ["Alice", "Bob", "Carol"],
+                        "nested": [
+                            {"id": 1},
+                            {"id": 2}
+                        ]
+                    }
+                    Some suffix text
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
@@ -392,7 +393,7 @@ public class JsonExtractorTests
         // Assert - Should extract the first complete valid JSON object
         Assert.Contains("\"id\"", result);
         // The result should be valid JSON
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        var parsed = JsonDocument.Parse(result);
         Assert.NotNull(parsed);
     }
 
@@ -415,17 +416,17 @@ public class JsonExtractorTests
     {
         // Arrange - Complex JSON with escaped quotes that could confuse simple parsing
         var input = """
-        Prefix {
-            "text": "He said \"hello\" and she said \"goodbye\"",
-            "count": 5
-        } suffix
-        """;
+                    Prefix {
+                        "text": "He said \"hello\" and she said \"goodbye\"",
+                        "count": 5
+                    } suffix
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
 
         // Assert
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
+        var parsed = JsonDocument.Parse(result);
         Assert.NotNull(parsed);
         Assert.Contains("\"text\"", result);
         Assert.Contains("\\\"hello\\\"", result);
@@ -436,16 +437,16 @@ public class JsonExtractorTests
     {
         // Arrange
         var input = """
-        The response is: [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-        End of response.
-        """;
+                    The response is: [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+                    End of response.
+                    """;
 
         // Act
         var result = JsonExtractor.ExtractJson(input);
 
         // Assert - Should extract the complete array, not just first object
-        var parsed = System.Text.Json.JsonDocument.Parse(result);
-        Assert.Equal(System.Text.Json.JsonValueKind.Array, parsed.RootElement.ValueKind);
+        var parsed = JsonDocument.Parse(result);
+        Assert.Equal(JsonValueKind.Array, parsed.RootElement.ValueKind);
         Assert.Equal(2, parsed.RootElement.GetArrayLength());
     }
 

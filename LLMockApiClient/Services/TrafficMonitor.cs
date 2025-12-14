@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using LLMockApiClient.Models;
 
 namespace LLMockApiClient.Services;
@@ -8,7 +9,8 @@ public class TrafficMonitor
     public ObservableCollection<TrafficLogEntry> Entries { get; } = new();
     public event EventHandler<TrafficLogEntry>? NewEntry;
 
-    public void LogRequest(string method, string url, string? requestBody, string? responseBody, int statusCode, TimeSpan duration)
+    public void LogRequest(string method, string url, string? requestBody, string? responseBody, int statusCode,
+        TimeSpan duration)
     {
         var entry = new TrafficLogEntry
         {
@@ -21,7 +23,7 @@ public class TrafficMonitor
             Duration = duration
         };
 
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Application.Current.Dispatcher.Invoke(() =>
         {
             Entries.Insert(0, entry);
 
@@ -35,6 +37,6 @@ public class TrafficMonitor
 
     public void Clear()
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() => Entries.Clear());
+        Application.Current.Dispatcher.Invoke(() => Entries.Clear());
     }
 }

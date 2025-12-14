@@ -7,19 +7,19 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages active journey instances for sessions. Handles:
-/// - Creating new journey instances from templates
-/// - Resolving template variables ({{...}})
-/// - Tracking step progression
-/// - Session-to-journey mapping with auto-expiration
+///     Manages active journey instances for sessions. Handles:
+///     - Creating new journey instances from templates
+///     - Resolving template variables ({{...}})
+///     - Tracking step progression
+///     - Session-to-journey mapping with auto-expiration
 /// </summary>
 public class JourneySessionManager
 {
+    private static readonly Regex TemplateTokenRegex = new(@"\{\{(\w+)\}\}", RegexOptions.Compiled);
+    private readonly IMemoryCache _cache;
+    private readonly JourneyRegistry _journeyRegistry;
     private readonly ILogger<JourneySessionManager> _logger;
     private readonly IOptionsMonitor<LLMockApiOptions> _options;
-    private readonly JourneyRegistry _journeyRegistry;
-    private readonly IMemoryCache _cache;
-    private static readonly Regex TemplateTokenRegex = new(@"\{\{(\w+)\}\}", RegexOptions.Compiled);
 
     public JourneySessionManager(
         ILogger<JourneySessionManager> logger,
@@ -33,7 +33,10 @@ public class JourneySessionManager
         _cache = cache;
     }
 
-    private string GetCacheKey(string sessionId) => $"journey:session:{sessionId}";
+    private string GetCacheKey(string sessionId)
+    {
+        return $"journey:session:{sessionId}";
+    }
 
     private TimeSpan GetExpiration()
     {
@@ -42,7 +45,7 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Gets the active journey instance for a session, if any.
+    ///     Gets the active journey instance for a session, if any.
     /// </summary>
     public JourneyInstance? GetJourneyForSession(string sessionId)
     {
@@ -53,7 +56,7 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Creates a new journey instance for a session using a specific journey template.
+    ///     Creates a new journey instance for a session using a specific journey template.
     /// </summary>
     public JourneyInstance CreateJourneyInstance(
         string sessionId,
@@ -61,13 +64,13 @@ public class JourneySessionManager
         Dictionary<string, string>? variables = null)
     {
         var template = _journeyRegistry.GetJourney(journeyName)
-            ?? throw new ArgumentException($"Journey '{journeyName}' not found.", nameof(journeyName));
+                       ?? throw new ArgumentException($"Journey '{journeyName}' not found.", nameof(journeyName));
 
         return CreateJourneyInstance(sessionId, template, variables);
     }
 
     /// <summary>
-    /// Creates a new journey instance for a session using a journey template.
+    ///     Creates a new journey instance for a session using a journey template.
     /// </summary>
     public JourneyInstance CreateJourneyInstance(
         string sessionId,
@@ -82,16 +85,12 @@ public class JourneySessionManager
 
         var defaultVars = _options.CurrentValue.Journeys?.DefaultVariables;
         if (defaultVars != null)
-        {
             foreach (var kvp in defaultVars)
                 mergedVariables[kvp.Key] = kvp.Value;
-        }
 
         if (variables != null)
-        {
             foreach (var kvp in variables)
                 mergedVariables[kvp.Key] = kvp.Value;
-        }
 
         // Add session ID as a variable
         mergedVariables["sessionId"] = sessionId;
@@ -107,7 +106,7 @@ public class JourneySessionManager
             template,
             mergedVariables,
             resolvedSteps,
-            CurrentStepIndex: 0);
+            0);
 
         // Store in cache
         var cacheOptions = new MemoryCacheEntryOptions()
@@ -123,7 +122,7 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Creates a journey instance for a session by selecting a random journey.
+    ///     Creates a journey instance for a session by selecting a random journey.
     /// </summary>
     public JourneyInstance? CreateRandomJourneyInstance(
         string sessionId,
@@ -141,7 +140,7 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Advances the journey to the next step.
+    ///     Advances the journey to the next step.
     /// </summary>
     public JourneyInstance? AdvanceJourney(string sessionId)
     {
@@ -174,8 +173,8 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Resolves the step that matches a given HTTP request path and method.
-    /// Returns the matching step or null if no match found.
+    ///     Resolves the step that matches a given HTTP request path and method.
+    ///     Returns the matching step or null if no match found.
     /// </summary>
     public JourneyStepTemplate? ResolveStepForRequest(
         JourneyInstance instance,
@@ -205,7 +204,7 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Ends a journey for a session.
+    ///     Ends a journey for a session.
     /// </summary>
     public bool EndJourney(string sessionId)
     {
@@ -224,10 +223,11 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Gets all active journey sessions (for management APIs).
-    /// Note: This is limited by what's in cache and may not be complete.
+    ///     Gets all active journey sessions (for management APIs).
+    ///     Note: This is limited by what's in cache and may not be complete.
     /// </summary>
-    public IReadOnlyList<(string SessionId, string JourneyName, int CurrentStep, int TotalSteps, bool IsComplete)> GetActiveSessions()
+    public IReadOnlyList<(string SessionId, string JourneyName, int CurrentStep, int TotalSteps, bool IsComplete)>
+        GetActiveSessions()
     {
         // Note: IMemoryCache doesn't provide enumeration, so we track sessions separately
         // For now, return empty list - full implementation would need a separate tracking structure
@@ -235,10 +235,10 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Gets journey state data to store in API context's SharedData.
-    /// This allows journey state to persist across requests via context.
-    /// Keys: journey.id, journey.name, journey.step, journey.totalSteps, journey.modality, journey.isComplete
-    /// Note: Multiple journeys can be tracked by using journey.{id}.* prefixed keys.
+    ///     Gets journey state data to store in API context's SharedData.
+    ///     This allows journey state to persist across requests via context.
+    ///     Keys: journey.id, journey.name, journey.step, journey.totalSteps, journey.modality, journey.isComplete
+    ///     Note: Multiple journeys can be tracked by using journey.{id}.* prefixed keys.
     /// </summary>
     public Dictionary<string, string> GetJourneyStateForContext(JourneyInstance instance)
     {
@@ -268,9 +268,9 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Restores a journey instance from context SharedData if journey state was stored.
-    /// Returns null if no journey state is stored or if the journey template no longer exists.
-    /// Supports both legacy format (journey.name) and new format (journey.{id}.name).
+    ///     Restores a journey instance from context SharedData if journey state was stored.
+    ///     Returns null if no journey state is stored or if the journey template no longer exists.
+    ///     Supports both legacy format (journey.name) and new format (journey.{id}.name).
     /// </summary>
     public JourneyInstance? RestoreJourneyFromContext(
         string journeyId,
@@ -315,11 +315,9 @@ public class JourneySessionManager
         // Check if we already have this journey in cache
         var existing = GetJourneyForSession(journeyId);
         if (existing != null && existing.Template.Name == journeyName)
-        {
             // Verify step index matches, otherwise restore from context
             if (existing.CurrentStepIndex == stepIndex)
                 return existing;
-        }
 
         // Try to restore from template
         var template = _journeyRegistry.GetJourney(journeyName);
@@ -361,9 +359,9 @@ public class JourneySessionManager
     }
 
     /// <summary>
-    /// Gets or creates a journey for a session. If journeyName is specified, starts that journey.
-    /// If startRandom is true and no journey is active, selects a random journey.
-    /// If context SharedData contains journey state, restores from that.
+    ///     Gets or creates a journey for a session. If journeyName is specified, starts that journey.
+    ///     If startRandom is true and no journey is active, selects a random journey.
+    ///     If context SharedData contains journey state, restores from that.
     /// </summary>
     public JourneyInstance? GetOrCreateJourney(
         string sessionId,
@@ -377,10 +375,7 @@ public class JourneySessionManager
         if (!string.IsNullOrWhiteSpace(journeyName))
         {
             var template = _journeyRegistry.GetJourney(journeyName);
-            if (template != null)
-            {
-                return CreateJourneyInstance(sessionId, template, variables);
-            }
+            if (template != null) return CreateJourneyInstance(sessionId, template, variables);
             _logger.LogWarning("Journey '{JourneyName}' not found", journeyName);
         }
 
@@ -398,10 +393,7 @@ public class JourneySessionManager
         }
 
         // 4. If startRandom, select a random journey
-        if (startRandom)
-        {
-            return CreateRandomJourneyInstance(sessionId, modality, variables);
-        }
+        if (startRandom) return CreateRandomJourneyInstance(sessionId, modality, variables);
 
         return null;
     }

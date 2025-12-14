@@ -1,11 +1,11 @@
 @page
-@model LLMApi.Pages.ApiTesterModel
+@model ApiTesterModel
 @{
     ViewData["Title"] = "API Tester";
 }
 
 @section Styles {
-<style>
+    <style>
     :root {
         --code-bg: #1e1e1e;
         --code-text: #d4d4d4;
@@ -172,235 +172,235 @@
 <h1 style="margin-bottom: 20px;">🧪 API Tester</h1>
 
 <div class="test-container">
-    <!-- Left Panel: Examples and Form -->
-    <div>
-        <div class="card">
-            <h2>Example Requests</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                Click any example to load it into the tester below
-            </p>
+<!-- Left Panel: Examples and Form -->
+<div>
+    <div class="card">
+        <h2>Example Requests</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+            Click any example to load it into the tester below
+        </p>
 
-            <div class="example-card" onclick="loadExample('basic')">
-                <div class="example-title">
-                    <span>📄</span> Basic GET Request
-                </div>
-                <div class="example-desc">Simple GET request with no configuration</div>
-                <div class="example-code">GET /api/mock/users</div>
+        <div class="example-card" onclick="loadExample('basic')">
+            <div class="example-title">
+                <span>📄</span> Basic GET Request
             </div>
+            <div class="example-desc">Simple GET request with no configuration</div>
+            <div class="example-code">GET /api/mock/users</div>
+        </div>
 
-            <div class="example-card" onclick="loadExample('shape-query')">
-                <div class="example-title">
-                    <span>🔧</span> Custom Shape (Query Param)
-                </div>
-                <div class="example-desc">Define response structure via query parameter</div>
-                <div class="example-code">GET /api/mock/products?shape={"id":0,"name":"string","price":0.0}</div>
+        <div class="example-card" onclick="loadExample('shape-query')">
+            <div class="example-title">
+                <span>🔧</span> Custom Shape (Query Param)
             </div>
+            <div class="example-desc">Define response structure via query parameter</div>
+            <div class="example-code">GET /api/mock/products?shape={"id":0,"name":"string","price":0.0}</div>
+        </div>
 
-            <div class="example-card" onclick="loadExample('shape-header')">
-                <div class="example-title">
-                    <span>📋</span> Custom Shape (Header)
-                </div>
-                <div class="example-desc">Define response structure via X-Shape header</div>
-                <div class="example-code">
-GET /api/mock/orders<br/>
-X-Shape: {"orderId":0,"items":[{"name":"string","qty":0}]}
-                </div>
+        <div class="example-card" onclick="loadExample('shape-header')">
+            <div class="example-title">
+                <span>📋</span> Custom Shape (Header)
             </div>
-
-            <div class="example-card" onclick="loadExample('post-body')">
-                <div class="example-title">
-                    <span>📝</span> POST with Body Shape
-                </div>
-                <div class="example-desc">Shape defined in POST request body</div>
-                <div class="example-code">
-POST /api/mock/users<br/>
-Body: {"shape":{"id":0,"email":"string"},"name":"John"}
-                </div>
-            </div>
-
-            <div class="example-card" onclick="loadExample('context')">
-                <div class="example-title">
-                    <span>🔄</span> Consistent Data (Context)
-                </div>
-                <div class="example-desc">Multiple requests share the same data via context</div>
-                <div class="example-code">
-GET /api/mock/user/123<br/>
-X-Context: my-session
-                </div>
-            </div>
-
-            <div class="example-card" onclick="loadExample('backend')">
-                <div class="example-title">
-                    <span>🎯</span> Specific Backend
-                </div>
-                <div class="example-desc">Route to specific LLM backend</div>
-                <div class="example-code">
-GET /api/mock/creative-content<br/>
-X-LLM-Backend: openai
-                </div>
-            </div>
-
-            <div class="example-card" onclick="loadExample('streaming')">
-                <div class="example-title">
-                    <span>🌊</span> Streaming Response
-                </div>
-                <div class="example-desc">Get response as Server-Sent Events stream</div>
-                <div class="example-code">GET /api/mock/stream/data</div>
-            </div>
-
-            <div class="example-card" onclick="loadExample('error')">
-                <div class="example-title">
-                    <span>❌</span> Error Simulation
-                </div>
-                <div class="example-desc">Test error handling with simulated errors</div>
-                <div class="example-code">
-GET /api/mock/users?error=404&errorMessage=Not%20found
-                </div>
-            </div>
-
-            <div class="example-card" onclick="loadExample('complex')">
-                <div class="example-title">
-                    <span>⚙️</span> All Options Combined
-                </div>
-                <div class="example-desc">Complex request using all available features</div>
-                <div class="example-code">
-POST /api/mock/api/advanced<br/>
-X-Context: test-session<br/>
-X-LLM-Backend: openai<br/>
-X-Shape: {"users":[{"id":0,"profile":{...}}]}
-                </div>
+            <div class="example-desc">Define response structure via X-Shape header</div>
+            <div class="example-code">
+                GET /api/mock/orders<br/>
+                X-Shape: {"orderId":0,"items":[{"name":"string","qty":0}]}
             </div>
         </div>
 
-        <div class="form-section">
-            <h3>Configure Request</h3>
-
-            <div class="form-group">
-                <label>HTTP Method:</label>
-                <select id="method">
-                    <option>GET</option>
-                    <option>POST</option>
-                    <option>PUT</option>
-                    <option>PATCH</option>
-                    <option>DELETE</option>
-                </select>
+        <div class="example-card" onclick="loadExample('post-body')">
+            <div class="example-title">
+                <span>📝</span> POST with Body Shape
             </div>
-
-            <div class="form-group">
-                <label>Path:</label>
-                <input type="text" id="path" value="/api/mock/users" placeholder="/api/mock/..." />
+            <div class="example-desc">Shape defined in POST request body</div>
+            <div class="example-code">
+                POST /api/mock/users<br/>
+                Body: {"shape":{"id":0,"email":"string"},"name":"John"}
             </div>
+        </div>
 
-            <div class="form-group">
-                <label>Shape (JSON) - Optional:</label>
-                <textarea id="shape" placeholder='{"id": 0, "name": "string", "email": "string"}'></textarea>
-                <small style="color: var(--text-secondary);">
-                    Define the structure of the response. Can also be passed via query param or header.
-                </small>
+        <div class="example-card" onclick="loadExample('context')">
+            <div class="example-title">
+                <span>🔄</span> Consistent Data (Context)
             </div>
-
-            <div class="form-group">
-                <label>Request Body (JSON) - Optional:</label>
-                <textarea id="body" placeholder='{"name": "John Doe"}'></textarea>
+            <div class="example-desc">Multiple requests share the same data via context</div>
+            <div class="example-code">
+                GET /api/mock/user/123<br/>
+                X-Context: my-session
             </div>
+        </div>
 
-            <details class="form-group">
-                <summary style="cursor: pointer; font-weight: 600; color: var(--text-primary);">
-                    Advanced Options
-                </summary>
-                <div style="margin-top: 15px;">
-                    <div class="form-group">
-                        <label>Context Name (X-Context):</label>
-                        <input type="text" id="context" placeholder="e.g., test-session-1" />
-                        <small style="color: var(--text-secondary);">
-                            Requests with the same context share consistent data
-                        </small>
-                    </div>
+        <div class="example-card" onclick="loadExample('backend')">
+            <div class="example-title">
+                <span>🎯</span> Specific Backend
+            </div>
+            <div class="example-desc">Route to specific LLM backend</div>
+            <div class="example-code">
+                GET /api/mock/creative-content<br/>
+                X-LLM-Backend: openai
+            </div>
+        </div>
 
-                    <div class="form-group">
-                        <label>Backend (X-LLM-Backend):</label>
-                        <input type="text" id="backend" placeholder="ollama, openai, or lmstudio" />
-                        <small style="color: var(--text-secondary);">
-                            Route to a specific configured LLM backend
-                        </small>
-                    </div>
+        <div class="example-card" onclick="loadExample('streaming')">
+            <div class="example-title">
+                <span>🌊</span> Streaming Response
+            </div>
+            <div class="example-desc">Get response as Server-Sent Events stream</div>
+            <div class="example-code">GET /api/mock/stream/data</div>
+        </div>
 
-                    <div class="form-group">
-                        <label>Error Code (for testing):</label>
-                        <input type="number" id="errorCode" placeholder="e.g., 404" />
-                    </div>
+        <div class="example-card" onclick="loadExample('error')">
+            <div class="example-title">
+                <span>❌</span> Error Simulation
+            </div>
+            <div class="example-desc">Test error handling with simulated errors</div>
+            <div class="example-code">
+                GET /api/mock/users?error=404&errorMessage=Not%20found
+            </div>
+        </div>
 
-                    <div class="form-group">
-                        <label>Error Message (for testing):</label>
-                        <input type="text" id="errorMessage" placeholder="e.g., Not found" />
-                    </div>
-
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="useStreaming" />
-                            Use Streaming Endpoint (/stream/)
-                        </label>
-                    </div>
-                </div>
-            </details>
-
-            <button onclick="testRequest()" style="width: 100%; padding: 15px; font-size: 1.1em; margin-top: 15px;">
-                🚀 Send Request
-            </button>
+        <div class="example-card" onclick="loadExample('complex')">
+            <div class="example-title">
+                <span>⚙️</span> All Options Combined
+            </div>
+            <div class="example-desc">Complex request using all available features</div>
+            <div class="example-code">
+                POST /api/mock/api/advanced<br/>
+                X-Context: test-session<br/>
+                X-LLM-Backend: openai<br/>
+                X-Shape: {"users":[{"id":0,"profile":{...}}]}
+            </div>
         </div>
     </div>
 
-    <!-- Right Panel: Results -->
-    <div>
-        <div class="result-panel">
-            <h2>Response</h2>
+    <div class="form-section">
+        <h3>Configure Request</h3>
 
-            <div id="loading" style="display: none; text-align: center; padding: 40px; color: var(--text-secondary);">
-                <div style="font-size: 2em; margin-bottom: 10px;">⏳</div>
-                <div>Sending request...</div>
-            </div>
-
-            <div id="results" style="display: none;">
-                <div style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--primary);">
-                    <strong style="color: var(--text-primary);">Status:</strong> <span id="status" style="padding: 6px 12px; border-radius: 4px; font-weight: 600; margin-left: 10px;"></span>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div class="code-block-header">
-                        <strong>📡 Request URL</strong>
-                        <button class="copy-button" onclick="copyToClipboard('requestUrl')">📋 Copy</button>
-                    </div>
-                    <div id="requestUrl" class="code-block" style="border-radius: 0 0 8px 8px; word-break: break-all;"></div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div class="code-block-header">
-                        <strong>📤 Request Headers</strong>
-                        <button class="copy-button" onclick="copyToClipboard('requestHeaders')">📋 Copy</button>
-                    </div>
-                    <pre id="requestHeaders" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0;"></pre>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div class="code-block-header">
-                        <strong>📥 Response Body</strong>
-                        <button class="copy-button" onclick="copyToClipboard('responseBody')">📋 Copy</button>
-                    </div>
-                    <pre id="responseBody" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0; max-height: 600px; overflow-y: auto;"></pre>
-                </div>
-            </div>
-
-            <div id="placeholder" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-                <div style="font-size: 3em; margin-bottom: 15px;">📡</div>
-                <div style="font-size: 1.1em;">Configure and send a request to see results here</div>
-                <div style="margin-top: 10px; font-size: 0.9em;">Try clicking an example above to get started!</div>
-            </div>
+        <div class="form-group">
+            <label>HTTP Method:</label>
+            <select id="method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+            </select>
         </div>
+
+        <div class="form-group">
+            <label>Path:</label>
+            <input type="text" id="path" value="/api/mock/users" placeholder="/api/mock/..."/>
+        </div>
+
+        <div class="form-group">
+            <label>Shape (JSON) - Optional:</label>
+            <textarea id="shape" placeholder='{"id": 0, "name": "string", "email": "string"}'></textarea>
+            <small style="color: var(--text-secondary);">
+                Define the structure of the response. Can also be passed via query param or header.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label>Request Body (JSON) - Optional:</label>
+            <textarea id="body" placeholder='{"name": "John Doe"}'></textarea>
+        </div>
+
+        <details class="form-group">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--text-primary);">
+                Advanced Options
+            </summary>
+            <div style="margin-top: 15px;">
+                <div class="form-group">
+                    <label>Context Name (X-Context):</label>
+                    <input type="text" id="context" placeholder="e.g., test-session-1"/>
+                    <small style="color: var(--text-secondary);">
+                        Requests with the same context share consistent data
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Backend (X-LLM-Backend):</label>
+                    <input type="text" id="backend" placeholder="ollama, openai, or lmstudio"/>
+                    <small style="color: var(--text-secondary);">
+                        Route to a specific configured LLM backend
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Error Code (for testing):</label>
+                    <input type="number" id="errorCode" placeholder="e.g., 404"/>
+                </div>
+
+                <div class="form-group">
+                    <label>Error Message (for testing):</label>
+                    <input type="text" id="errorMessage" placeholder="e.g., Not found"/>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="useStreaming"/>
+                        Use Streaming Endpoint (/stream/)
+                    </label>
+                </div>
+            </div>
+        </details>
+
+        <button onclick="testRequest()" style="width: 100%; padding: 15px; font-size: 1.1em; margin-top: 15px;">
+            🚀 Send Request
+        </button>
     </div>
 </div>
 
+<!-- Right Panel: Results -->
+<div>
+    <div class="result-panel">
+        <h2>Response</h2>
+
+        <div id="loading" style="display: none; text-align: center; padding: 40px; color: var(--text-secondary);">
+            <div style="font-size: 2em; margin-bottom: 10px;">⏳</div>
+            <div>Sending request...</div>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--primary);">
+                <strong style="color: var(--text-primary);">Status:</strong> <span id="status" style="padding: 6px 12px; border-radius: 4px; font-weight: 600; margin-left: 10px;"></span>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <div class="code-block-header">
+                    <strong>📡 Request URL</strong>
+                    <button class="copy-button" onclick="copyToClipboard('requestUrl')">📋 Copy</button>
+                </div>
+                <div id="requestUrl" class="code-block" style="border-radius: 0 0 8px 8px; word-break: break-all;"></div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <div class="code-block-header">
+                    <strong>📤 Request Headers</strong>
+                    <button class="copy-button" onclick="copyToClipboard('requestHeaders')">📋 Copy</button>
+                </div>
+                <pre id="requestHeaders" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0;"></pre>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <div class="code-block-header">
+                    <strong>📥 Response Body</strong>
+                    <button class="copy-button" onclick="copyToClipboard('responseBody')">📋 Copy</button>
+                </div>
+                <pre id="responseBody" class="code-block" style="border-radius: 0 0 8px 8px; margin: 0; max-height: 600px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+
+        <div id="placeholder" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+            <div style="font-size: 3em; margin-bottom: 15px;">📡</div>
+            <div style="font-size: 1.1em;">Configure and send a request to see results here</div>
+            <div style="margin-top: 10px; font-size: 0.9em;">Try clicking an example above to get started!</div>
+        </div>
+    </div>
+</div>
+</div>
+
 @section Scripts {
-<script>
+    <script>
     const examples = {
         'basic': {
             method: 'GET',
@@ -703,7 +703,7 @@ X-Shape: {"users":[{"id":0,"profile":{...}}]}
         });
     }
 </script>
-<style>
+    <style>
     .json-key { color: var(--code-property); font-weight: 600; }
     .json-string { color: var(--code-string); }
     .json-number { color: var(--code-number); }

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Readers;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
@@ -26,8 +26,8 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["id"] = new OpenApiSchema { Type = "integer" },
-                ["name"] = new OpenApiSchema { Type = "string" }
+                ["id"] = new() { Type = "integer" },
+                ["name"] = new() { Type = "string" }
             }
         };
 
@@ -39,7 +39,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -66,8 +66,8 @@ public class OpenApiSchemaConverterTests
                 Type = "object",
                 Properties = new Dictionary<string, OpenApiSchema>
                 {
-                    ["id"] = new OpenApiSchema { Type = "integer" },
-                    ["value"] = new OpenApiSchema { Type = "string" }
+                    ["id"] = new() { Type = "integer" },
+                    ["value"] = new() { Type = "string" }
                 }
             }
         };
@@ -80,7 +80,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -106,18 +106,18 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["user"] = new OpenApiSchema
+                ["user"] = new()
                 {
                     Type = "object",
                     Properties = new Dictionary<string, OpenApiSchema>
                     {
-                        ["id"] = new OpenApiSchema { Type = "integer" },
-                        ["profile"] = new OpenApiSchema
+                        ["id"] = new() { Type = "integer" },
+                        ["profile"] = new()
                         {
                             Type = "object",
                             Properties = new Dictionary<string, OpenApiSchema>
                             {
-                                ["email"] = new OpenApiSchema { Type = "string" }
+                                ["email"] = new() { Type = "string" }
                             }
                         }
                     }
@@ -133,7 +133,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -158,9 +158,9 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["email"] = new OpenApiSchema { Type = "string", Format = "email" },
-                ["date"] = new OpenApiSchema { Type = "string", Format = "date" },
-                ["uuid"] = new OpenApiSchema { Type = "string", Format = "uuid" }
+                ["email"] = new() { Type = "string", Format = "email" },
+                ["date"] = new() { Type = "string", Format = "date" },
+                ["uuid"] = new() { Type = "string", Format = "uuid" }
             }
         };
 
@@ -172,7 +172,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -197,13 +197,13 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["status"] = new OpenApiSchema
+                ["status"] = new()
                 {
                     Type = "string",
-                    Enum = new List<Microsoft.OpenApi.Any.IOpenApiAny>
+                    Enum = new List<IOpenApiAny>
                     {
-                        new Microsoft.OpenApi.Any.OpenApiString("active"),
-                        new Microsoft.OpenApi.Any.OpenApiString("inactive")
+                        new OpenApiString("active"),
+                        new OpenApiString("inactive")
                     }
                 }
             }
@@ -217,7 +217,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -264,7 +264,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["text/plain"] = new OpenApiMediaType { }
+                        ["text/plain"] = new OpenApiMediaType()
                     }
                 }
             }
@@ -321,7 +321,7 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["active"] = new OpenApiSchema { Type = "boolean" }
+                ["active"] = new() { Type = "boolean" }
             }
         };
 
@@ -333,7 +333,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -357,8 +357,8 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["price"] = new OpenApiSchema { Type = "number", Format = "float" },
-                ["count"] = new OpenApiSchema { Type = "integer" }
+                ["price"] = new() { Type = "number", Format = "float" },
+                ["count"] = new() { Type = "integer" }
             }
         };
 
@@ -370,7 +370,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -403,7 +403,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -435,7 +435,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = schema }
+                        ["application/json"] = new() { Schema = schema }
                     }
                 }
             }
@@ -490,15 +490,15 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["id"] = new OpenApiSchema { Type = "integer" },
-                ["name"] = new OpenApiSchema { Type = "string" }
+                ["id"] = new() { Type = "integer" },
+                ["name"] = new() { Type = "string" }
             }
         };
 
         // Simulate a resolved reference (Reference property set, but content is populated)
-        categorySchema.Reference = new Microsoft.OpenApi.Models.OpenApiReference
+        categorySchema.Reference = new OpenApiReference
         {
-            Type = Microsoft.OpenApi.Models.ReferenceType.Schema,
+            Type = ReferenceType.Schema,
             Id = "Category"
         };
 
@@ -507,8 +507,8 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["id"] = new OpenApiSchema { Type = "integer" },
-                ["name"] = new OpenApiSchema { Type = "string" },
+                ["id"] = new() { Type = "integer" },
+                ["name"] = new() { Type = "string" },
                 ["category"] = categorySchema
             }
         };
@@ -521,7 +521,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = petSchema }
+                        ["application/json"] = new() { Schema = petSchema }
                     }
                 }
             }
@@ -551,13 +551,13 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["id"] = new OpenApiSchema { Type = "integer" },
-                ["name"] = new OpenApiSchema { Type = "string" }
+                ["id"] = new() { Type = "integer" },
+                ["name"] = new() { Type = "string" }
             }
         };
-        tagSchema.Reference = new Microsoft.OpenApi.Models.OpenApiReference
+        tagSchema.Reference = new OpenApiReference
         {
-            Type = Microsoft.OpenApi.Models.ReferenceType.Schema,
+            Type = ReferenceType.Schema,
             Id = "Tag"
         };
 
@@ -575,7 +575,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = arraySchema }
+                        ["application/json"] = new() { Schema = arraySchema }
                     }
                 }
             }
@@ -601,13 +601,13 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["id"] = new OpenApiSchema { Type = "integer" },
-                ["name"] = new OpenApiSchema { Type = "string" }
+                ["id"] = new() { Type = "integer" },
+                ["name"] = new() { Type = "string" }
             }
         };
-        baseSchema.Reference = new Microsoft.OpenApi.Models.OpenApiReference
+        baseSchema.Reference = new OpenApiReference
         {
-            Type = Microsoft.OpenApi.Models.ReferenceType.Schema,
+            Type = ReferenceType.Schema,
             Id = "Base"
         };
 
@@ -616,12 +616,12 @@ public class OpenApiSchemaConverterTests
             AllOf = new List<OpenApiSchema>
             {
                 baseSchema,
-                new OpenApiSchema
+                new()
                 {
                     Type = "object",
                     Properties = new Dictionary<string, OpenApiSchema>
                     {
-                        ["extraField"] = new OpenApiSchema { Type = "string" }
+                        ["extraField"] = new() { Type = "string" }
                     }
                 }
             }
@@ -635,7 +635,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = extendedSchema }
+                        ["application/json"] = new() { Schema = extendedSchema }
                     }
                 }
             }
@@ -660,8 +660,8 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["type"] = new OpenApiSchema { Type = "string" },
-                ["value"] = new OpenApiSchema { Type = "integer" }
+                ["type"] = new() { Type = "string" },
+                ["value"] = new() { Type = "integer" }
             }
         };
 
@@ -670,8 +670,8 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["type"] = new OpenApiSchema { Type = "string" },
-                ["text"] = new OpenApiSchema { Type = "string" }
+                ["type"] = new() { Type = "string" },
+                ["text"] = new() { Type = "string" }
             }
         };
 
@@ -688,7 +688,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = anyOfSchema }
+                        ["application/json"] = new() { Schema = anyOfSchema }
                     }
                 }
             }
@@ -712,12 +712,12 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["deepValue"] = new OpenApiSchema { Type = "string" }
+                ["deepValue"] = new() { Type = "string" }
             }
         };
-        level3Schema.Reference = new Microsoft.OpenApi.Models.OpenApiReference
+        level3Schema.Reference = new OpenApiReference
         {
-            Type = Microsoft.OpenApi.Models.ReferenceType.Schema,
+            Type = ReferenceType.Schema,
             Id = "Level3"
         };
 
@@ -726,13 +726,13 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["midValue"] = new OpenApiSchema { Type = "integer" },
+                ["midValue"] = new() { Type = "integer" },
                 ["nested"] = level3Schema
             }
         };
-        level2Schema.Reference = new Microsoft.OpenApi.Models.OpenApiReference
+        level2Schema.Reference = new OpenApiReference
         {
-            Type = Microsoft.OpenApi.Models.ReferenceType.Schema,
+            Type = ReferenceType.Schema,
             Id = "Level2"
         };
 
@@ -741,7 +741,7 @@ public class OpenApiSchemaConverterTests
             Type = "object",
             Properties = new Dictionary<string, OpenApiSchema>
             {
-                ["topValue"] = new OpenApiSchema { Type = "string" },
+                ["topValue"] = new() { Type = "string" },
                 ["child"] = level2Schema
             }
         };
@@ -754,7 +754,7 @@ public class OpenApiSchemaConverterTests
                 {
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
-                        ["application/json"] = new OpenApiMediaType { Schema = level1Schema }
+                        ["application/json"] = new() { Schema = level1Schema }
                     }
                 }
             }

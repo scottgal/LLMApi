@@ -4,17 +4,16 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using Microsoft.AspNetCore.SignalR.Client;
 using LLMockApiClient.Services;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace LLMockApiClient.Pages;
 
 public partial class SignalRPage : Page
 {
     private readonly ApiService _apiService;
-    private HubConnection? _connection;
     private readonly ObservableCollection<SignalRContextViewModel> _contexts = new();
+    private HubConnection? _connection;
 
     public SignalRPage(ApiService apiService)
     {
@@ -49,7 +48,7 @@ public partial class SignalRPage : Page
                 .WithAutomaticReconnect()
                 .Build();
 
-            _connection.On<object>("DataUpdate", (message) =>
+            _connection.On<object>("DataUpdate", message =>
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -63,7 +62,8 @@ public partial class SignalRPage : Page
                     try
                     {
                         var jsonDoc = JsonDocument.Parse(messageStr!);
-                        var formatted = JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
+                        var formatted = JsonSerializer.Serialize(jsonDoc,
+                            new JsonSerializerOptions { WriteIndented = true });
                         LiveDataViewer.Text += $"[{timestamp}] {formatted}\n\n";
                     }
                     catch
@@ -82,19 +82,13 @@ public partial class SignalRPage : Page
 
             _connection.Reconnecting += error =>
             {
-                Dispatcher.Invoke(() =>
-                {
-                    LiveDataViewer.Text += $"⚠️ Reconnecting...\n";
-                });
+                Dispatcher.Invoke(() => { LiveDataViewer.Text += "⚠️ Reconnecting...\n"; });
                 return Task.CompletedTask;
             };
 
             _connection.Reconnected += connectionId =>
             {
-                Dispatcher.Invoke(() =>
-                {
-                    LiveDataViewer.Text += $"✅ Reconnected\n";
-                });
+                Dispatcher.Invoke(() => { LiveDataViewer.Text += "✅ Reconnected\n"; });
                 return Task.CompletedTask;
             };
 
@@ -111,11 +105,10 @@ public partial class SignalRPage : Page
     {
         try
         {
-            var response = await _apiService.SendRequestAsync("GET", "/api/signalr/contexts", null, null);
+            var response = await _apiService.SendRequestAsync("GET", "/api/signalr/contexts");
             var doc = JsonDocument.Parse(response);
 
             if (doc.RootElement.TryGetProperty("contexts", out var contextsArray))
-            {
                 foreach (var context in contextsArray.EnumerateArray())
                 {
                     var name = context.GetProperty("name").GetString() ?? "";
@@ -137,7 +130,6 @@ public partial class SignalRPage : Page
 
                     _contexts.Add(vm);
                 }
-            }
         }
         catch (Exception ex)
         {
@@ -150,13 +142,11 @@ public partial class SignalRPage : Page
         // Try to find context reference in message
         // This is a simple implementation - could be enhanced
         foreach (var context in _contexts)
-        {
             if (message?.Contains(context.Name, StringComparison.OrdinalIgnoreCase) == true)
             {
                 context.MessageCount++;
                 break;
             }
-        }
     }
 
     private async void CreateContext_Click(object sender, RoutedEventArgs e)
@@ -171,14 +161,16 @@ public partial class SignalRPage : Page
 
             if (string.IsNullOrEmpty(name))
             {
-                MessageBox.Show("Please enter a context name", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Please enter a context name", "Validation", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 
             // Check if context already exists
             if (_contexts.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show($"Context '{name}' already exists", "Duplicate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"Context '{name}' already exists", "Duplicate", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 
@@ -212,7 +204,8 @@ public partial class SignalRPage : Page
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error creating context: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error creating context: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
             LiveDataViewer.Text += $"❌ Error creating context: {ex.Message}\n";
         }
     }
@@ -227,7 +220,7 @@ public partial class SignalRPage : Page
 
         try
         {
-            await _apiService.SendRequestAsync("POST", $"/api/signalr/contexts/{contextName}/start", null, null);
+            await _apiService.SendRequestAsync("POST", $"/api/signalr/contexts/{contextName}/start");
 
             var context = _contexts.FirstOrDefault(c => c.Name == contextName);
             if (context != null)
@@ -242,7 +235,8 @@ public partial class SignalRPage : Page
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error starting context: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error starting context: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -256,7 +250,7 @@ public partial class SignalRPage : Page
 
         try
         {
-            await _apiService.SendRequestAsync("POST", $"/api/signalr/contexts/{contextName}/stop", null, null);
+            await _apiService.SendRequestAsync("POST", $"/api/signalr/contexts/{contextName}/stop");
 
             var context = _contexts.FirstOrDefault(c => c.Name == contextName);
             if (context != null)
@@ -271,7 +265,8 @@ public partial class SignalRPage : Page
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error stopping context: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error stopping context: {ex.Message}", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -292,7 +287,8 @@ public partial class SignalRPage : Page
             }
             else
             {
-                MessageBox.Show("SignalR connection not active", "Not Connected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("SignalR connection not active", "Not Connected", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
@@ -309,61 +305,93 @@ public partial class SignalRPage : Page
 
 public class SignalRContextViewModel : INotifyPropertyChanged
 {
-    private string _name = "";
+    private bool _canStart = true;
+    private bool _canStop;
+    private bool _canSubscribe = true;
     private string _description = "";
+    private int _messageCount;
+    private string _name = "";
     private string _status = "Stopped";
     private string _statusColor = "#95A5A6";
-    private bool _canStart = true;
-    private bool _canStop = false;
-    private bool _canSubscribe = true;
-    private int _messageCount = 0;
 
     public string Name
     {
         get => _name;
-        set { _name = value; OnPropertyChanged(); }
+        set
+        {
+            _name = value;
+            OnPropertyChanged();
+        }
     }
 
     public string Description
     {
         get => _description;
-        set { _description = value; OnPropertyChanged(); }
+        set
+        {
+            _description = value;
+            OnPropertyChanged();
+        }
     }
 
     public string Status
     {
         get => _status;
-        set { _status = value; OnPropertyChanged(); }
+        set
+        {
+            _status = value;
+            OnPropertyChanged();
+        }
     }
 
     public string StatusColor
     {
         get => _statusColor;
-        set { _statusColor = value; OnPropertyChanged(); }
+        set
+        {
+            _statusColor = value;
+            OnPropertyChanged();
+        }
     }
 
     public bool CanStart
     {
         get => _canStart;
-        set { _canStart = value; OnPropertyChanged(); }
+        set
+        {
+            _canStart = value;
+            OnPropertyChanged();
+        }
     }
 
     public bool CanStop
     {
         get => _canStop;
-        set { _canStop = value; OnPropertyChanged(); }
+        set
+        {
+            _canStop = value;
+            OnPropertyChanged();
+        }
     }
 
     public bool CanSubscribe
     {
         get => _canSubscribe;
-        set { _canSubscribe = value; OnPropertyChanged(); }
+        set
+        {
+            _canSubscribe = value;
+            OnPropertyChanged();
+        }
     }
 
     public int MessageCount
     {
         get => _messageCount;
-        set { _messageCount = value; OnPropertyChanged(); }
+        set
+        {
+            _messageCount = value;
+            OnPropertyChanged();
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

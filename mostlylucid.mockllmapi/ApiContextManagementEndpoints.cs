@@ -1,18 +1,19 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Management endpoints for API Contexts - view and modify context history
+///     Management endpoints for API Contexts - view and modify context history
 /// </summary>
 internal static class ApiContextManagementEndpoints
 {
     /// <summary>
-    /// Gets a list of all API context names and their summary information
+    ///     Gets a list of all API context names and their summary information
     /// </summary>
     internal static IResult HandleListAllContexts(OpenApiContextManager contextManager)
     {
@@ -34,7 +35,7 @@ internal static class ApiContextManagementEndpoints
     }
 
     /// <summary>
-    /// Gets the complete details of a specific API context including all calls and shared data
+    ///     Gets the complete details of a specific API context including all calls and shared data
     /// </summary>
     internal static IResult HandleGetContext(
         string contextName,
@@ -68,10 +69,7 @@ internal static class ApiContextManagementEndpoints
         if (includeCallDetails)
         {
             var calls = context.RecentCalls.AsEnumerable();
-            if (maxCalls.HasValue)
-            {
-                calls = calls.Take(maxCalls.Value);
-            }
+            if (maxCalls.HasValue) calls = calls.Take(maxCalls.Value);
 
             response["recentCalls"] = calls.Select(call => new
             {
@@ -89,7 +87,7 @@ internal static class ApiContextManagementEndpoints
     }
 
     /// <summary>
-    /// Gets the formatted prompt text for a specific context (what gets sent to LLM)
+    ///     Gets the formatted prompt text for a specific context (what gets sent to LLM)
     /// </summary>
     internal static IResult HandleGetContextPrompt(
         string contextName,
@@ -117,7 +115,7 @@ internal static class ApiContextManagementEndpoints
     }
 
     /// <summary>
-    /// Adds a call to an existing context or creates a new context
+    ///     Adds a call to an existing context or creates a new context
     /// </summary>
     internal static IResult HandleAddToContext(
         string contextName,
@@ -129,34 +127,20 @@ internal static class ApiContextManagementEndpoints
         {
             var body = new StreamReader(httpContext.Request.Body).ReadToEndAsync().Result;
 
-            if (string.IsNullOrWhiteSpace(body))
-            {
-                return Results.BadRequest(new { error = "Request body is required" });
-            }
+            if (string.IsNullOrWhiteSpace(body)) return Results.BadRequest(new { error = "Request body is required" });
 
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var request = JsonSerializer.Deserialize<AddToContextRequest>(body, options);
+            var request = JsonSerializer.Deserialize(body, LLMockSerializerContext.CaseInsensitiveInstance.AddToContextRequest);
 
-            if (request == null)
-            {
-                return Results.BadRequest(new { error = "Invalid request format" });
-            }
+            if (request == null) return Results.BadRequest(new { error = "Invalid request format" });
 
             // Validate required fields
             if (string.IsNullOrWhiteSpace(request.Method))
-            {
                 return Results.BadRequest(new { error = "Method is required" });
-            }
 
-            if (string.IsNullOrWhiteSpace(request.Path))
-            {
-                return Results.BadRequest(new { error = "Path is required" });
-            }
+            if (string.IsNullOrWhiteSpace(request.Path)) return Results.BadRequest(new { error = "Path is required" });
 
             if (string.IsNullOrWhiteSpace(request.ResponseBody))
-            {
                 return Results.BadRequest(new { error = "ResponseBody is required" });
-            }
 
             // Add to context
             contextManager.AddToContext(
@@ -167,7 +151,8 @@ internal static class ApiContextManagementEndpoints
                 request.ResponseBody
             );
 
-            logger.LogInformation("Added call to context '{Context}': {Method} {Path}", contextName, request.Method, request.Path);
+            logger.LogInformation("Added call to context '{Context}': {Method} {Path}", contextName, request.Method,
+                request.Path);
 
             return Results.Ok(new
             {
@@ -185,12 +170,12 @@ internal static class ApiContextManagementEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error adding to context '{Context}'", contextName);
-            return Results.Problem(detail: ex.Message, title: "Error adding to context");
+            return Results.Problem(ex.Message, title: "Error adding to context");
         }
     }
 
     /// <summary>
-    /// Updates shared data for a context (merges with existing data)
+    ///     Updates shared data for a context (merges with existing data)
     /// </summary>
     internal static IResult HandleUpdateSharedData(
         string contextName,
@@ -202,18 +187,12 @@ internal static class ApiContextManagementEndpoints
         {
             var body = new StreamReader(httpContext.Request.Body).ReadToEndAsync().Result;
 
-            if (string.IsNullOrWhiteSpace(body))
-            {
-                return Results.BadRequest(new { error = "Request body is required" });
-            }
+            if (string.IsNullOrWhiteSpace(body)) return Results.BadRequest(new { error = "Request body is required" });
 
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var sharedData = JsonSerializer.Deserialize<Dictionary<string, object>>(body, options);
+            var sharedData = JsonSerializer.Deserialize(body, LLMockSerializerContext.CaseInsensitiveInstance.DictionaryStringObject);
 
             if (sharedData == null || sharedData.Count == 0)
-            {
                 return Results.BadRequest(new { error = "Shared data must be a non-empty object" });
-            }
 
             // Check if context exists
             var context = contextManager.GetContext(contextName);
@@ -230,10 +209,11 @@ internal static class ApiContextManagementEndpoints
 
             // Merge shared data by adding a synthetic response that updates the shared data
             // The context manager will extract and update the shared data automatically
-            var syntheticResponse = JsonSerializer.Serialize(sharedData);
+            var syntheticResponse = JsonSerializer.Serialize(sharedData, LLMockSerializerContext.Default.DictionaryStringObject);
             contextManager.AddToContext(contextName, "PATCH", "/_shared-data", null, syntheticResponse);
 
-            logger.LogInformation("Updated shared data for context '{Context}' with {Count} keys", contextName, sharedData.Count);
+            logger.LogInformation("Updated shared data for context '{Context}' with {Count} keys", contextName,
+                sharedData.Count);
 
             // Get updated context
             var updatedContext = contextManager.GetContext(contextName);
@@ -254,12 +234,12 @@ internal static class ApiContextManagementEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error updating shared data for context '{Context}'", contextName);
-            return Results.Problem(detail: ex.Message, title: "Error updating shared data");
+            return Results.Problem(ex.Message, title: "Error updating shared data");
         }
     }
 
     /// <summary>
-    /// Clears all calls from a specific context (but keeps the context name registered)
+    ///     Clears all calls from a specific context (but keeps the context name registered)
     /// </summary>
     internal static IResult HandleClearContext(
         string contextName,
@@ -277,19 +257,17 @@ internal static class ApiContextManagementEndpoints
                 contextName
             });
         }
-        else
+
+        var contexts = contextManager.GetAllContexts();
+        return Results.NotFound(new
         {
-            var contexts = contextManager.GetAllContexts();
-            return Results.NotFound(new
-            {
-                error = $"Context '{contextName}' not found",
-                availableContexts = contexts.Select(c => c.Name).ToList()
-            });
-        }
+            error = $"Context '{contextName}' not found",
+            availableContexts = contexts.Select(c => c.Name).ToList()
+        });
     }
 
     /// <summary>
-    /// Clears all API contexts
+    ///     Clears all API contexts
     /// </summary>
     internal static IResult HandleClearAllContexts(
         OpenApiContextManager contextManager,
@@ -308,7 +286,7 @@ internal static class ApiContextManagementEndpoints
     }
 
     /// <summary>
-    /// Deletes a specific context completely (removes it from the manager)
+    ///     Deletes a specific context completely (removes it from the manager)
     /// </summary>
     internal static IResult HandleDeleteContext(
         string contextName,
@@ -327,25 +305,13 @@ internal static class ApiContextManagementEndpoints
                 contextName
             });
         }
-        else
+
+        var contexts = contextManager.GetAllContexts();
+        return Results.NotFound(new
         {
-            var contexts = contextManager.GetAllContexts();
-            return Results.NotFound(new
-            {
-                error = $"Context '{contextName}' not found",
-                availableContexts = contexts.Select(c => c.Name).ToList()
-            });
-        }
+            error = $"Context '{contextName}' not found",
+            availableContexts = contexts.Select(c => c.Name).ToList()
+        });
     }
 
-    /// <summary>
-    /// Request model for adding to context
-    /// </summary>
-    private class AddToContextRequest
-    {
-        public string Method { get; set; } = string.Empty;
-        public string Path { get; set; } = string.Empty;
-        public string? RequestBody { get; set; }
-        public string ResponseBody { get; set; } = string.Empty;
-    }
 }

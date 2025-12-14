@@ -1,6 +1,6 @@
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Text.Json;
 using LLMockApiClient.Services;
 
 namespace LLMockApiClient.Pages;
@@ -30,16 +30,16 @@ public partial class OpenApiPage : Page
             SpecsListBox.Items.Clear();
 
             if (doc.RootElement.TryGetProperty("specs", out var specs))
-            {
                 foreach (var spec in specs.EnumerateArray())
                 {
                     var name = spec.GetProperty("name").GetString();
                     var endpointCount = spec.TryGetProperty("endpointCount", out var ec) ? ec.GetInt32() : 0;
                     SpecsListBox.Items.Add($"{name} ({endpointCount} endpoints)");
                 }
-            }
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private async void LoadSpec_Click(object sender, RoutedEventArgs e)

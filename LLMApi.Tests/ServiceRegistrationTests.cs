@@ -8,16 +8,129 @@ using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
 using mostlylucid.mockllmapi.Services.Providers;
-using Xunit;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Integration tests for service registration to ensure all DI dependencies resolve correctly.
-/// These tests verify that AddLLMockApi and related methods properly register all required services.
+///     Integration tests for service registration to ensure all DI dependencies resolve correctly.
+///     These tests verify that AddLLMockApi and related methods properly register all required services.
 /// </summary>
 public class ServiceRegistrationTests
 {
+    #region Tool System Registration Tests
+
+    [Fact]
+    public void AddLLMockApi_RegistersToolSystem()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        // Act
+        services.AddLLMockApi(configuration);
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        Assert.NotNull(provider.GetService<ToolRegistry>());
+        Assert.NotNull(provider.GetService<ToolOrchestrator>());
+        Assert.NotNull(provider.GetService<HttpToolExecutor>());
+        Assert.NotNull(provider.GetService<MockToolExecutor>());
+        Assert.NotNull(provider.GetService<ToolFitnessTester>());
+        Assert.NotNull(provider.GetService<ToolFitnessRagStore>());
+    }
+
+    #endregion
+
+    #region SignalR Registration Tests
+
+    [Fact]
+    public void AddLLMockSignalR_RegistersSignalRServices()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        // Act - First add core, then SignalR
+        services.AddLLMockRest(configuration);
+        services.AddLLMockSignalR(configuration);
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        Assert.NotNull(provider.GetService<DynamicHubContextManager>());
+    }
+
+    #endregion
+
+    #region Context Store Tests
+
+    [Fact]
+    public void AddLLMockApi_RegistersContextStoreWithExpiration()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/",
+                ["MockLlmApi:ContextExpirationMinutes"] = "30"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        // Act
+        services.AddLLMockApi(configuration);
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var contextStore = provider.GetRequiredService<IContextStore>();
+        Assert.NotNull(contextStore);
+        Assert.IsType<MemoryCacheContextStore>(contextStore);
+    }
+
+    #endregion
+
+    #region RestApiRegistry Tests
+
+    [Fact]
+    public void AddLLMockApi_RegistersRestApiRegistry()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        // Act
+        services.AddLLMockApi(configuration);
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        Assert.NotNull(provider.GetService<RestApiRegistry>());
+    }
+
+    #endregion
+
     #region Minimal Configuration Tests
 
     [Fact]
@@ -433,10 +546,7 @@ public class ServiceRegistrationTests
                         services.AddRouting();
                         services.AddLLMockRest(context.Configuration);
                     })
-                    .Configure(app =>
-                    {
-                        app.UseRouting();
-                    });
+                    .Configure(app => { app.UseRouting(); });
             });
 
         // Act
@@ -512,119 +622,6 @@ public class ServiceRegistrationTests
         var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<LlmClient>());
         Assert.NotNull(provider.GetService<LlmBackendSelector>());
-    }
-
-    #endregion
-
-    #region Tool System Registration Tests
-
-    [Fact]
-    public void AddLLMockApi_RegistersToolSystem()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        // Act
-        services.AddLLMockApi(configuration);
-
-        // Assert
-        var provider = services.BuildServiceProvider();
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>());
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>());
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.HttpToolExecutor>());
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.MockToolExecutor>());
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.ToolFitnessTester>());
-        Assert.NotNull(provider.GetService<mostlylucid.mockllmapi.Services.Tools.ToolFitnessRagStore>());
-    }
-
-    #endregion
-
-    #region SignalR Registration Tests
-
-    [Fact]
-    public void AddLLMockSignalR_RegistersSignalRServices()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        // Act - First add core, then SignalR
-        services.AddLLMockRest(configuration);
-        services.AddLLMockSignalR(configuration);
-
-        // Assert
-        var provider = services.BuildServiceProvider();
-        Assert.NotNull(provider.GetService<DynamicHubContextManager>());
-    }
-
-    #endregion
-
-    #region Context Store Tests
-
-    [Fact]
-    public void AddLLMockApi_RegistersContextStoreWithExpiration()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/",
-                ["MockLlmApi:ContextExpirationMinutes"] = "30"
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        // Act
-        services.AddLLMockApi(configuration);
-
-        // Assert
-        var provider = services.BuildServiceProvider();
-        var contextStore = provider.GetRequiredService<IContextStore>();
-        Assert.NotNull(contextStore);
-        Assert.IsType<MemoryCacheContextStore>(contextStore);
-    }
-
-    #endregion
-
-    #region RestApiRegistry Tests
-
-    [Fact]
-    public void AddLLMockApi_RegistersRestApiRegistry()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MockLlmApi:BaseUrl"] = "http://localhost:11434/v1/"
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        // Act
-        services.AddLLMockApi(configuration);
-
-        // Assert
-        var provider = services.BuildServiceProvider();
-        Assert.NotNull(provider.GetService<RestApiRegistry>());
     }
 
     #endregion

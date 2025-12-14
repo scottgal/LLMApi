@@ -1,12 +1,13 @@
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
-using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Service for optimized JSON processing with object pooling
+///     Service for optimized JSON processing with object pooling
 /// </summary>
 public class JsonProcessingService
 {
@@ -20,7 +21,7 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Creates optimized JsonSerializerOptions with pooling
+    ///     Creates optimized JsonSerializerOptions with pooling
     /// </summary>
     private JsonSerializerOptions CreateJsonSerializerOptions()
     {
@@ -29,7 +30,7 @@ public class JsonProcessingService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString,
             ReferenceHandler = ReferenceHandler.Preserve,
             MaxDepth = 64, // Prevent deep nesting attacks
@@ -40,12 +41,12 @@ public class JsonProcessingService
 
         // Add common converters
         options.Converters.Add(new JsonStringEnumConverter());
-        
+
         return options;
     }
 
     /// <summary>
-    /// Serializes object to JSON with optimized settings
+    ///     Serializes object to JSON with optimized settings
     /// </summary>
     public string Serialize(object obj)
     {
@@ -53,7 +54,7 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Deserializes JSON string to object with optimized settings
+    ///     Deserializes JSON string to object with optimized settings
     /// </summary>
     public T Deserialize<T>(string json)
     {
@@ -61,7 +62,7 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Serializes object to JSON with streaming support
+    ///     Serializes object to JSON with streaming support
     /// </summary>
     public async Task SerializeAsync<T>(T obj, Stream stream)
     {
@@ -69,15 +70,16 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Deserializes JSON from stream with optimized settings
+    ///     Deserializes JSON from stream with optimized settings
     /// </summary>
     public async Task<T> DeserializeAsync<T>(Stream stream)
     {
-        return await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions) ?? throw new JsonException("Deserialization failed");
+        return await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions) ??
+               throw new JsonException("Deserialization failed");
     }
 
     /// <summary>
-    /// Escapes JSON string for safe output
+    ///     Escapes JSON string for safe output
     /// </summary>
     public string EscapeJsonString(string? value)
     {
@@ -93,33 +95,27 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Validates JSON structure for security
+    ///     Validates JSON structure for security
     /// </summary>
     public bool IsValidJson(string json)
     {
         try
         {
             using var jsonDocument = JsonDocument.Parse(json);
-            
+
             // Check for suspicious patterns
             var root = jsonDocument.RootElement;
-            
+
             // Prevent overly large documents
             if (root.GetArrayLength() > _options.Value.MaxItems)
                 return false;
-            
+
             // Check for potential injection attacks
             if (root.ValueKind == JsonValueKind.Object)
-            {
                 foreach (var property in root.EnumerateObject())
-                {
-                    if (property.Name.Contains("$", StringComparison.OrdinalIgnoreCase) || 
+                    if (property.Name.Contains("$", StringComparison.OrdinalIgnoreCase) ||
                         property.Name.Contains("__", StringComparison.OrdinalIgnoreCase))
-                    {
                         return false;
-                    }
-                }
-            }
 
             return true;
         }
@@ -130,15 +126,15 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Gets the size of a JSON string in bytes
+    ///     Gets the size of a JSON string in bytes
     /// </summary>
     public long GetJsonSize(string json)
     {
-        return System.Text.Encoding.UTF8.GetByteCount(json);
+        return Encoding.UTF8.GetByteCount(json);
     }
 
     /// <summary>
-    /// Compresses JSON for storage (optional)
+    ///     Compresses JSON for storage (optional)
     /// </summary>
     public string CompressJson(string json)
     {
@@ -148,7 +144,7 @@ public class JsonProcessingService
     }
 
     /// <summary>
-    /// Decompresses JSON from storage (optional)
+    ///     Decompresses JSON from storage (optional)
     /// </summary>
     public string DecompressJson(string compressedJson)
     {

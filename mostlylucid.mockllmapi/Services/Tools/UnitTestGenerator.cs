@@ -1,18 +1,17 @@
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Unit test generator with Pyguin primary + LLM fallback strategy.
-/// Automatically generates unit tests for tools and reviews code correctness.
+///     Unit test generator with Pyguin primary + LLM fallback strategy.
+///     Automatically generates unit tests for tools and reviews code correctness.
 /// </summary>
 public class UnitTestGenerator
 {
-    private readonly ILogger<UnitTestGenerator> _logger;
     private readonly LlmClient? _llmClient;
+    private readonly ILogger<UnitTestGenerator> _logger;
     private readonly string _testOutputDirectory;
 
     public UnitTestGenerator(
@@ -31,7 +30,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Generates unit tests for a tool using Pyguin, falling back to LLM if Pyguin fails
+    ///     Generates unit tests for a tool using Pyguin, falling back to LLM if Pyguin fails
     /// </summary>
     public async Task<UnitTestGenerationResult> GenerateTestsAsync(
         string toolName,
@@ -96,15 +95,13 @@ public class UnitTestGenerator
 
         // Save generated tests to disk
         if (result.Success && !string.IsNullOrEmpty(result.GeneratedTests))
-        {
             await SaveGeneratedTestsAsync(toolName, result);
-        }
 
         return result;
     }
 
     /// <summary>
-    /// Attempts to generate tests using Pyguin (Python-based fuzzing test generator)
+    ///     Attempts to generate tests using Pyguin (Python-based fuzzing test generator)
     /// </summary>
     private async Task<PyguinResult> TryPyguinGenerationAsync(
         string toolName,
@@ -114,15 +111,13 @@ public class UnitTestGenerator
         try
         {
             // Check if Pyguin is installed
-            var pyguinCheck = await RunCommandAsync("pyguin", "--version", timeoutMs: 5000);
+            var pyguinCheck = await RunCommandAsync("pyguin", "--version", 5000);
             if (!pyguinCheck.Success)
-            {
                 return new PyguinResult
                 {
                     Success = false,
                     Error = "Pyguin not installed. Install with: pip install pyguin"
                 };
-            }
 
             // Save source code to temp file
             var tempDir = Path.Combine(Path.GetTempPath(), $"pyguin_test_{Guid.NewGuid()}");
@@ -132,35 +127,38 @@ public class UnitTestGenerator
             await File.WriteAllTextAsync(sourceFile, sourceCode, cancellationToken);
 
             // Run Pyguin
-            var pyguinCommand = $"--project-path \"{tempDir}\" --module-name {toolName} --output-path \"{tempDir}/tests\"";
-            var pyguinResult = await RunCommandAsync("pyguin", pyguinCommand, timeoutMs: 60000);
+            var pyguinCommand =
+                $"--project-path \"{tempDir}\" --module-name {toolName} --output-path \"{tempDir}/tests\"";
+            var pyguinResult = await RunCommandAsync("pyguin", pyguinCommand, 60000);
 
             if (!pyguinResult.Success)
-            {
                 return new PyguinResult
                 {
                     Success = false,
                     Error = $"Pyguin execution failed: {pyguinResult.Error}",
                     Output = pyguinResult.Output
                 };
-            }
 
             // Read generated test file
             var testFile = Path.Combine(tempDir, "tests", $"test_{toolName}.py");
             if (!File.Exists(testFile))
-            {
                 return new PyguinResult
                 {
                     Success = false,
                     Error = "Pyguin did not generate test file",
                     Output = pyguinResult.Output
                 };
-            }
 
             var generatedCode = await File.ReadAllTextAsync(testFile, cancellationToken);
 
             // Cleanup
-            try { Directory.Delete(tempDir, true); } catch { }
+            try
+            {
+                Directory.Delete(tempDir, true);
+            }
+            catch
+            {
+            }
 
             return new PyguinResult
             {
@@ -181,7 +179,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Generates unit tests using LLM with comprehensive code review
+    ///     Generates unit tests using LLM with comprehensive code review
     /// </summary>
     private async Task<LlmTestGenerationResult> GenerateTestsWithLlmAsync(
         string toolName,
@@ -191,13 +189,11 @@ public class UnitTestGenerator
         CancellationToken cancellationToken)
     {
         if (_llmClient == null)
-        {
             return new LlmTestGenerationResult
             {
                 Success = false,
                 Error = "LLM client not configured"
             };
-        }
 
         try
         {
@@ -207,7 +203,7 @@ public class UnitTestGenerator
 
             // Use high token limit for comprehensive generation
             var response = await _llmClient.GetCompletionAsync(
-                prompt: prompt,
+                prompt,
                 maxTokens: 8000,
                 request: null);
 
@@ -233,7 +229,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Builds comprehensive prompt for LLM test generation
+    ///     Builds comprehensive prompt for LLM test generation
     /// </summary>
     private string BuildLlmTestGenerationPrompt(
         string toolName,
@@ -327,7 +323,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Parses LLM response to extract tests and code review
+    ///     Parses LLM response to extract tests and code review
     /// </summary>
     private LlmTestResponse ParseLlmTestResponse(string response)
     {
@@ -338,13 +334,9 @@ public class UnitTestGenerator
         var testsIndex = response.IndexOf(testsMarker);
 
         if (testsIndex > 0)
-        {
             result.CodeReview = response.Substring(0, testsIndex).Trim();
-        }
         else
-        {
             result.CodeReview = "Code review section not found in LLM response.";
-        }
 
         // Extract generated tests (code in ```csharp blocks after # GENERATED TESTS)
         var codeBlockStart = response.IndexOf("```csharp", testsIndex >= 0 ? testsIndex : 0);
@@ -353,10 +345,7 @@ public class UnitTestGenerator
             var codeStart = response.IndexOf('\n', codeBlockStart) + 1;
             var codeEnd = response.IndexOf("```", codeStart);
 
-            if (codeEnd > codeStart)
-            {
-                result.GeneratedTests = response.Substring(codeStart, codeEnd - codeStart).Trim();
-            }
+            if (codeEnd > codeStart) result.GeneratedTests = response.Substring(codeStart, codeEnd - codeStart).Trim();
         }
 
         // Fallback: try to extract any code block
@@ -369,9 +358,7 @@ public class UnitTestGenerator
                 var codeEnd = response.IndexOf("```", codeStart);
 
                 if (codeEnd > codeStart)
-                {
                     result.GeneratedTests = response.Substring(codeStart, codeEnd - codeStart).Trim();
-                }
             }
         }
 
@@ -379,7 +366,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Saves generated tests to disk
+    ///     Saves generated tests to disk
     /// </summary>
     private async Task SaveGeneratedTestsAsync(string toolName, UnitTestGenerationResult result)
     {
@@ -420,7 +407,7 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Runs a command-line process
+    ///     Runs a command-line process
     /// </summary>
     private async Task<CommandResult> RunCommandAsync(
         string command,
@@ -464,7 +451,14 @@ public class UnitTestGenerator
 
             if (!completed)
             {
-                try { process.Kill(); } catch { }
+                try
+                {
+                    process.Kill();
+                }
+                catch
+                {
+                }
+
                 return new CommandResult
                 {
                     Success = false,
@@ -494,13 +488,16 @@ public class UnitTestGenerator
     }
 
     /// <summary>
-    /// Gets the test output directory
+    ///     Gets the test output directory
     /// </summary>
-    public string GetTestOutputDirectory() => _testOutputDirectory;
+    public string GetTestOutputDirectory()
+    {
+        return _testOutputDirectory;
+    }
 }
 
 /// <summary>
-/// Result of unit test generation
+///     Result of unit test generation
 /// </summary>
 public class UnitTestGenerationResult
 {
@@ -521,7 +518,7 @@ public class UnitTestGenerationResult
 }
 
 /// <summary>
-/// Pyguin generation result
+///     Pyguin generation result
 /// </summary>
 internal class PyguinResult
 {
@@ -532,7 +529,7 @@ internal class PyguinResult
 }
 
 /// <summary>
-/// LLM test generation result
+///     LLM test generation result
 /// </summary>
 internal class LlmTestGenerationResult
 {
@@ -543,7 +540,7 @@ internal class LlmTestGenerationResult
 }
 
 /// <summary>
-/// Parsed LLM response
+///     Parsed LLM response
 /// </summary>
 internal class LlmTestResponse
 {
@@ -552,7 +549,7 @@ internal class LlmTestResponse
 }
 
 /// <summary>
-/// Command execution result
+///     Command execution result
 /// </summary>
 internal class CommandResult
 {

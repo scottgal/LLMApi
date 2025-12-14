@@ -6,16 +6,15 @@ using LLMApi.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Comprehensive integration tests for v2.3.0 features:
-/// - Form body support (application/x-www-form-urlencoded)
-/// - File upload support (multipart/form-data)
-/// - Arbitrary path lengths
+///     Comprehensive integration tests for v2.3.0 features:
+///     - Form body support (application/x-www-form-urlencoded)
+///     - File upload support (multipart/form-data)
+///     - Arbitrary path lengths
 /// </summary>
 [Trait("Category", "Integration")]
 public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
@@ -29,13 +28,9 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
             builder.ConfigureTestServices(services =>
             {
                 // Replace real LLM client with fake for predictable testing
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(LlmClient));
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(LlmClient));
 
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
+                if (descriptor != null) services.Remove(descriptor);
 
                 services.AddScoped<LlmClient, FakeLlmClient>();
             });
@@ -68,7 +63,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Verify valid JSON (FakeLlmClient returns generic JSON)
         var json = JsonDocument.Parse(content);
-        Assert.True(json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object);
+        Assert.True(json.RootElement.ValueKind == JsonValueKind.Object);
 
         // Verify standard fake response structure
         Assert.True(json.RootElement.TryGetProperty("id", out _));
@@ -203,7 +198,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.NotEmpty(responseContent);
 
         var json = JsonDocument.Parse(responseContent);
-        Assert.True(json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object);
+        Assert.True(json.RootElement.ValueKind == JsonValueKind.Object);
 
         // Verify standard fake response structure
         Assert.True(json.RootElement.TryGetProperty("id", out _));
@@ -304,7 +299,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(responseContent);
-        Assert.True(json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object);
+        Assert.True(json.RootElement.ValueKind == JsonValueKind.Object);
 
         // Verify standard fake response structure
         Assert.True(json.RootElement.TryGetProperty("id", out _));
@@ -377,7 +372,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.True(json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object);
+        Assert.True(json.RootElement.ValueKind == JsonValueKind.Object);
 
         // Verify standard fake response structure
         Assert.True(json.RootElement.TryGetProperty("id", out _));
@@ -391,10 +386,10 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         var path = "/api/mock/api/products/search";
         var queryString = "?category=electronics&brand=Dell&model=XPS%2015&" +
-                         "price_min=1000&price_max=2500&" +
-                         "storage=1TB&ram=32GB&" +
-                         "condition=new&shipping=free&" +
-                         "warranty=3years&color=silver";
+                          "price_min=1000&price_max=2500&" +
+                          "storage=1TB&ram=32GB&" +
+                          "condition=new&shipping=free&" +
+                          "warranty=3years&color=silver";
 
         // Act
         var response = await client.GetAsync(path + queryString);
@@ -412,7 +407,8 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
     {
         // Arrange
         var client = _factory.CreateClient();
-        var path = "/api/mock/v2/organizations/org-123/departments/dept-456/employees/emp-789/reviews/review-101/comments";
+        var path =
+            "/api/mock/v2/organizations/org-123/departments/dept-456/employees/emp-789/reviews/review-101/comments";
 
         // Act
         var response = await client.GetAsync(path);
@@ -422,7 +418,7 @@ public class V2_3_0_FeatureTests : IClassFixture<WebApplicationFactory<Program>>
 
         var content = await response.Content.ReadAsStringAsync();
         var json = JsonDocument.Parse(content);
-        Assert.True(json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object);
+        Assert.True(json.RootElement.ValueKind == JsonValueKind.Object);
 
         // Verify standard fake response structure
         Assert.True(json.RootElement.TryGetProperty("id", out _));

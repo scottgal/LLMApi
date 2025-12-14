@@ -1,7 +1,7 @@
 namespace mostlylucid.mockllmapi.Models;
 
 /// <summary>
-/// Represents a complete parsed .proto file
+///     Represents a complete parsed .proto file
 /// </summary>
 public class ProtoDefinition
 {
@@ -15,7 +15,7 @@ public class ProtoDefinition
 }
 
 /// <summary>
-/// Represents a gRPC service definition
+///     Represents a gRPC service definition
 /// </summary>
 public class ProtoService
 {
@@ -24,7 +24,7 @@ public class ProtoService
 }
 
 /// <summary>
-/// Represents a gRPC method (RPC)
+///     Represents a gRPC method (RPC)
 /// </summary>
 public class ProtoMethod
 {
@@ -47,7 +47,7 @@ public class ProtoMethod
 }
 
 /// <summary>
-/// Represents a protobuf message definition
+///     Represents a protobuf message definition
 /// </summary>
 public class ProtoMessage
 {
@@ -56,7 +56,7 @@ public class ProtoMessage
 }
 
 /// <summary>
-/// Represents a field in a protobuf message
+///     Represents a field in a protobuf message
 /// </summary>
 public class ProtoField
 {
@@ -68,7 +68,7 @@ public class ProtoField
 }
 
 /// <summary>
-/// gRPC method types
+///     gRPC method types
 /// </summary>
 public enum MethodType
 {

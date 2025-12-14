@@ -1,23 +1,23 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Comprehensive tool testing and fitness scoring system.
-/// Tests all configured tools, validates their claims, and generates fitness scores for RAG optimization.
+///     Comprehensive tool testing and fitness scoring system.
+///     Tests all configured tools, validates their claims, and generates fitness scores for RAG optimization.
 /// </summary>
 public class ToolFitnessTester
 {
-    private readonly ToolRegistry _toolRegistry;
-    private readonly ToolOrchestrator _orchestrator;
+    private readonly LlmClient? _godLlmClient; // Optional: for evolution/optimization
     private readonly ILogger<ToolFitnessTester> _logger;
     private readonly LLMockApiOptions _options;
-    private readonly LlmClient? _godLlmClient; // Optional: for evolution/optimization
+    private readonly ToolOrchestrator _orchestrator;
+    private readonly ToolRegistry _toolRegistry;
 
     public ToolFitnessTester(
         ToolRegistry toolRegistry,
@@ -34,7 +34,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Runs comprehensive tests on all configured tools
+    ///     Runs comprehensive tests on all configured tools
     /// </summary>
     public async Task<ToolFitnessReport> TestAllToolsAsync(CancellationToken cancellationToken = default)
     {
@@ -76,14 +76,15 @@ public class ToolFitnessTester
         report.PassedTests = testResults.Count(r => r.Passed);
         report.FailedTests = testResults.Count(r => !r.Passed);
 
-        _logger.LogInformation("Tool fitness testing complete. Passed: {Passed}, Failed: {Failed}, Avg Fitness: {AvgFitness:F2}",
+        _logger.LogInformation(
+            "Tool fitness testing complete. Passed: {Passed}, Failed: {Failed}, Avg Fitness: {AvgFitness:F2}",
             report.PassedTests, report.FailedTests, report.AverageFitness);
 
         return report;
     }
 
     /// <summary>
-    /// Tests a single tool with generated dummy data and validates expectations
+    ///     Tests a single tool with generated dummy data and validates expectations
     /// </summary>
     private async Task<ToolTestResult> TestToolAsync(ToolConfig tool, CancellationToken cancellationToken)
     {
@@ -151,45 +152,33 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Generates dummy test parameters based on tool parameter schema
+    ///     Generates dummy test parameters based on tool parameter schema
     /// </summary>
     private Dictionary<string, object> GenerateDummyParameters(ToolConfig tool)
     {
         var parameters = new Dictionary<string, object>();
 
-        if (tool.Parameters == null || !tool.Parameters.Any())
-        {
-            return parameters;
-        }
+        if (tool.Parameters == null || !tool.Parameters.Any()) return parameters;
 
         foreach (var param in tool.Parameters)
         {
             var value = GenerateDummyValue(param.Value);
-            if (value != null)
-            {
-                parameters[param.Key] = value;
-            }
+            if (value != null) parameters[param.Key] = value;
         }
 
         return parameters;
     }
 
     /// <summary>
-    /// Generates a dummy value based on parameter schema
+    ///     Generates a dummy value based on parameter schema
     /// </summary>
     private object? GenerateDummyValue(ParameterSchema param)
     {
         // Use example if provided
-        if (param.Example != null)
-        {
-            return param.Example;
-        }
+        if (param.Example != null) return param.Example;
 
         // Use default if provided
-        if (param.Default != null)
-        {
-            return param.Default;
-        }
+        if (param.Default != null) return param.Default;
 
         // Generate based on type
         return param.Type?.ToLowerInvariant() switch
@@ -205,7 +194,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Generates expectations for tool execution based on tool type and configuration
+    ///     Generates expectations for tool execution based on tool type and configuration
     /// </summary>
     private List<TestExpectation> GenerateExpectations(ToolConfig tool, Dictionary<string, object> parameters)
     {
@@ -233,54 +222,43 @@ public class ToolFitnessTester
             var url = tool.HttpConfig.Endpoint;
 
             // Substitute parameters in URL
-            foreach (var param in parameters)
-            {
-                url = url.Replace($"{{{param.Key}}}", param.Value?.ToString() ?? "");
-            }
+            foreach (var param in parameters) url = url.Replace($"{{{param.Key}}}", param.Value?.ToString() ?? "");
 
             // Determine if URL is expected to be valid or should 404
             var isValidUrl = !url.Contains("example.com") && !url.Contains("dummy") && !url.Contains("test-invalid");
 
             if (isValidUrl)
-            {
                 expectations.Add(new TestExpectation
                 {
                     ExpectationType = "HttpSuccess",
                     Description = "HTTP request should succeed (2xx or 3xx status)",
                     Expected = "Success status code"
                 });
-            }
             else
-            {
                 expectations.Add(new TestExpectation
                 {
                     ExpectationType = "HttpFailure",
                     Description = "Dummy/invalid URL should fail gracefully",
                     Expected = "404 or connection error"
                 });
-            }
 
             // Check for JSONPath extraction
             if (!string.IsNullOrEmpty(tool.HttpConfig.ResponsePath))
-            {
                 expectations.Add(new TestExpectation
                 {
                     ExpectationType = "JsonPathExtraction",
                     Description = "Should extract data using JSONPath",
                     Expected = $"Value extracted from path: {tool.HttpConfig.ResponsePath}"
                 });
-            }
 
             // Check for authentication
             if (!string.IsNullOrEmpty(tool.HttpConfig.AuthType) && tool.HttpConfig.AuthType != "none")
-            {
                 expectations.Add(new TestExpectation
                 {
                     ExpectationType = "AuthenticationConfigured",
                     Description = "Should include authentication headers/credentials",
                     Expected = $"Authentication type: {tool.HttpConfig.AuthType}"
                 });
-            }
         }
 
         // Mock tool specific expectations
@@ -294,32 +272,28 @@ public class ToolFitnessTester
             });
 
             if (!string.IsNullOrEmpty(tool.MockConfig.ContextName))
-            {
                 expectations.Add(new TestExpectation
                 {
                     ExpectationType = "ContextSharing",
                     Description = "Should share context across tool chain",
                     Expected = $"Context: {tool.MockConfig.ContextName}"
                 });
-            }
         }
 
         // Cache expectations
         if (tool.EnableCaching && tool.CacheDurationMinutes > 0)
-        {
             expectations.Add(new TestExpectation
             {
                 ExpectationType = "Caching",
                 Description = "Tool should support result caching",
                 Expected = $"Cache TTL: {tool.CacheDurationMinutes} minutes"
             });
-        }
 
         return expectations;
     }
 
     /// <summary>
-    /// Validates actual results against expectations
+    ///     Validates actual results against expectations
     /// </summary>
     private List<ValidationResult> ValidateResults(
         List<TestExpectation> expectations,
@@ -402,45 +376,34 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Calculates a comprehensive fitness score for the tool (0-100)
+    ///     Calculates a comprehensive fitness score for the tool (0-100)
     /// </summary>
     private double CalculateFitnessScore(ToolTestResult result, ToolConfig tool)
     {
         double score = 0;
 
         // Base score: Did it pass? (40 points)
-        if (result.Passed)
-        {
-            score += 40;
-        }
+        if (result.Passed) score += 40;
 
         // Validation results (30 points)
         if (result.ValidationResults.Any())
         {
             var passedValidations = result.ValidationResults.Count(v => v.Passed);
             var totalValidations = result.ValidationResults.Count;
-            score += (passedValidations / (double)totalValidations) * 30;
+            score += passedValidations / (double)totalValidations * 30;
         }
 
         // Performance (15 points)
         var timeoutSeconds = _options.TimeoutSeconds > 0 ? _options.TimeoutSeconds : 30;
         var maxReasonableTime = timeoutSeconds * 1000;
         if (result.ExecutionTimeMs < maxReasonableTime * 0.25) // Very fast (< 25% of timeout)
-        {
             score += 15;
-        }
         else if (result.ExecutionTimeMs < maxReasonableTime * 0.5) // Fast (< 50% of timeout)
-        {
             score += 12;
-        }
         else if (result.ExecutionTimeMs < maxReasonableTime * 0.75) // Acceptable (< 75% of timeout)
-        {
             score += 8;
-        }
         else if (result.ExecutionTimeMs < maxReasonableTime) // Slow but within timeout
-        {
             score += 4;
-        }
 
         // Configuration quality (10 points)
         var configScore = 0;
@@ -462,7 +425,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Determines the primary tool type for classification
+    ///     Determines the primary tool type for classification
     /// </summary>
     private string DetermineToolType(ToolConfig tool)
     {
@@ -472,7 +435,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Identifies low-fitness tools that need evolution/optimization
+    ///     Identifies low-fitness tools that need evolution/optimization
     /// </summary>
     public List<ToolTestResult> GetLowFitnessTools(ToolFitnessReport report, double threshold = 60.0)
     {
@@ -480,7 +443,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Triggers evolution/optimization for low-fitness tools using god-level LLM
+    ///     Triggers evolution/optimization for low-fitness tools using god-level LLM
     /// </summary>
     public async Task<List<ToolEvolutionResult>> EvolveToolsAsync(
         List<ToolTestResult> lowFitnessTools,
@@ -506,21 +469,19 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Evolves a single tool using god-level LLM
+    ///     Evolves a single tool using god-level LLM
     /// </summary>
     private async Task<ToolEvolutionResult> EvolveSingleToolAsync(
         ToolTestResult toolResult,
         CancellationToken cancellationToken)
     {
         if (_godLlmClient == null)
-        {
             return new ToolEvolutionResult
             {
                 ToolName = toolResult.ToolName,
                 Success = false,
                 Error = "God-level LLM not configured"
             };
-        }
 
         try
         {
@@ -528,7 +489,7 @@ public class ToolFitnessTester
 
             // Use god-level LLM with high max tokens for comprehensive analysis
             var response = await _godLlmClient.GetCompletionAsync(
-                prompt: prompt,
+                prompt,
                 maxTokens: 8000,
                 request: null); // No HTTP request context needed
 
@@ -554,7 +515,7 @@ public class ToolFitnessTester
     }
 
     /// <summary>
-    /// Builds the evolution prompt for god-level LLM
+    ///     Builds the evolution prompt for god-level LLM
     /// </summary>
     private string BuildEvolutionPrompt(ToolTestResult toolResult)
     {
@@ -597,7 +558,7 @@ Be specific, actionable, and comprehensive. Focus on practical improvements that
 }
 
 /// <summary>
-/// Complete fitness testing report
+///     Complete fitness testing report
 /// </summary>
 public class ToolFitnessReport
 {
@@ -612,7 +573,7 @@ public class ToolFitnessReport
     public List<ToolTestResult> ToolResults { get; set; } = new();
 
     /// <summary>
-    /// Exports report to RAG-friendly JSON format
+    ///     Exports report to RAG-friendly JSON format
     /// </summary>
     public string ToRagJson()
     {
@@ -625,7 +586,7 @@ public class ToolFitnessReport
 }
 
 /// <summary>
-/// Test result for a single tool
+///     Test result for a single tool
 /// </summary>
 public class ToolTestResult
 {
@@ -644,7 +605,7 @@ public class ToolTestResult
 }
 
 /// <summary>
-/// Test expectation definition
+///     Test expectation definition
 /// </summary>
 public class TestExpectation
 {
@@ -654,7 +615,7 @@ public class TestExpectation
 }
 
 /// <summary>
-/// Validation result for an expectation
+///     Validation result for an expectation
 /// </summary>
 public class ValidationResult
 {
@@ -666,7 +627,7 @@ public class ValidationResult
 }
 
 /// <summary>
-/// Tool evolution result from god-level LLM
+///     Tool evolution result from god-level LLM
 /// </summary>
 public class ToolEvolutionResult
 {

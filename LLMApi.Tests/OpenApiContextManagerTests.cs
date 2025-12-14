@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
@@ -12,9 +12,9 @@ public class OpenApiContextManagerTests
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         var logger = loggerFactory.CreateLogger<OpenApiContextManager>();
-        var options = Microsoft.Extensions.Options.Options.Create(new LLMockApiOptions
+        var options = Options.Create(new LLMockApiOptions
         {
-            MaxContextWindow = 2048  // Auto-calculates MaxInputTokens (75%) and MaxOutputTokens (25%)
+            MaxContextWindow = 2048 // Auto-calculates MaxInputTokens (75%) and MaxOutputTokens (25%)
         });
 
         // Create real IMemoryCache and IContextStore for testing
@@ -137,10 +137,8 @@ public class OpenApiContextManagerTests
         var manager = CreateManager();
 
         // Act - Add 25 calls
-        for (int i = 1; i <= 25; i++)
-        {
+        for (var i = 1; i <= 25; i++)
             manager.AddToContext("test-context", "GET", $"/users/{i}", null, $"{{\"id\": {i}}}");
-        }
 
         // Assert
         var context = manager.GetContext("test-context");

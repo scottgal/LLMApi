@@ -169,7 +169,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = false });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -184,7 +184,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = false });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -200,7 +200,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = false });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -216,7 +216,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -234,7 +234,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -261,7 +261,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -301,7 +301,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -322,7 +322,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -348,7 +348,7 @@ public class AutoShapeTests
     {
         var options = Options.Create(new LLMockApiOptions { EnableAutoShape = true });
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
         var shapeExtractor = new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
         var manager = new AutoShapeManager(options, shapeStore, shapeExtractor, NullLogger<AutoShapeManager>.Instance);
 
@@ -374,7 +374,7 @@ public class AutoShapeTests
     public void ShapeStore_StoresAndRetrievesShape()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         var path = "/api/mock/users/{id}";
         var shape = """{"id": 0, "name": ""}""";
@@ -391,7 +391,7 @@ public class AutoShapeTests
     public void ShapeStore_GetOrAddCreatesNewShape()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         var path = "/api/mock/users/{id}";
         var shape = """{"id": 0, "name": ""}""";
@@ -406,7 +406,7 @@ public class AutoShapeTests
     public void ShapeStore_GetOrAddReturnsExisting()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         var path = "/api/mock/users/{id}";
         var shape1 = """{"id": 0, "name": ""}""";
@@ -423,7 +423,7 @@ public class AutoShapeTests
     public void ShapeStore_RemovesShape()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         var path = "/api/mock/users/{id}";
         var shape = """{"id": 0, "name": ""}""";
@@ -440,7 +440,7 @@ public class AutoShapeTests
     public void ShapeStore_CaseInsensitivePaths()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         var path1 = "/api/mock/USERS/{id}";
         var path2 = "/api/mock/users/{id}";
@@ -457,7 +457,7 @@ public class AutoShapeTests
     public void ShapeStore_GetAllPaths()
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance, 15);
+        var store = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
 
         store.Set("/api/mock/users/{id}", """{"id": 0}""");
         store.Set("/api/mock/products/{id}", """{"id": 0}""");

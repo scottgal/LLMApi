@@ -5,16 +5,15 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Service for rate limiting simulation with per-endpoint statistics tracking
-/// Tracks LLM response times and calculates appropriate delays to simulate rate-limited APIs
+///     Service for rate limiting simulation with per-endpoint statistics tracking
+///     Tracks LLM response times and calculates appropriate delays to simulate rate-limited APIs
 /// </summary>
 public class RateLimitService
 {
-    private readonly LLMockApiOptions _options;
-    private readonly Random _random = new();
-
     // Per-endpoint statistics: endpoint path -> response time history
     private readonly ConcurrentDictionary<string, EndpointStats> _endpointStats = new();
+    private readonly LLMockApiOptions _options;
+    private readonly Random _random = new();
 
     public RateLimitService(IOptions<LLMockApiOptions> options)
     {
@@ -22,17 +21,14 @@ public class RateLimitService
     }
 
     /// <summary>
-    /// Records a response time for an endpoint and returns statistics
+    ///     Records a response time for an endpoint and returns statistics
     /// </summary>
     /// <param name="endpointPath">The endpoint path (e.g., "/api/mock/users")</param>
     /// <param name="responseTimeMs">Response time in milliseconds</param>
     /// <returns>Updated statistics for the endpoint</returns>
     public EndpointStats RecordResponseTime(string endpointPath, long responseTimeMs)
     {
-        if (!_options.EnableRateLimitStatistics)
-        {
-            return EndpointStats.CreateSimple(responseTimeMs);
-        }
+        if (!_options.EnableRateLimitStatistics) return EndpointStats.CreateSimple(responseTimeMs);
 
         var stats = _endpointStats.GetOrAdd(endpointPath, _ => new EndpointStats(_options.RateLimitStatsWindowSize));
 
@@ -41,7 +37,7 @@ public class RateLimitService
     }
 
     /// <summary>
-    /// Gets statistics for an endpoint without recording new data
+    ///     Gets statistics for an endpoint without recording new data
     /// </summary>
     public EndpointStats? GetEndpointStats(string endpointPath)
     {
@@ -49,7 +45,7 @@ public class RateLimitService
     }
 
     /// <summary>
-    /// Parses a delay range string and calculates the delay to apply
+    ///     Parses a delay range string and calculates the delay to apply
     /// </summary>
     /// <param name="delayRange">Delay range: "min-max" (e.g., "500-4000"), "max", or null</param>
     /// <param name="measuredTimeMs">The measured LLM response time in milliseconds</param>
@@ -63,10 +59,7 @@ public class RateLimitService
         delayRange = delayRange.Trim();
 
         // Handle "max" - match measured time
-        if (delayRange.Equals("max", StringComparison.OrdinalIgnoreCase))
-        {
-            return (int)measuredTimeMs;
-        }
+        if (delayRange.Equals("max", StringComparison.OrdinalIgnoreCase)) return (int)measuredTimeMs;
 
         // Handle "avg" - use endpoint average if available
         if (delayRange.Equals("avg", StringComparison.OrdinalIgnoreCase) && endpointPath != null)
@@ -81,24 +74,18 @@ public class RateLimitService
             int.TryParse(parts[0].Trim(), out var minMs) &&
             int.TryParse(parts[1].Trim(), out var maxMs))
         {
-            if (maxMs > minMs)
-            {
-                return _random.Next(minMs, maxMs + 1);
-            }
+            if (maxMs > minMs) return _random.Next(minMs, maxMs + 1);
             return Math.Max(minMs, maxMs);
         }
 
         // Handle single value
-        if (int.TryParse(delayRange, out var fixedDelay))
-        {
-            return fixedDelay;
-        }
+        if (int.TryParse(delayRange, out var fixedDelay)) return fixedDelay;
 
         return null;
     }
 
     /// <summary>
-    /// Applies a rate-limited delay based on configuration and measured time
+    ///     Applies a rate-limited delay based on configuration and measured time
     /// </summary>
     /// <param name="delayRange">Delay range from config or request override</param>
     /// <param name="measuredTimeMs">Measured LLM response time</param>
@@ -113,16 +100,13 @@ public class RateLimitService
     {
         var delay = CalculateDelay(delayRange, measuredTimeMs, endpointPath);
 
-        if (delay.HasValue && delay.Value > 0)
-        {
-            await Task.Delay(delay.Value, cancellationToken);
-        }
+        if (delay.HasValue && delay.Value > 0) await Task.Delay(delay.Value, cancellationToken);
 
         return delay;
     }
 
     /// <summary>
-    /// Determines the optimal rate limit strategy for a given number of completions
+    ///     Determines the optimal rate limit strategy for a given number of completions
     /// </summary>
     public RateLimitStrategy SelectStrategy(int nCompletions, RateLimitStrategy configuredStrategy)
     {
@@ -134,12 +118,12 @@ public class RateLimitService
         {
             1 => RateLimitStrategy.Sequential, // No batching needed
             <= 5 => RateLimitStrategy.Parallel, // Small batch - parallel is efficient
-            _ => RateLimitStrategy.Streaming    // Large batch - streaming is best
+            _ => RateLimitStrategy.Streaming // Large batch - streaming is best
         };
     }
 
     /// <summary>
-    /// Calculates standard rate limit headers based on endpoint statistics
+    ///     Calculates standard rate limit headers based on endpoint statistics
     /// </summary>
     public RateLimitHeaders CalculateRateLimitHeaders(string endpointPath, long? currentRequestMs = null)
     {
@@ -159,19 +143,12 @@ public class RateLimitService
 }
 
 /// <summary>
-/// Per-endpoint statistics with moving average
+///     Per-endpoint statistics with moving average
 /// </summary>
 public class EndpointStats
 {
     private readonly object _lock = new();
     private readonly Queue<long> _responseTimes = new();
-
-    public int WindowSize { get; set; } = 10;
-    public long AverageResponseTimeMs { get; internal set; }
-    public long RequestCount { get; internal set; }
-    public long MinResponseTimeMs { get; internal set; }
-    public long MaxResponseTimeMs { get; internal set; }
-    public DateTime LastRequestTime { get; internal set; }
 
     public EndpointStats()
     {
@@ -181,6 +158,13 @@ public class EndpointStats
     {
         WindowSize = windowSize;
     }
+
+    public int WindowSize { get; set; } = 10;
+    public long AverageResponseTimeMs { get; internal set; }
+    public long RequestCount { get; internal set; }
+    public long MinResponseTimeMs { get; internal set; }
+    public long MaxResponseTimeMs { get; internal set; }
+    public DateTime LastRequestTime { get; internal set; }
 
     public static EndpointStats CreateSimple(long responseTimeMs)
     {
@@ -203,10 +187,7 @@ public class EndpointStats
             LastRequestTime = DateTime.UtcNow;
 
             // Maintain window size
-            while (_responseTimes.Count > WindowSize)
-            {
-                _responseTimes.Dequeue();
-            }
+            while (_responseTimes.Count > WindowSize) _responseTimes.Dequeue();
 
             // Recalculate statistics
             var times = _responseTimes.ToArray();
@@ -218,22 +199,22 @@ public class EndpointStats
 }
 
 /// <summary>
-/// Standard rate limit response headers
+///     Standard rate limit response headers
 /// </summary>
 public class RateLimitHeaders
 {
     /// <summary>
-    /// Maximum requests allowed per time window
+    ///     Maximum requests allowed per time window
     /// </summary>
     public int Limit { get; set; }
 
     /// <summary>
-    /// Requests remaining in current window
+    ///     Requests remaining in current window
     /// </summary>
     public int Remaining { get; set; }
 
     /// <summary>
-    /// Unix timestamp when the rate limit resets
+    ///     Unix timestamp when the rate limit resets
     /// </summary>
     public long Reset { get; set; }
 }

@@ -1,18 +1,16 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi.Services;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Management endpoints for gRPC proto definitions
+///     Management endpoints for gRPC proto definitions
 /// </summary>
 internal static class GrpcManagementEndpoints
 {
     /// <summary>
-    /// Upload a .proto file
+    ///     Upload a .proto file
     /// </summary>
     internal static async Task<IResult> HandleProtoUpload(
         HttpContext context,
@@ -22,7 +20,7 @@ internal static class GrpcManagementEndpoints
         try
         {
             string protoContent;
-            string fileName = "uploaded.proto";
+            var fileName = "uploaded.proto";
 
             // Check if it's a multipart/form-data request
             if (context.Request.HasFormContentType)
@@ -31,9 +29,7 @@ internal static class GrpcManagementEndpoints
                 var file = form.Files.FirstOrDefault();
 
                 if (file == null || file.Length == 0)
-                {
                     return Results.BadRequest(new { error = "No proto file provided in form" });
-                }
 
                 // Read uploaded file
                 using var stream = file.OpenReadStream();
@@ -48,18 +44,13 @@ internal static class GrpcManagementEndpoints
                 protoContent = await reader.ReadToEndAsync();
 
                 if (string.IsNullOrWhiteSpace(protoContent))
-                {
                     return Results.BadRequest(new { error = "No proto content provided" });
-                }
 
                 // Try to get filename from query string
                 if (context.Request.Query.TryGetValue("name", out var nameValue))
                 {
                     var name = nameValue.ToString().Trim();
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        fileName = name.EndsWith(".proto") ? name : $"{name}.proto";
-                    }
+                    if (!string.IsNullOrEmpty(name)) fileName = name.EndsWith(".proto") ? name : $"{name}.proto";
                 }
             }
 
@@ -87,12 +78,12 @@ internal static class GrpcManagementEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error uploading proto definition");
-            return Results.Problem(detail: ex.Message, title: "Error uploading proto");
+            return Results.Problem(ex.Message, title: "Error uploading proto");
         }
     }
 
     /// <summary>
-    /// List all uploaded proto definitions
+    ///     List all uploaded proto definitions
     /// </summary>
     internal static IResult HandleListProtos(ProtoDefinitionManager manager)
     {
@@ -123,20 +114,18 @@ internal static class GrpcManagementEndpoints
     }
 
     /// <summary>
-    /// Get details of a specific proto definition
+    ///     Get details of a specific proto definition
     /// </summary>
     internal static IResult HandleGetProto(string protoName, ProtoDefinitionManager manager)
     {
         var definition = manager.GetDefinition(protoName);
 
         if (definition == null)
-        {
             return Results.NotFound(new
             {
                 error = $"Proto definition '{protoName}' not found",
                 available = manager.GetAllDefinitions().Select(d => d.Name).ToList()
             });
-        }
 
         return Results.Ok(new
         {
@@ -174,9 +163,10 @@ internal static class GrpcManagementEndpoints
     }
 
     /// <summary>
-    /// Delete a proto definition
+    ///     Delete a proto definition
     /// </summary>
-    internal static IResult HandleDeleteProto(string protoName, ProtoDefinitionManager manager, ILogger<ProtoDefinitionManager> logger)
+    internal static IResult HandleDeleteProto(string protoName, ProtoDefinitionManager manager,
+        ILogger<ProtoDefinitionManager> logger)
     {
         var removed = manager.RemoveDefinition(protoName);
 
@@ -190,7 +180,7 @@ internal static class GrpcManagementEndpoints
     }
 
     /// <summary>
-    /// Clear all proto definitions
+    ///     Clear all proto definitions
     /// </summary>
     internal static IResult HandleClearAllProtos(ProtoDefinitionManager manager, ILogger<ProtoDefinitionManager> logger)
     {

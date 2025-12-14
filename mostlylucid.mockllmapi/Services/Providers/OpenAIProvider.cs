@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using mostlylucid.mockllmapi.Models;
@@ -6,25 +6,13 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services.Providers;
 
 /// <summary>
-/// OpenAI provider (official OpenAI API)
-/// Endpoint: https://api.openai.com/v1/
-/// Models: gpt-4, gpt-4-turbo, gpt-3.5-turbo, etc.
+///     OpenAI provider (official OpenAI API)
+///     Endpoint: https://api.openai.com/v1/
+///     Models: gpt-4, gpt-4-turbo, gpt-3.5-turbo, etc.
 /// </summary>
 public class OpenAIProvider : ILlmProvider
 {
     public string Name => "openai";
-
-    private static string EscapeJsonString(string str)
-    {
-        // Manual JSON string escaping to avoid reflection-based serialization
-        return "\"" + str
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t")
-            + "\"";
-    }
 
     public async Task<string> GetCompletionAsync(
         HttpClient client,
@@ -39,7 +27,8 @@ public class OpenAIProvider : ILlmProvider
         var escapedModel = EscapeJsonString(modelName);
         var maxTokensJson = maxTokens.HasValue ? $",\"max_tokens\":{maxTokens.Value}" : "";
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2}{maxTokensJson},\"stream\":false}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2}{maxTokensJson},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -51,7 +40,8 @@ public class OpenAIProvider : ILlmProvider
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
         // Use source-generated JSON serialization for .NET 10 AOT compatibility
-        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
+        var result =
+            JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
         return result.FirstContent ?? "{}";
     }
 
@@ -66,7 +56,8 @@ public class OpenAIProvider : ILlmProvider
         var escapedPrompt = EscapeJsonString(prompt);
         var escapedModel = EscapeJsonString(modelName);
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"stream\":true}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"stream\":true}}";
 
         var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -90,7 +81,8 @@ public class OpenAIProvider : ILlmProvider
         var escapedPrompt = EscapeJsonString(prompt);
         var escapedModel = EscapeJsonString(modelName);
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"n\":{n},\"stream\":false}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"n\":{n},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -102,17 +94,14 @@ public class OpenAIProvider : ILlmProvider
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
         // Use source-generated JSON serialization for .NET 10 AOT compatibility
-        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
+        var result =
+            JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
         var list = new List<string>();
 
         if (result.Choices != null)
-        {
             foreach (var choice in result.Choices)
-            {
                 if (!string.IsNullOrEmpty(choice.Message.Content))
                     list.Add(choice.Message.Content);
-            }
-        }
 
         return list;
     }
@@ -120,12 +109,22 @@ public class OpenAIProvider : ILlmProvider
     public void ConfigureClient(HttpClient client, string? apiKey)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
-        {
             throw new InvalidOperationException(
                 "OpenAI provider requires an API key. Set 'ApiKey' in backend configuration.");
-        }
 
         client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            new AuthenticationHeaderValue("Bearer", apiKey);
+    }
+
+    private static string EscapeJsonString(string str)
+    {
+        // Manual JSON string escaping to avoid reflection-based serialization
+        return "\"" + str
+                        .Replace("\\", "\\\\")
+                        .Replace("\"", "\\\"")
+                        .Replace("\n", "\\n")
+                        .Replace("\r", "\\r")
+                        .Replace("\t", "\\t")
+                    + "\"";
     }
 }

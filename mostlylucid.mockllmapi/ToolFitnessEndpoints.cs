@@ -1,18 +1,19 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services.Tools;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// API endpoints for tool fitness testing and evolution
+///     API endpoints for tool fitness testing and evolution
 /// </summary>
 internal static class ToolFitnessEndpoints
 {
     /// <summary>
-    /// Runs comprehensive fitness tests on all configured tools
-    /// POST /api/tools/fitness/test
+    ///     Runs comprehensive fitness tests on all configured tools
+    ///     POST /api/tools/fitness/test
     /// </summary>
     internal static async Task<IResult> HandleRunFitnessTest(
         ToolFitnessTester tester,
@@ -43,8 +44,8 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Gets fitness history for a specific tool
-    /// GET /api/tools/fitness/{toolName}
+    ///     Gets fitness history for a specific tool
+    ///     GET /api/tools/fitness/{toolName}
     /// </summary>
     internal static IResult HandleGetToolFitnessHistory(
         string toolName,
@@ -53,10 +54,7 @@ internal static class ToolFitnessEndpoints
     {
         var history = ragStore.GetToolHistory(toolName, maxResults);
 
-        if (!history.Any())
-        {
-            return Results.NotFound(new { error = $"No fitness history found for tool: {toolName}" });
-        }
+        if (!history.Any()) return Results.NotFound(new { error = $"No fitness history found for tool: {toolName}" });
 
         return Results.Ok(new
         {
@@ -68,8 +66,8 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Gets all low-fitness tools below threshold
-    /// GET /api/tools/fitness/low?threshold=60
+    ///     Gets all low-fitness tools below threshold
+    ///     GET /api/tools/fitness/low?threshold=60
     /// </summary>
     internal static IResult HandleGetLowFitnessTools(
         ToolFitnessRagStore ragStore,
@@ -90,8 +88,8 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Gets fitness trends for all tools
-    /// GET /api/tools/fitness/trends
+    ///     Gets fitness trends for all tools
+    ///     GET /api/tools/fitness/trends
     /// </summary>
     internal static IResult HandleGetFitnessTrends(
         ToolFitnessRagStore ragStore,
@@ -111,9 +109,9 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Triggers evolution for low-fitness tools using god-level LLM
-    /// POST /api/tools/fitness/evolve
-    /// Body: { "threshold": 60.0 }
+    ///     Triggers evolution for low-fitness tools using god-level LLM
+    ///     POST /api/tools/fitness/evolve
+    ///     Body: { "threshold": 60.0 }
     /// </summary>
     internal static async Task<IResult> HandleEvolveTools(
         HttpContext ctx,
@@ -127,10 +125,7 @@ internal static class ToolFitnessEndpoints
             // Parse request body
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync(cancellationToken);
-            var request = JsonSerializer.Deserialize<EvolveToolsRequest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var request = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.EvolveToolsRequest);
 
             var threshold = request?.Threshold ?? 60.0;
 
@@ -140,14 +135,12 @@ internal static class ToolFitnessEndpoints
             var lowFitnessTools = ragStore.GetLowFitnessTools(threshold);
 
             if (!lowFitnessTools.Any())
-            {
                 return Results.Ok(new
                 {
                     message = "No low-fitness tools found",
                     threshold,
                     evolutionResults = new List<object>()
                 });
-            }
 
             // Get full test results (need to re-run test or load from last report)
             // For now, trigger a new test to get fresh data
@@ -174,8 +167,8 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Exports complete fitness history to JSON
-    /// GET /api/tools/fitness/export
+    ///     Exports complete fitness history to JSON
+    ///     GET /api/tools/fitness/export
     /// </summary>
     internal static async Task<IResult> HandleExportFitnessHistory(
         ToolFitnessRagStore ragStore,
@@ -200,15 +193,17 @@ internal static class ToolFitnessEndpoints
     }
 
     /// <summary>
-    /// Gets storage directory information
-    /// GET /api/tools/fitness/storage
+    ///     Gets storage directory information
+    ///     GET /api/tools/fitness/storage
     /// </summary>
     internal static IResult HandleGetStorageInfo(ToolFitnessRagStore ragStore)
     {
         var directory = ragStore.GetStorageDirectory();
         var exists = Directory.Exists(directory);
 
-        var files = exists ? Directory.GetFiles(directory).Select(f => Path.GetFileName(f)!).Where(f => f != null).ToList() : new List<string>();
+        var files = exists
+            ? Directory.GetFiles(directory).Select(f => Path.GetFileName(f)!).Where(f => f != null).ToList()
+            : new List<string>();
 
         return Results.Ok(new
         {
@@ -218,12 +213,4 @@ internal static class ToolFitnessEndpoints
             files = files.Take(20) // Limit to prevent huge responses
         });
     }
-}
-
-/// <summary>
-/// Request model for tool evolution
-/// </summary>
-internal class EvolveToolsRequest
-{
-    public double Threshold { get; set; } = 60.0;
 }

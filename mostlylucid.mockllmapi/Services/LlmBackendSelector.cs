@@ -6,15 +6,15 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Selects LLM backend for requests
-/// Supports multiple selection strategies: round-robin, priority-based, failover, per-request selection
+///     Selects LLM backend for requests
+///     Supports multiple selection strategies: round-robin, priority-based, failover, per-request selection
 /// </summary>
 public class LlmBackendSelector
 {
-    private readonly LLMockApiOptions _options;
+    private readonly object _lock = new();
     private readonly ILogger<LlmBackendSelector> _logger;
-    private int _roundRobinIndex = 0;
-    private readonly object _lock = new object();
+    private readonly LLMockApiOptions _options;
+    private int _roundRobinIndex;
 
     public LlmBackendSelector(
         IOptions<LLMockApiOptions> options,
@@ -25,9 +25,9 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Gets the current backend configuration
-    /// Supports per-request selection via X-LLM-Backend header or ?backend= query parameter
-    /// Falls back to round-robin selection
+    ///     Gets the current backend configuration
+    ///     Supports per-request selection via X-LLM-Backend header or ?backend= query parameter
+    ///     Falls back to round-robin selection
     /// </summary>
     public LlmBackendConfig? SelectBackend(HttpRequest? request = null)
     {
@@ -85,39 +85,35 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Extracts requested backend from request headers or query parameters
+    ///     Extracts requested backend from request headers or query parameters
     /// </summary>
     private string? GetRequestedBackend(HttpRequest request)
     {
         // Check header first (X-LLM-Backend: backend-name)
         if (request.Headers.TryGetValue("X-LLM-Backend", out var headerValue) &&
             !string.IsNullOrWhiteSpace(headerValue))
-        {
             return headerValue.ToString();
-        }
 
         // Check query parameter (?backend=backend-name)
         if (request.Query.TryGetValue("backend", out var queryValue) &&
             !string.IsNullOrWhiteSpace(queryValue))
-        {
             return queryValue.ToString();
-        }
 
         return null;
     }
 
     /// <summary>
-    /// Gets a specific backend by name
+    ///     Gets a specific backend by name
     /// </summary>
     public LlmBackendConfig? GetBackendByName(string name)
     {
         return _options.LlmBackends
             .FirstOrDefault(b => b.Enabled &&
-                                b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                                 b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
-    /// Creates a backend config from legacy BaseUrl/ModelName settings
+    ///     Creates a backend config from legacy BaseUrl/ModelName settings
     /// </summary>
     private LlmBackendConfig CreateLegacyBackend()
     {
@@ -132,7 +128,7 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Round-robin selection across backends
+    ///     Round-robin selection across backends
     /// </summary>
     private LlmBackendConfig SelectRoundRobin(List<LlmBackendConfig> backends)
     {
@@ -148,7 +144,7 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Gets all configured backends (for monitoring/health checks)
+    ///     Gets all configured backends (for monitoring/health checks)
     /// </summary>
     public List<LlmBackendConfig> GetAllBackends()
     {
@@ -156,7 +152,7 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Checks if multiple backends are configured
+    ///     Checks if multiple backends are configured
     /// </summary>
     public bool HasMultipleBackends()
     {
@@ -164,20 +160,17 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Selects a backend from a list of backend names using weighted round-robin
-    /// Falls back to default selection if none of the named backends are available
+    ///     Selects a backend from a list of backend names using weighted round-robin
+    ///     Falls back to default selection if none of the named backends are available
     /// </summary>
     public LlmBackendConfig? SelectFromBackends(string[] backendNames)
     {
-        if (backendNames == null || backendNames.Length == 0)
-        {
-            return SelectBackend();
-        }
+        if (backendNames == null || backendNames.Length == 0) return SelectBackend();
 
         // Get all enabled backends that match the requested names
         var matchingBackends = _options.LlmBackends
             .Where(b => b.Enabled &&
-                       backendNames.Any(name => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                        backendNames.Any(name => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         if (matchingBackends.Count == 0)
@@ -205,7 +198,7 @@ public class LlmBackendSelector
     }
 
     /// <summary>
-    /// Weighted round-robin selection based on backend weights
+    ///     Weighted round-robin selection based on backend weights
     /// </summary>
     private LlmBackendConfig SelectWeightedRoundRobin(List<LlmBackendConfig> backends)
     {

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi.Models;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
 
@@ -23,20 +22,13 @@ internal static class OpenApiManagementEndpoints
         {
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync();
-            var request = JsonSerializer.Deserialize<LoadSpecRequest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var request = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.LoadSpecRequest);
 
             if (request == null || string.IsNullOrWhiteSpace(request.Name))
-            {
                 return Results.BadRequest(new { error = "Name is required" });
-            }
 
             if (string.IsNullOrWhiteSpace(request.Source))
-            {
                 return Results.BadRequest(new { error = "Source is required" });
-            }
 
             // Normalize empty strings to null for optional parameters
             var basePath = string.IsNullOrWhiteSpace(request.BasePath) ? null : request.BasePath;
@@ -49,14 +41,9 @@ internal static class OpenApiManagementEndpoints
                 contextName,
                 ctx.RequestAborted);
 
-            if (result.Success)
-            {
-                return Results.Ok(result);
-            }
-            else
-            {
-                return Results.BadRequest(result);
-            }
+            if (result.Success) return Results.Ok(result);
+
+            return Results.BadRequest(result);
         }
         catch (Exception ex)
         {
@@ -67,10 +54,7 @@ internal static class OpenApiManagementEndpoints
     internal static IResult HandleGetSpec(string specName, DynamicOpenApiManager manager)
     {
         var spec = manager.GetSpec(specName);
-        if (spec == null)
-        {
-            return Results.NotFound(new { error = $"Spec '{specName}' not found" });
-        }
+        if (spec == null) return Results.NotFound(new { error = $"Spec '{specName}' not found" });
 
         return Results.Ok(new
         {
@@ -92,14 +76,9 @@ internal static class OpenApiManagementEndpoints
     internal static IResult HandleDeleteSpec(string specName, DynamicOpenApiManager manager)
     {
         var removed = manager.RemoveSpec(specName);
-        if (removed)
-        {
-            return Results.Ok(new { message = $"Spec '{specName}' deleted successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Spec '{specName}' not found" });
-        }
+        if (removed) return Results.Ok(new { message = $"Spec '{specName}' deleted successfully" });
+
+        return Results.NotFound(new { error = $"Spec '{specName}' not found" });
     }
 
     internal static async Task<IResult> HandleReloadSpec(
@@ -108,14 +87,9 @@ internal static class OpenApiManagementEndpoints
         CancellationToken cancellationToken)
     {
         var result = await manager.ReloadSpecAsync(specName, cancellationToken);
-        if (result.Success)
-        {
-            return Results.Ok(result);
-        }
-        else
-        {
-            return Results.BadRequest(result);
-        }
+        if (result.Success) return Results.Ok(result);
+
+        return Results.BadRequest(result);
     }
 
     internal static async Task<IResult> HandleTestEndpoint(
@@ -127,32 +101,20 @@ internal static class OpenApiManagementEndpoints
         {
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync();
-            var request = JsonSerializer.Deserialize<TestEndpointRequest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var request = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.TestEndpointRequest);
 
-            if (request == null)
-            {
-                return Results.BadRequest(new { error = "Invalid request" });
-            }
+            if (request == null) return Results.BadRequest(new { error = "Invalid request" });
 
             // Find the spec and operation
             var spec = manager.GetSpec(request.SpecName);
-            if (spec == null)
-            {
-                return Results.NotFound(new { error = $"Spec '{request.SpecName}' not found" });
-            }
+            if (spec == null) return Results.NotFound(new { error = $"Spec '{request.SpecName}' not found" });
 
             // Strip the basePath from the request path to match against OpenAPI document paths
             var pathWithoutBase = request.Path;
             if (!string.IsNullOrEmpty(spec.BasePath) && request.Path.StartsWith(spec.BasePath))
             {
                 pathWithoutBase = request.Path.Substring(spec.BasePath.Length);
-                if (!pathWithoutBase.StartsWith("/"))
-                {
-                    pathWithoutBase = "/" + pathWithoutBase;
-                }
+                if (!pathWithoutBase.StartsWith("/")) pathWithoutBase = "/" + pathWithoutBase;
             }
 
             // Find the matching operation
@@ -162,14 +124,13 @@ internal static class OpenApiManagementEndpoints
                 request.Method);
 
             if (operation == null || method == null)
-            {
-                return Results.NotFound(new {
+                return Results.NotFound(new
+                {
                     error = $"Operation not found: {request.Method} {pathWithoutBase}",
                     requestedPath = request.Path,
                     lookupPath = pathWithoutBase,
                     basePath = spec.BasePath
                 });
-            }
 
             // Generate mock response with spec's context (use path without basePath for schema lookup)
             var response = await handler.HandleRequestAsync(
@@ -198,10 +159,7 @@ internal static class OpenApiManagementEndpoints
     internal static IResult HandleGetApiContext(string contextName, OpenApiContextManager contextManager)
     {
         var context = contextManager.GetContext(contextName);
-        if (context == null)
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
+        if (context == null) return Results.NotFound(new { error = $"Context '{contextName}' not found" });
 
         return Results.Ok(new
         {
@@ -225,10 +183,7 @@ internal static class OpenApiManagementEndpoints
     internal static IResult HandleClearApiContext(string contextName, OpenApiContextManager contextManager)
     {
         var removed = contextManager.ClearContext(contextName);
-        if (removed)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' cleared successfully" });
-        }
+        if (removed) return Results.Ok(new { message = $"Context '{contextName}' cleared successfully" });
         return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 

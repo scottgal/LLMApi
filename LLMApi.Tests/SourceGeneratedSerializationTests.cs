@@ -5,14 +5,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Tests verifying source-generated JSON serialization works correctly.
-/// Uses the LLMock API to test itself by making real HTTP requests
-/// and verifying responses are properly deserialized.
+///     Tests verifying source-generated JSON serialization works correctly.
+///     Uses the LLMock API to test itself by making real HTTP requests
+///     and verifying responses are properly deserialized.
 /// </summary>
 [Trait("Category", "Integration")]
 public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFactory<Program>>
@@ -26,12 +25,8 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
             builder.ConfigureTestServices(services =>
             {
                 // Use FakeLlmClient for predictable testing
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(LlmClient));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(LlmClient));
+                if (descriptor != null) services.Remove(descriptor);
                 services.AddScoped<LlmClient, FakeLlmClient>();
             });
         });
@@ -152,8 +147,7 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
 
         // Create a shape that would generate a large response
         var largeArray = new List<object>();
-        for (int i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++)
             largeArray.Add(new
             {
                 id = i,
@@ -161,7 +155,6 @@ public class SourceGeneratedSerializationTests : IClassFixture<WebApplicationFac
                 description = "Long description text that repeats many times",
                 metadata = new { tag1 = "value", tag2 = "value", tag3 = "value" }
             });
-        }
 
         var shapeJson = JsonSerializer.Serialize(largeArray);
 

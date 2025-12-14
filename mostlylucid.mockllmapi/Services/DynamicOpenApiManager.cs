@@ -1,18 +1,18 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages dynamically loaded OpenAPI specifications at runtime
+///     Manages dynamically loaded OpenAPI specifications at runtime
 /// </summary>
 public class DynamicOpenApiManager
 {
+    private readonly ConcurrentDictionary<string, LoadedSpec> _loadedSpecs;
     private readonly ILogger<DynamicOpenApiManager> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ConcurrentDictionary<string, LoadedSpec> _loadedSpecs;
 
     public DynamicOpenApiManager(
         ILogger<DynamicOpenApiManager> logger,
@@ -24,9 +24,10 @@ public class DynamicOpenApiManager
     }
 
     /// <summary>
-    /// Loads an OpenAPI spec dynamically and tracks it
+    ///     Loads an OpenAPI spec dynamically and tracks it
     /// </summary>
-    public async Task<SpecLoadResult> LoadSpecAsync(string name, string source, string? basePath = null, string? contextName = null, CancellationToken cancellationToken = default)
+    public async Task<SpecLoadResult> LoadSpecAsync(string name, string source, string? basePath = null,
+        string? contextName = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -69,7 +70,8 @@ public class DynamicOpenApiManager
 
             _loadedSpecs[name] = loadedSpec;
 
-            _logger.LogInformation("Successfully loaded OpenAPI spec '{Name}' with {Count} endpoints", name, endpoints.Count);
+            _logger.LogInformation("Successfully loaded OpenAPI spec '{Name}' with {Count} endpoints", name,
+                endpoints.Count);
 
             return new SpecLoadResult
             {
@@ -98,7 +100,7 @@ public class DynamicOpenApiManager
     }
 
     /// <summary>
-    /// Gets all loaded specs
+    ///     Gets all loaded specs
     /// </summary>
     public List<LoadedSpecSummary> GetAllSpecs()
     {
@@ -120,7 +122,7 @@ public class DynamicOpenApiManager
     }
 
     /// <summary>
-    /// Gets a specific loaded spec
+    ///     Gets a specific loaded spec
     /// </summary>
     public LoadedSpec? GetSpec(string name)
     {
@@ -129,7 +131,7 @@ public class DynamicOpenApiManager
     }
 
     /// <summary>
-    /// Removes a loaded spec
+    ///     Removes a loaded spec
     /// </summary>
     public bool RemoveSpec(string name)
     {
@@ -142,23 +144,22 @@ public class DynamicOpenApiManager
             var specLoader = scope.ServiceProvider.GetRequiredService<OpenApiSpecLoader>();
             specLoader.RemoveFromCache(spec.Source);
         }
+
         return removed;
     }
 
     /// <summary>
-    /// Reloads a spec (useful if the source has changed)
+    ///     Reloads a spec (useful if the source has changed)
     /// </summary>
     public async Task<SpecLoadResult> ReloadSpecAsync(string name, CancellationToken cancellationToken = default)
     {
         if (!_loadedSpecs.TryGetValue(name, out var existing))
-        {
             return new SpecLoadResult
             {
                 Success = false,
                 SpecName = name,
                 Error = "Spec not found"
             };
-        }
 
         // Clear from cache first
         using (var scope = _scopeFactory.CreateScope())
@@ -173,7 +174,7 @@ public class DynamicOpenApiManager
 }
 
 /// <summary>
-/// Represents a loaded OpenAPI specification
+///     Represents a loaded OpenAPI specification
 /// </summary>
 public class LoadedSpec
 {
@@ -187,7 +188,7 @@ public class LoadedSpec
 }
 
 /// <summary>
-/// Summary of a loaded spec (without the full document)
+///     Summary of a loaded spec (without the full document)
 /// </summary>
 public class LoadedSpecSummary
 {
@@ -201,7 +202,7 @@ public class LoadedSpecSummary
 }
 
 /// <summary>
-/// Information about an API endpoint
+///     Information about an API endpoint
 /// </summary>
 public class EndpointInfo
 {
@@ -213,7 +214,7 @@ public class EndpointInfo
 }
 
 /// <summary>
-/// Result of loading a spec
+///     Result of loading a spec
 /// </summary>
 public class SpecLoadResult
 {
@@ -226,7 +227,7 @@ public class SpecLoadResult
 }
 
 /// <summary>
-/// OpenAPI spec info
+///     OpenAPI spec info
 /// </summary>
 public class SpecInfo
 {

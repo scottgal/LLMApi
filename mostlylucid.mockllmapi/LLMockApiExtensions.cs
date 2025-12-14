@@ -1,5 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -9,21 +9,24 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using mostlylucid.mockllmapi.Hubs;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
 using mostlylucid.mockllmapi.Services.Providers;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// Extension methods for adding LLMock API to ASP.NET Core applications
+///     Extension methods for adding LLMock API to ASP.NET Core applications
 /// </summary>
+[SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "ASP.NET Core endpoint routing requires delegate reflection")]
 public static class LlMockApiExtensions
 {
     /// <summary>
-    /// Adds ALL LLMock API services to the service collection (REST, Streaming, GraphQL)
-    /// For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
+    ///     Adds ALL LLMock API services to the service collection (REST, Streaming, GraphQL)
+    ///     For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">Configuration containing MockLlmApi section</param>
@@ -42,8 +45,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds ALL LLMock API services to the service collection with inline configuration (REST, Streaming, GraphQL)
-    /// For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
+    ///     Adds ALL LLMock API services to the service collection with inline configuration (REST, Streaming, GraphQL)
+    ///     For modular setup, use AddLLMockRest/AddLLMockStreaming/AddLLMockGraphQL instead
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configure">Action to configure options</param>
@@ -62,7 +65,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock REST API services (non-streaming)
+    ///     Adds LLMock REST API services (non-streaming)
     /// </summary>
     public static IServiceCollection AddLLMockRest(
         this IServiceCollection services,
@@ -75,7 +78,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock REST API services with inline configuration
+    ///     Adds LLMock REST API services with inline configuration
     /// </summary>
     public static IServiceCollection AddLLMockRest(
         this IServiceCollection services,
@@ -88,7 +91,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock SSE Streaming services
+    ///     Adds LLMock SSE Streaming services
     /// </summary>
     public static IServiceCollection AddLLMockStreaming(
         this IServiceCollection services,
@@ -101,7 +104,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock SSE Streaming services with inline configuration
+    ///     Adds LLMock SSE Streaming services with inline configuration
     /// </summary>
     public static IServiceCollection AddLLMockStreaming(
         this IServiceCollection services,
@@ -114,7 +117,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock GraphQL services
+    ///     Adds LLMock GraphQL services
     /// </summary>
     public static IServiceCollection AddLLMockGraphQL(
         this IServiceCollection services,
@@ -127,7 +130,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock GraphQL services with inline configuration
+    ///     Adds LLMock GraphQL services with inline configuration
     /// </summary>
     public static IServiceCollection AddLLMockGraphQL(
         this IServiceCollection services,
@@ -140,8 +143,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock SignalR services to the service collection
-    /// NOTE: This assumes core options have been configured via another Add method
+    ///     Adds LLMock SignalR services to the service collection
+    ///     NOTE: This assumes core options have been configured via another Add method
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">Configuration containing MockLlmApi section (not used, kept for compatibility)</param>
@@ -156,7 +159,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock SignalR services to the service collection with inline configuration
+    ///     Adds LLMock SignalR services to the service collection with inline configuration
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configure">Action to configure options</param>
@@ -172,7 +175,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock OpenAPI services for generating mock endpoints from OpenAPI/Swagger specs
+    ///     Adds LLMock OpenAPI services for generating mock endpoints from OpenAPI/Swagger specs
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">Configuration containing MockLlmApi section with OpenApiSpecs</param>
@@ -188,7 +191,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Adds LLMock OpenAPI services with inline configuration
+    ///     Adds LLMock OpenAPI services with inline configuration
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configure">Action to configure options including OpenApiSpecs</param>
@@ -227,19 +230,19 @@ public static class LlMockApiExtensions
 
             // Tool system (pluggable actions)
             services.AddHttpClient("ToolExecutor"); // Separate client for tool execution
-            services.AddSingleton<Services.Tools.HttpToolExecutor>();
-            services.AddSingleton<Services.Tools.MockToolExecutor>();
-            services.AddSingleton<Services.Tools.IToolExecutor>(sp => sp.GetRequiredService<Services.Tools.HttpToolExecutor>());
-            services.AddSingleton<Services.Tools.IToolExecutor>(sp => sp.GetRequiredService<Services.Tools.MockToolExecutor>());
-            services.AddSingleton<Services.Tools.ToolRegistry>();
-            services.AddScoped<Services.Tools.ToolOrchestrator>();
+            services.AddSingleton<HttpToolExecutor>();
+            services.AddSingleton<MockToolExecutor>();
+            services.AddSingleton<IToolExecutor>(sp => sp.GetRequiredService<HttpToolExecutor>());
+            services.AddSingleton<IToolExecutor>(sp => sp.GetRequiredService<MockToolExecutor>());
+            services.AddSingleton<ToolRegistry>();
+            services.AddScoped<ToolOrchestrator>();
 
             // Tool fitness testing and RAG optimization
-            services.AddScoped<Services.Tools.ToolFitnessTester>();
-            services.AddSingleton<Services.Tools.ToolFitnessRagStore>();
+            services.AddScoped<ToolFitnessTester>();
+            services.AddSingleton<ToolFitnessRagStore>();
 
             // Unit test generation (Pyguin + LLM fallback)
-            services.AddScoped<Services.Tools.UnitTestGenerator>();
+            services.AddScoped<UnitTestGenerator>();
 
             // Pre-configured REST APIs
             services.AddSingleton<RestApiRegistry>();
@@ -277,25 +280,19 @@ public static class LlMockApiExtensions
     private static void RegisterRestServices(IServiceCollection services)
     {
         if (services.All(x => x.ServiceType != typeof(RegularRequestHandler)))
-        {
             services.AddScoped<RegularRequestHandler>();
-        }
     }
 
     private static void RegisterStreamingServices(IServiceCollection services)
     {
         if (services.All(x => x.ServiceType != typeof(StreamingRequestHandler)))
-        {
             services.AddScoped<StreamingRequestHandler>();
-        }
     }
 
     private static void RegisterGraphQLServices(IServiceCollection services)
     {
         if (services.All(x => x.ServiceType != typeof(GraphQLRequestHandler)))
-        {
             services.AddScoped<GraphQLRequestHandler>();
-        }
     }
 
     private static void RegisterSignalRServices(IServiceCollection services)
@@ -335,8 +332,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps ALL LLMock API endpoints to the application (REST + optionally Streaming + optionally GraphQL)
-    /// For modular setup, use MapLLMockRest/MapLLMockStreaming/MapLLMockGraphQL instead
+    ///     Maps ALL LLMock API endpoints to the application (REST + optionally Streaming + optionally GraphQL)
+    ///     For modular setup, use MapLLMockRest/MapLLMockStreaming/MapLLMockGraphQL instead
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern (e.g., "/api/mock" or "/demo")</param>
@@ -361,7 +358,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps LLMock REST API endpoints (non-streaming)
+    ///     Maps LLMock REST API endpoints (non-streaming)
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
@@ -371,22 +368,20 @@ public static class LlMockApiExtensions
         string pattern = "/api/mock")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockRest requires endpoint routing. Call UseRouting() before MapLLMockRest().");
-        }
 
         var autoPattern = $"{pattern.TrimEnd('/')}/{{**path}}";
 
         routeBuilder.MapMethods(autoPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
-            HandleRegularRequest)
+                HandleRegularRequest)
             .WithName($"LLMockApi-Rest-{pattern}");
 
         return app;
     }
 
     /// <summary>
-    /// Maps LLMock SSE Streaming endpoints
+    ///     Maps LLMock SSE Streaming endpoints
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
@@ -396,22 +391,20 @@ public static class LlMockApiExtensions
         string pattern = "/api/mock")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockStreaming requires endpoint routing. Call UseRouting() before MapLLMockStreaming().");
-        }
 
         var streamPattern = $"{pattern.TrimEnd('/')}/stream/{{**path}}";
 
         routeBuilder.MapMethods(streamPattern, new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
-            HandleStreamingRequest)
+                HandleStreamingRequest)
             .WithName($"LLMockApi-Streaming-{pattern}");
 
         return app;
     }
 
     /// <summary>
-    /// Maps LLMock GraphQL endpoint
+    ///     Maps LLMock GraphQL endpoint
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern (e.g., "/api/mock")</param>
@@ -421,10 +414,8 @@ public static class LlMockApiExtensions
         string pattern = "/api/mock")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockGraphQL requires endpoint routing. Call UseRouting() before MapLLMockGraphQL().");
-        }
 
         var graphqlPattern = $"{pattern.TrimEnd('/')}/graphql";
 
@@ -435,7 +426,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps LLMock SignalR hub and management endpoints to the application
+    ///     Maps LLMock SignalR hub and management endpoints to the application
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="hubPattern">SignalR hub pattern (default: "/hub/mock")</param>
@@ -447,13 +438,11 @@ public static class LlMockApiExtensions
         string managementPattern = "/api/mock")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockSignalR requires endpoint routing. Call UseRouting() before MapLLMockSignalR().");
-        }
 
         // Map SignalR hub
-        routeBuilder.MapHub<Hubs.MockLlmHub>(hubPattern);
+        routeBuilder.MapHub<MockLlmHub>(hubPattern);
 
         // Add dynamic context management endpoints
         var contextPattern = $"{managementPattern.TrimEnd('/')}/contexts";
@@ -461,10 +450,14 @@ public static class LlMockApiExtensions
         routeBuilder.MapPost(contextPattern, SignalRManagementEndpoints.HandleCreateDynamicContext)
             .WithName("LLMockApi-CreateContext");
 
-        routeBuilder.MapGet(contextPattern, (DynamicHubContextManager manager, IConfiguration config) => SignalRManagementEndpoints.HandleListContexts(manager, config))
+        routeBuilder.MapGet(contextPattern,
+                (DynamicHubContextManager manager, IConfiguration config) =>
+                    SignalRManagementEndpoints.HandleListContexts(manager, config))
             .WithName("LLMockApi-ListContexts");
 
-        routeBuilder.MapGet($"{contextPattern}/{{contextName}}", (string contextName, DynamicHubContextManager manager, IConfiguration config) => SignalRManagementEndpoints.HandleGetContext(contextName, manager, config))
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}",
+                (string contextName, DynamicHubContextManager manager, IConfiguration config) =>
+                    SignalRManagementEndpoints.HandleGetContext(contextName, manager, config))
             .WithName("LLMockApi-GetContext");
 
         routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", SignalRManagementEndpoints.HandleDeleteContext)
@@ -480,17 +473,15 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps LLMock OpenAPI endpoints based on configured OpenAPI specs
+    ///     Maps LLMock OpenAPI endpoints based on configured OpenAPI specs
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <returns>The application builder for chaining</returns>
     public static IApplicationBuilder MapLLMockOpenApi(this IApplicationBuilder app)
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockOpenApi requires endpoint routing. Call UseRouting() before MapLLMockOpenApi().");
-        }
 
         // Get the options to read configured OpenAPI specs
         var services = app.ApplicationServices;
@@ -511,8 +502,8 @@ public static class LlMockApiExtensions
 
                 // Determine base path
                 var basePath = specConfig.BasePath ??
-                              document.Servers?.FirstOrDefault()?.Url ??
-                              "/api";
+                               document.Servers?.FirstOrDefault()?.Url ??
+                               "/api";
 
                 logger.LogInformation("Mapping OpenAPI spec '{Name}' at base path: {BasePath}",
                     specConfig.Name, basePath);
@@ -535,15 +526,15 @@ public static class LlMockApiExtensions
                     // Map the endpoint
                     var methodName = method.ToString().ToUpperInvariant();
                     routeBuilder.MapMethods(routePath, new[] { methodName },
-                        async (HttpContext ctx) =>
-                        {
-                            var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
-                            var response = await handler.HandleRequestAsync(
-                                ctx, document, path, method, operation, contextName, ctx.RequestAborted);
+                            async ctx =>
+                            {
+                                var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
+                                var response = await handler.HandleRequestAsync(
+                                    ctx, document, path, method, operation, contextName, ctx.RequestAborted);
 
-                            ctx.Response.ContentType = "application/json";
-                            await ctx.Response.WriteAsync(response);
-                        })
+                                ctx.Response.ContentType = "application/json";
+                                await ctx.Response.WriteAsync(response);
+                            })
                         .WithName($"LLMockApi-OpenApi-{specConfig.Name}-{methodName}-{path.Replace("/", "-")}");
 
                     logger.LogDebug("Mapped {Method} {Path} from OpenAPI spec '{Name}'",
@@ -554,21 +545,22 @@ public static class LlMockApiExtensions
                     {
                         var streamPath = $"{routePath}/stream";
                         routeBuilder.MapMethods(streamPath, new[] { methodName },
-                            async (HttpContext ctx) =>
-                            {
-                                ctx.Response.ContentType = "text/event-stream";
-                                ctx.Response.Headers["Cache-Control"] = "no-cache";
-                                ctx.Response.Headers["Connection"] = "keep-alive";
-
-                                var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
-                                await foreach (var chunk in handler.HandleStreamingRequestAsync(
-                                    ctx, document, path, method, operation, ctx.RequestAborted))
+                                async ctx =>
                                 {
-                                    await ctx.Response.WriteAsync($"data: {chunk}\n\n");
-                                    await ctx.Response.Body.FlushAsync();
-                                }
-                            })
-                            .WithName($"LLMockApi-OpenApi-{specConfig.Name}-{methodName}-{path.Replace("/", "-")}-Stream");
+                                    ctx.Response.ContentType = "text/event-stream";
+                                    ctx.Response.Headers["Cache-Control"] = "no-cache";
+                                    ctx.Response.Headers["Connection"] = "keep-alive";
+
+                                    var handler = ctx.RequestServices.GetRequiredService<OpenApiRequestHandler>();
+                                    await foreach (var chunk in handler.HandleStreamingRequestAsync(
+                                                       ctx, document, path, method, operation, ctx.RequestAborted))
+                                    {
+                                        await ctx.Response.WriteAsync($"data: {chunk}\n\n");
+                                        await ctx.Response.Body.FlushAsync();
+                                    }
+                                })
+                            .WithName(
+                                $"LLMockApi-OpenApi-{specConfig.Name}-{methodName}-{path.Replace("/", "-")}-Stream");
 
                         logger.LogDebug("Mapped streaming {Method} {Path} from OpenAPI spec '{Name}'",
                             methodName, streamPath, specConfig.Name);
@@ -592,29 +584,21 @@ public static class LlMockApiExtensions
     {
         // Check tag filtering
         if (config.IncludeTags?.Count > 0)
-        {
             if (operation.Tags == null || !operation.Tags.Any(t => config.IncludeTags.Contains(t.Name)))
                 return true;
-        }
 
         if (config.ExcludeTags?.Count > 0)
-        {
             if (operation.Tags?.Any(t => config.ExcludeTags.Contains(t.Name)) == true)
                 return true;
-        }
 
         // Check path filtering (simple wildcard support)
         if (config.IncludePaths?.Count > 0)
-        {
             if (!config.IncludePaths.Any(pattern => PathMatchesPattern(path, pattern)))
                 return true;
-        }
 
         if (config.ExcludePaths?.Count > 0)
-        {
             if (config.ExcludePaths.Any(pattern => PathMatchesPattern(path, pattern)))
                 return true;
-        }
 
         return false;
     }
@@ -633,7 +617,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps OpenAPI management endpoints for dynamic spec loading
+    ///     Maps OpenAPI management endpoints for dynamic spec loading
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern for management endpoints (default: "/api/openapi")</param>
@@ -645,13 +629,11 @@ public static class LlMockApiExtensions
         string hubPattern = "/hub/openapi")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockOpenApiManagement requires endpoint routing. Call UseRouting() before MapLLMockOpenApiManagement().");
-        }
 
         // Map SignalR hub for real-time updates
-        routeBuilder.MapHub<Hubs.OpenApiHub>(hubPattern);
+        routeBuilder.MapHub<OpenApiHub>(hubPattern);
 
         var specsPattern = $"{pattern.TrimEnd('/')}/specs";
 
@@ -660,21 +642,24 @@ public static class LlMockApiExtensions
             .WithName("LLMockApi-OpenApi-ListSpecs")
             .WithTags("OpenAPI Management")
             .WithSummary("List all loaded OpenAPI specifications")
-            .WithDescription("Returns a list of all currently loaded OpenAPI specifications with their basic details including name, base path, and endpoint count.");
+            .WithDescription(
+                "Returns a list of all currently loaded OpenAPI specifications with their basic details including name, base path, and endpoint count.");
 
         // Load a new spec
         routeBuilder.MapPost(specsPattern, OpenApiManagementEndpoints.HandleLoadSpec)
             .WithName("LLMockApi-OpenApi-LoadSpec")
             .WithTags("OpenAPI Management")
             .WithSummary("Load a new OpenAPI specification")
-            .WithDescription("Dynamically loads an OpenAPI specification from a URL or file path and registers all endpoints. Accepts JSON with 'name', 'source', 'basePath', and optional 'contextName'.");
+            .WithDescription(
+                "Dynamically loads an OpenAPI specification from a URL or file path and registers all endpoints. Accepts JSON with 'name', 'source', 'basePath', and optional 'contextName'.");
 
         // Get specific spec details
         routeBuilder.MapGet($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleGetSpec)
             .WithName("LLMockApi-OpenApi-GetSpec")
             .WithTags("OpenAPI Management")
             .WithSummary("Get details of a specific OpenAPI specification")
-            .WithDescription("Returns detailed information about a loaded OpenAPI specification including all available endpoints, schemas, and configuration.");
+            .WithDescription(
+                "Returns detailed information about a loaded OpenAPI specification including all available endpoints, schemas, and configuration.");
 
         // Delete a spec
         routeBuilder.MapDelete($"{specsPattern}/{{specName}}", OpenApiManagementEndpoints.HandleDeleteSpec)
@@ -688,41 +673,51 @@ public static class LlMockApiExtensions
             .WithName("LLMockApi-OpenApi-ReloadSpec")
             .WithTags("OpenAPI Management")
             .WithSummary("Reload an OpenAPI specification")
-            .WithDescription("Reloads an OpenAPI specification from its original source, useful when the spec has been updated.");
+            .WithDescription(
+                "Reloads an OpenAPI specification from its original source, useful when the spec has been updated.");
 
         // Test an endpoint
         routeBuilder.MapPost($"{pattern.TrimEnd('/')}/test", OpenApiManagementEndpoints.HandleTestEndpoint)
             .WithName("LLMockApi-OpenApi-TestEndpoint")
             .WithTags("OpenAPI Management")
             .WithSummary("Test a mock OpenAPI endpoint")
-            .WithDescription("Tests a specific endpoint from a loaded OpenAPI specification by generating mock data based on the schema.");
+            .WithDescription(
+                "Tests a specific endpoint from a loaded OpenAPI specification by generating mock data based on the schema.");
 
         // Context management endpoints
         var contextsPattern = $"{pattern.TrimEnd('/')}/contexts";
 
         // List all contexts
-        routeBuilder.MapGet(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleListApiContexts(manager))
+        routeBuilder.MapGet(contextsPattern,
+                (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleListApiContexts(manager))
             .WithName("LLMockApi-OpenApi-ListContexts")
             .WithTags("OpenAPI Contexts")
             .WithSummary("List all OpenAPI contexts")
-            .WithDescription("Returns a summary of all active OpenAPI contexts with their call counts and last used timestamps.");
+            .WithDescription(
+                "Returns a summary of all active OpenAPI contexts with their call counts and last used timestamps.");
 
         // Get specific context details
-        routeBuilder.MapGet($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleGetApiContext(contextName, manager))
+        routeBuilder.MapGet($"{contextsPattern}/{{contextName}}",
+                (string contextName, OpenApiContextManager manager) =>
+                    OpenApiManagementEndpoints.HandleGetApiContext(contextName, manager))
             .WithName("LLMockApi-OpenApi-GetContext")
             .WithTags("OpenAPI Contexts")
             .WithSummary("Get details of a specific OpenAPI context")
-            .WithDescription("Returns detailed information about an OpenAPI context including recent API calls, shared data, and context history.");
+            .WithDescription(
+                "Returns detailed information about an OpenAPI context including recent API calls, shared data, and context history.");
 
         // Clear a specific context
-        routeBuilder.MapDelete($"{contextsPattern}/{{contextName}}", (string contextName, OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearApiContext(contextName, manager))
+        routeBuilder.MapDelete($"{contextsPattern}/{{contextName}}",
+                (string contextName, OpenApiContextManager manager) =>
+                    OpenApiManagementEndpoints.HandleClearApiContext(contextName, manager))
             .WithName("LLMockApi-OpenApi-ClearContext")
             .WithTags("OpenAPI Contexts")
             .WithSummary("Clear a specific OpenAPI context")
             .WithDescription("Removes a specific OpenAPI context and all its associated data.");
 
         // Clear all contexts
-        routeBuilder.MapDelete(contextsPattern, (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearAllApiContexts(manager))
+        routeBuilder.MapDelete(contextsPattern,
+                (OpenApiContextManager manager) => OpenApiManagementEndpoints.HandleClearAllApiContexts(manager))
             .WithName("LLMockApi-OpenApi-ClearAllContexts")
             .WithTags("OpenAPI Contexts")
             .WithSummary("Clear all OpenAPI contexts")
@@ -762,7 +757,7 @@ public static class LlMockApiExtensions
             logger.LogError(ex, "Error processing LLMock API request");
             ctx.Response.StatusCode = 500;
             ctx.Response.ContentType = "application/json";
-            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = ex.Message }));
+            await ctx.Response.WriteAsync(LLMockSerializerContext.SerializeError(ex.Message));
         }
     }
 
@@ -779,7 +774,7 @@ public static class LlMockApiExtensions
             var body = await service.ReadBodyAsync(ctx.Request);
 
             // Extract pattern from route
-            var pattern = GetPatternFromPath(ctx.Request.Path, path, isStreaming: true);
+            var pattern = GetPatternFromPath(ctx.Request.Path, path, true);
 
             await service.HandleStreamingRequestAsync(
                 method,
@@ -792,19 +787,16 @@ public static class LlMockApiExtensions
         catch (Exception ex)
         {
             logger.LogError(ex, "Error processing LLMock API streaming request");
-            await ctx.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { error = ex.Message })}\n\n");
+            await ctx.Response.WriteAsync($"data: {LLMockSerializerContext.SerializeError(ex.Message)}\n\n");
             await ctx.Response.Body.FlushAsync();
         }
     }
 
     private static string GetPatternFromPath(string fullPath, string capturedPath, bool isStreaming = false)
     {
-        var pathStr = fullPath.ToString();
+        var pathStr = fullPath;
         var suffix = isStreaming ? $"/stream/{capturedPath}" : $"/{capturedPath}";
-        if (pathStr.EndsWith(suffix))
-        {
-            return pathStr.Substring(0, pathStr.Length - suffix.Length);
-        }
+        if (pathStr.EndsWith(suffix)) return pathStr.Substring(0, pathStr.Length - suffix.Length);
         return pathStr;
     }
 
@@ -832,23 +824,12 @@ public static class LlMockApiExtensions
             logger.LogError(ex, "Error processing GraphQL request");
             ctx.Response.StatusCode = 500;
             ctx.Response.ContentType = "application/json";
-            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
-            {
-                data = (object?)null,
-                errors = new[]
-                {
-                    new
-                    {
-                        message = ex.Message,
-                        extensions = new { code = "INTERNAL_SERVER_ERROR" }
-                    }
-                }
-            }));
+            await ctx.Response.WriteAsync(LLMockSerializerContext.SerializeGraphQLError(ex.Message));
         }
     }
 
     /// <summary>
-    /// Maps API Context management endpoints for viewing and modifying context history
+    ///     Maps API Context management endpoints for viewing and modifying context history
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">The route pattern for management endpoints (default: "/api/contexts")</param>
@@ -858,10 +839,8 @@ public static class LlMockApiExtensions
         string pattern = "/api/contexts")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockApiContextManagement requires endpoint routing. Call UseRouting() before MapLLMockApiContextManagement().");
-        }
 
         var contextPattern = pattern.TrimEnd('/');
 
@@ -870,64 +849,76 @@ public static class LlMockApiExtensions
             .WithName("LLMockApi-ApiContext-ListAll")
             .WithTags("API Contexts")
             .WithSummary("List all API contexts")
-            .WithDescription("Returns a summary list of all active API contexts including their names, total calls, creation time, and last used time.");
+            .WithDescription(
+                "Returns a summary list of all active API contexts including their names, total calls, creation time, and last used time.");
 
         // Get a specific context with full details
         routeBuilder.MapGet($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleGetContext)
             .WithName("LLMockApi-ApiContext-Get")
             .WithTags("API Contexts")
             .WithSummary("Get detailed information about a specific context")
-            .WithDescription("Returns complete details for a context including all recent API calls, shared data values, and context summary.");
+            .WithDescription(
+                "Returns complete details for a context including all recent API calls, shared data values, and context summary.");
 
         // Get the formatted prompt for a context
-        routeBuilder.MapGet($"{contextPattern}/{{contextName}}/prompt", ApiContextManagementEndpoints.HandleGetContextPrompt)
+        routeBuilder.MapGet($"{contextPattern}/{{contextName}}/prompt",
+                ApiContextManagementEndpoints.HandleGetContextPrompt)
             .WithName("LLMockApi-ApiContext-GetPrompt")
             .WithTags("API Contexts")
             .WithSummary("Get the formatted LLM prompt for a context")
-            .WithDescription("Returns the complete formatted prompt that would be sent to the LLM for this context, including shared data and recent call history.");
+            .WithDescription(
+                "Returns the complete formatted prompt that would be sent to the LLM for this context, including shared data and recent call history.");
 
         // Add a call to a context
-        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/calls", ApiContextManagementEndpoints.HandleAddToContext)
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/calls",
+                ApiContextManagementEndpoints.HandleAddToContext)
             .WithName("LLMockApi-ApiContext-AddCall")
             .WithTags("API Contexts")
             .WithSummary("Add an API call to a context")
-            .WithDescription("Manually adds an API call entry to a context for testing or simulation purposes. Accepts method, path, optional request body, and response JSON.");
+            .WithDescription(
+                "Manually adds an API call entry to a context for testing or simulation purposes. Accepts method, path, optional request body, and response JSON.");
 
         // Update shared data for a context
-        routeBuilder.MapPatch($"{contextPattern}/{{contextName}}/shared-data", ApiContextManagementEndpoints.HandleUpdateSharedData)
+        routeBuilder.MapPatch($"{contextPattern}/{{contextName}}/shared-data",
+                ApiContextManagementEndpoints.HandleUpdateSharedData)
             .WithName("LLMockApi-ApiContext-UpdateSharedData")
             .WithTags("API Contexts")
             .WithSummary("Update shared data for a context")
-            .WithDescription("Manually updates the shared data dictionary for a context. Shared data is used to maintain consistency across API calls (e.g., lastUserId, lastProductId).");
+            .WithDescription(
+                "Manually updates the shared data dictionary for a context. Shared data is used to maintain consistency across API calls (e.g., lastUserId, lastProductId).");
 
         // Clear a specific context (removes all calls but keeps context registered)
-        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/clear", ApiContextManagementEndpoints.HandleClearContext)
+        routeBuilder.MapPost($"{contextPattern}/{{contextName}}/clear",
+                ApiContextManagementEndpoints.HandleClearContext)
             .WithName("LLMockApi-ApiContext-Clear")
             .WithTags("API Contexts")
             .WithSummary("Clear a specific context")
-            .WithDescription("Removes all API call history and shared data from a context but keeps the context registered. Use this to reset a context for a new session.");
+            .WithDescription(
+                "Removes all API call history and shared data from a context but keeps the context registered. Use this to reset a context for a new session.");
 
         // Delete a specific context completely
         routeBuilder.MapDelete($"{contextPattern}/{{contextName}}", ApiContextManagementEndpoints.HandleDeleteContext)
             .WithName("LLMockApi-ApiContext-Delete")
             .WithTags("API Contexts")
             .WithSummary("Delete a context completely")
-            .WithDescription("Completely removes a context including all its data and history. The context will need to be recreated before it can be used again.");
+            .WithDescription(
+                "Completely removes a context including all its data and history. The context will need to be recreated before it can be used again.");
 
         // Clear all API contexts
         routeBuilder.MapDelete(contextPattern, ApiContextManagementEndpoints.HandleClearAllContexts)
             .WithName("LLMockApi-ApiContext-ClearAll")
             .WithTags("API Contexts")
             .WithSummary("Clear all contexts")
-            .WithDescription("Removes all API contexts and their associated data. Useful for resetting the entire system state.");
+            .WithDescription(
+                "Removes all API contexts and their associated data. Useful for resetting the entire system state.");
 
         return app;
     }
 
     /// <summary>
-    /// Maps journey management endpoints for managing multi-step user flow simulations.
-    /// Provides APIs to create/manage journey templates and track active sessions.
-    /// LLMs can use these endpoints to select and drive journeys based on their decisions.
+    ///     Maps journey management endpoints for managing multi-step user flow simulations.
+    ///     Provides APIs to create/manage journey templates and track active sessions.
+    ///     LLMs can use these endpoints to select and drive journeys based on their decisions.
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">Base path pattern (default: "/api/journeys")</param>
@@ -937,18 +928,16 @@ public static class LlMockApiExtensions
         string pattern = "/api/journeys")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockJourneyManagement requires endpoint routing. " +
                 "Call UseRouting() before MapLLMockJourneyManagement().");
-        }
 
         routeBuilder.MapJourneyManagement(pattern);
         return app;
     }
 
     /// <summary>
-    /// Maps gRPC proto management endpoints for uploading and managing .proto files
+    ///     Maps gRPC proto management endpoints for uploading and managing .proto files
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">Base path pattern (default: "/api/grpc-protos")</param>
@@ -958,27 +947,23 @@ public static class LlMockApiExtensions
         string pattern = "/api/grpc-protos")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockGrpcManagement requires endpoint routing. " +
                 "Ensure you have called app.UseRouting() before calling this method.");
-        }
 
         // Wire ProtoDefinitionManager and GrpcReflectionService together
         var protoManager = app.ApplicationServices.GetService<ProtoDefinitionManager>();
         var reflectionService = app.ApplicationServices.GetService<GrpcReflectionService>();
 
-        if (protoManager != null && reflectionService != null)
-        {
-            protoManager.SetReflectionService(reflectionService);
-        }
+        if (protoManager != null && reflectionService != null) protoManager.SetReflectionService(reflectionService);
 
         // Upload a proto file (multipart form or plain text body)
         routeBuilder.MapPost(pattern, GrpcManagementEndpoints.HandleProtoUpload)
             .WithName("LLMockApi-Grpc-UploadProto")
             .WithTags("gRPC Proto Management")
             .WithSummary("Upload a .proto file")
-            .WithDescription("Uploads and parses a gRPC .proto file to enable mock gRPC services. Accepts multipart/form-data (file upload) or text/plain (raw proto content).")
+            .WithDescription(
+                "Uploads and parses a gRPC .proto file to enable mock gRPC services. Accepts multipart/form-data (file upload) or text/plain (raw proto content).")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Accepts<string>("text/plain")
@@ -990,7 +975,8 @@ public static class LlMockApiExtensions
             .WithName("LLMockApi-Grpc-ListProtos")
             .WithTags("gRPC Proto Management")
             .WithSummary("List all uploaded .proto files")
-            .WithDescription("Returns a list of all uploaded gRPC .proto files with their names, services, and message definitions.")
+            .WithDescription(
+                "Returns a list of all uploaded gRPC .proto files with their names, services, and message definitions.")
             .Produces(200);
 
         // Get details of a specific proto definition
@@ -998,7 +984,8 @@ public static class LlMockApiExtensions
             .WithName("LLMockApi-Grpc-GetProto")
             .WithTags("gRPC Proto Management")
             .WithSummary("Get details of a specific .proto file")
-            .WithDescription("Returns detailed information about a specific uploaded .proto file including all service definitions, methods, and message schemas.")
+            .WithDescription(
+                "Returns detailed information about a specific uploaded .proto file including all service definitions, methods, and message schemas.")
             .Produces(200)
             .Produces(404);
 
@@ -1023,7 +1010,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps gRPC service call endpoints for invoking mock gRPC methods
+    ///     Maps gRPC service call endpoints for invoking mock gRPC methods
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">Base path pattern (default: "/api/grpc")</param>
@@ -1033,50 +1020,47 @@ public static class LlMockApiExtensions
         string pattern = "/api/grpc")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockGrpc requires endpoint routing. " +
                 "Ensure you have called app.UseRouting() before calling this method.");
-        }
 
         // Handle gRPC unary calls: POST /api/grpc/{serviceName}/{methodName}
         routeBuilder.MapPost($"{pattern}/{{serviceName}}/{{methodName}}",
-            async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
-            {
-                try
+                async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
                 {
-                    // Read request body as JSON
-                    using var reader = new StreamReader(context.Request.Body);
-                    var requestJson = await reader.ReadToEndAsync();
-
-                    if (string.IsNullOrWhiteSpace(requestJson))
+                    try
                     {
-                        requestJson = "{}"; // Empty request is valid for some methods
+                        // Read request body as JSON
+                        using var reader = new StreamReader(context.Request.Body);
+                        var requestJson = await reader.ReadToEndAsync();
+
+                        if (string.IsNullOrWhiteSpace(requestJson))
+                            requestJson = "{}"; // Empty request is valid for some methods
+
+                        // Handle the gRPC call
+                        var response = await handler.HandleUnaryCall(
+                            serviceName,
+                            methodName,
+                            requestJson,
+                            context,
+                            context.RequestAborted);
+
+                        // Return JSON response
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsync(response);
                     }
-
-                    // Handle the gRPC call
-                    var response = await handler.HandleUnaryCall(
-                        serviceName,
-                        methodName,
-                        requestJson,
-                        context,
-                        context.RequestAborted);
-
-                    // Return JSON response
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync(response);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    context.Response.StatusCode = 400;
-                    await context.Response.WriteAsJsonAsync(new { error = ex.Message });
-                }
-                catch (Exception ex)
-                {
-                    context.Response.StatusCode = 500;
-                    await context.Response.WriteAsJsonAsync(new { error = "Internal server error", details = ex.Message });
-                }
-            })
+                    catch (InvalidOperationException ex)
+                    {
+                        context.Response.StatusCode = 400;
+                        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+                    }
+                    catch (Exception ex)
+                    {
+                        context.Response.StatusCode = 500;
+                        await context.Response.WriteAsJsonAsync(new
+                            { error = "Internal server error", details = ex.Message });
+                    }
+                })
             .WithName("LLMockApi-Grpc-UnaryCall-JSON")
             .WithTags("gRPC Service Calls (JSON)")
             .Accepts<object>("application/json")
@@ -1086,40 +1070,41 @@ public static class LlMockApiExtensions
 
         // Handle gRPC unary calls with binary Protobuf: POST /api/grpc/proto/{serviceName}/{methodName}
         routeBuilder.MapPost($"{pattern}/proto/{{serviceName}}/{{methodName}}",
-            async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
-            {
-                try
+                async (HttpContext context, GrpcRequestHandler handler, string serviceName, string methodName) =>
                 {
-                    // Read request body as binary Protobuf
-                    using var ms = new MemoryStream();
-                    await context.Request.Body.CopyToAsync(ms);
-                    var requestData = ms.ToArray();
+                    try
+                    {
+                        // Read request body as binary Protobuf
+                        using var ms = new MemoryStream();
+                        await context.Request.Body.CopyToAsync(ms);
+                        var requestData = ms.ToArray();
 
-                    // Handle the gRPC call with binary Protobuf
-                    var responseData = await handler.HandleUnaryCallBinary(
-                        serviceName,
-                        methodName,
-                        requestData,
-                        context,
-                        context.RequestAborted);
+                        // Handle the gRPC call with binary Protobuf
+                        var responseData = await handler.HandleUnaryCallBinary(
+                            serviceName,
+                            methodName,
+                            requestData,
+                            context,
+                            context.RequestAborted);
 
-                    // Return binary Protobuf response
-                    context.Response.ContentType = "application/grpc+proto";
-                    await context.Response.Body.WriteAsync(responseData);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new { error = ex.Message });
-                }
-                catch (Exception ex)
-                {
-                    context.Response.StatusCode = 500;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsJsonAsync(new { error = "Internal server error", details = ex.Message });
-                }
-            })
+                        // Return binary Protobuf response
+                        context.Response.ContentType = "application/grpc+proto";
+                        await context.Response.Body.WriteAsync(responseData);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        context.Response.StatusCode = 400;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+                    }
+                    catch (Exception ex)
+                    {
+                        context.Response.StatusCode = 500;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsJsonAsync(new
+                            { error = "Internal server error", details = ex.Message });
+                    }
+                })
             .WithName("LLMockApi-Grpc-UnaryCall-Protobuf")
             .WithTags("gRPC Service Calls (Protobuf)")
             .DisableAntiforgery()
@@ -1131,7 +1116,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps tool fitness testing and evolution endpoints
+    ///     Maps tool fitness testing and evolution endpoints
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">Base path pattern (default: "/api/tools/fitness")</param>
@@ -1141,32 +1126,31 @@ public static class LlMockApiExtensions
         string pattern = "/api/tools/fitness")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockToolFitness requires endpoint routing. " +
                 "Ensure you have called app.UseRouting() before calling this method.");
-        }
 
         var basePattern = pattern.TrimEnd('/');
 
         // Run comprehensive fitness tests
         routeBuilder.MapPost($"{basePattern}/test",
-            async (Services.Tools.ToolFitnessTester tester,
-                   Services.Tools.ToolFitnessRagStore ragStore,
-                   ILogger<Services.Tools.ToolFitnessTester> logger,
-                   CancellationToken cancellationToken) =>
-                await ToolFitnessEndpoints.HandleRunFitnessTest(tester, ragStore, logger, cancellationToken))
+                async (ToolFitnessTester tester,
+                        ToolFitnessRagStore ragStore,
+                        ILogger<ToolFitnessTester> logger,
+                        CancellationToken cancellationToken) =>
+                    await ToolFitnessEndpoints.HandleRunFitnessTest(tester, ragStore, logger, cancellationToken))
             .WithName("LLMockApi-ToolFitness-RunTests")
             .WithTags("Tool Fitness")
             .WithSummary("Run comprehensive fitness tests on all tools")
-            .WithDescription("Executes all configured tools with generated dummy data, validates expectations, scores fitness (0-100), and stores results in RAG database.")
-            .Produces<Services.Tools.ToolFitnessReport>(200)
+            .WithDescription(
+                "Executes all configured tools with generated dummy data, validates expectations, scores fitness (0-100), and stores results in RAG database.")
+            .Produces<ToolFitnessReport>()
             .Produces(500);
 
         // Get fitness history for specific tool
         routeBuilder.MapGet($"{basePattern}/{{toolName}}",
-            (string toolName, Services.Tools.ToolFitnessRagStore ragStore, int maxResults = 10) =>
-                ToolFitnessEndpoints.HandleGetToolFitnessHistory(toolName, ragStore, maxResults))
+                (string toolName, ToolFitnessRagStore ragStore, int maxResults = 10) =>
+                    ToolFitnessEndpoints.HandleGetToolFitnessHistory(toolName, ragStore, maxResults))
             .WithName("LLMockApi-ToolFitness-GetHistory")
             .WithTags("Tool Fitness")
             .WithSummary("Get fitness history for a specific tool")
@@ -1176,8 +1160,8 @@ public static class LlMockApiExtensions
 
         // Get all low-fitness tools
         routeBuilder.MapGet($"{basePattern}/low",
-            (Services.Tools.ToolFitnessRagStore ragStore, double threshold = 60.0) =>
-                ToolFitnessEndpoints.HandleGetLowFitnessTools(ragStore, threshold))
+                (ToolFitnessRagStore ragStore, double threshold = 60.0) =>
+                    ToolFitnessEndpoints.HandleGetLowFitnessTools(ragStore, threshold))
             .WithName("LLMockApi-ToolFitness-GetLowFitness")
             .WithTags("Tool Fitness")
             .WithSummary("Get all low-fitness tools below threshold")
@@ -1186,8 +1170,8 @@ public static class LlMockApiExtensions
 
         // Get fitness trends
         routeBuilder.MapGet($"{basePattern}/trends",
-            (Services.Tools.ToolFitnessRagStore ragStore, int minSnapshots = 3) =>
-                ToolFitnessEndpoints.HandleGetFitnessTrends(ragStore, minSnapshots))
+                (ToolFitnessRagStore ragStore, int minSnapshots = 3) =>
+                    ToolFitnessEndpoints.HandleGetFitnessTrends(ragStore, minSnapshots))
             .WithName("LLMockApi-ToolFitness-GetTrends")
             .WithTags("Tool Fitness")
             .WithSummary("Get fitness trends for all tools")
@@ -1196,23 +1180,24 @@ public static class LlMockApiExtensions
 
         // Trigger evolution for low-fitness tools
         routeBuilder.MapPost($"{basePattern}/evolve",
-            async (HttpContext ctx,
-                   Services.Tools.ToolFitnessTester tester,
-                   Services.Tools.ToolFitnessRagStore ragStore,
-                   ILogger<Services.Tools.ToolFitnessTester> logger,
-                   CancellationToken cancellationToken) =>
-                await ToolFitnessEndpoints.HandleEvolveTools(ctx, tester, ragStore, logger, cancellationToken))
+                async (HttpContext ctx,
+                        ToolFitnessTester tester,
+                        ToolFitnessRagStore ragStore,
+                        ILogger<ToolFitnessTester> logger,
+                        CancellationToken cancellationToken) =>
+                    await ToolFitnessEndpoints.HandleEvolveTools(ctx, tester, ragStore, logger, cancellationToken))
             .WithName("LLMockApi-ToolFitness-Evolve")
             .WithTags("Tool Fitness")
             .WithSummary("Trigger evolution for low-fitness tools")
-            .WithDescription("Uses god-level LLM to analyze low-fitness tools and provide optimization recommendations. Requires god-level LLM client configuration.")
+            .WithDescription(
+                "Uses god-level LLM to analyze low-fitness tools and provide optimization recommendations. Requires god-level LLM client configuration.")
             .Produces(200)
             .Produces(500);
 
         // Export fitness history
         routeBuilder.MapGet($"{basePattern}/export",
-            async (Services.Tools.ToolFitnessRagStore ragStore, ILogger<Services.Tools.ToolFitnessRagStore> logger) =>
-                await ToolFitnessEndpoints.HandleExportFitnessHistory(ragStore, logger))
+                async (ToolFitnessRagStore ragStore, ILogger<ToolFitnessRagStore> logger) =>
+                    await ToolFitnessEndpoints.HandleExportFitnessHistory(ragStore, logger))
             .WithName("LLMockApi-ToolFitness-Export")
             .WithTags("Tool Fitness")
             .WithSummary("Export complete fitness history")
@@ -1222,8 +1207,8 @@ public static class LlMockApiExtensions
 
         // Get storage information
         routeBuilder.MapGet($"{basePattern}/storage",
-            (Services.Tools.ToolFitnessRagStore ragStore) =>
-                ToolFitnessEndpoints.HandleGetStorageInfo(ragStore))
+                (ToolFitnessRagStore ragStore) =>
+                    ToolFitnessEndpoints.HandleGetStorageInfo(ragStore))
             .WithName("LLMockApi-ToolFitness-Storage")
             .WithTags("Tool Fitness")
             .WithSummary("Get storage directory information")
@@ -1234,7 +1219,7 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// Maps unit test generation endpoints (Pyguin + LLM fallback)
+    ///     Maps unit test generation endpoints (Pyguin + LLM fallback)
     /// </summary>
     /// <param name="app">The application builder</param>
     /// <param name="pattern">Base path pattern (default: "/api/tools")</param>
@@ -1244,36 +1229,35 @@ public static class LlMockApiExtensions
         string pattern = "/api/tools")
     {
         if (app is not IEndpointRouteBuilder routeBuilder)
-        {
             throw new InvalidOperationException(
                 "MapLLMockUnitTestGeneration requires endpoint routing. " +
                 "Ensure you have called app.UseRouting() before calling this method.");
-        }
 
         var basePattern = pattern.TrimEnd('/');
 
         // Generate unit tests for tool
         routeBuilder.MapPost($"{basePattern}/generate-tests",
-            async (HttpContext ctx,
-                   Services.Tools.UnitTestGenerator generator,
-                   ILogger<Services.Tools.UnitTestGenerator> logger,
-                   CancellationToken cancellationToken) =>
-                await UnitTestEndpoints.HandleGenerateTests(ctx, generator, logger, cancellationToken))
+                async (HttpContext ctx,
+                        UnitTestGenerator generator,
+                        ILogger<UnitTestGenerator> logger,
+                        CancellationToken cancellationToken) =>
+                    await UnitTestEndpoints.HandleGenerateTests(ctx, generator, logger, cancellationToken))
             .WithName("LLMockApi-Tools-GenerateTests")
             .WithTags("Unit Test Generation")
             .WithSummary("Generate unit tests using Pyguin with LLM fallback")
-            .WithDescription("Attempts Pyguin-based test generation first, falls back to LLM if Pyguin fails. Includes comprehensive code review.")
+            .WithDescription(
+                "Attempts Pyguin-based test generation first, falls back to LLM if Pyguin fails. Includes comprehensive code review.")
             .Produces(200)
             .Produces(400)
             .Produces(500);
 
         // Review code for correctness
         routeBuilder.MapPost($"{basePattern}/review-code",
-            async (HttpContext ctx,
-                   Services.Tools.UnitTestGenerator generator,
-                   ILogger<Services.Tools.UnitTestGenerator> logger,
-                   CancellationToken cancellationToken) =>
-                await UnitTestEndpoints.HandleReviewCode(ctx, generator, logger, cancellationToken))
+                async (HttpContext ctx,
+                        UnitTestGenerator generator,
+                        ILogger<UnitTestGenerator> logger,
+                        CancellationToken cancellationToken) =>
+                    await UnitTestEndpoints.HandleReviewCode(ctx, generator, logger, cancellationToken))
             .WithName("LLMockApi-Tools-ReviewCode")
             .WithTags("Code Review")
             .WithSummary("Review code for correctness using LLM")
@@ -1284,8 +1268,8 @@ public static class LlMockApiExtensions
 
         // Get test output directory info
         routeBuilder.MapGet($"{basePattern}/test-output",
-            (Services.Tools.UnitTestGenerator generator) =>
-                UnitTestEndpoints.HandleGetTestOutput(generator))
+                (UnitTestGenerator generator) =>
+                    UnitTestEndpoints.HandleGetTestOutput(generator))
             .WithName("LLMockApi-Tools-TestOutput")
             .WithTags("Unit Test Generation")
             .WithSummary("Get generated test output directory info")
@@ -1294,8 +1278,8 @@ public static class LlMockApiExtensions
 
         // Download generated test file
         routeBuilder.MapGet($"{basePattern}/test-output/{{fileName}}",
-            (string fileName, Services.Tools.UnitTestGenerator generator) =>
-                UnitTestEndpoints.HandleDownloadTestFile(fileName, generator))
+                (string fileName, UnitTestGenerator generator) =>
+                    UnitTestEndpoints.HandleDownloadTestFile(fileName, generator))
             .WithName("LLMockApi-Tools-DownloadTest")
             .WithTags("Unit Test Generation")
             .WithSummary("Download a generated test file")
@@ -1307,8 +1291,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
-    /// Adds LLMock API services to the service collection using appsettings configuration
+    ///     DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
+    ///     Adds LLMock API services to the service collection using appsettings configuration
     /// </summary>
     [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.", false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -1320,8 +1304,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
-    /// Adds LLMock API services to the service collection with inline configuration
+    ///     DEPRECATED: Use AddLLMockApi instead. This method will be removed in a future version.
+    ///     Adds LLMock API services to the service collection with inline configuration
     /// </summary>
     [Obsolete("Use AddLLMockApi instead. This method will be removed in v2.0.0.(ish)", false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -1333,8 +1317,8 @@ public static class LlMockApiExtensions
     }
 
     /// <summary>
-    /// DEPRECATED: Use MapLLMockApi instead. This method will be removed in a future version.
-    /// Maps LLMock API endpoints
+    ///     DEPRECATED: Use MapLLMockApi instead. This method will be removed in a future version.
+    ///     Maps LLMock API endpoints
     /// </summary>
     [Obsolete("Use MapLLMockApi instead. This method will be removed in v2.0.0.(ish)", false)]
     [EditorBrowsable(EditorBrowsableState.Never)]

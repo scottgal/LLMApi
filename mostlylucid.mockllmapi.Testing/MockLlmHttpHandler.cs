@@ -1,17 +1,22 @@
+using System.Text.Json;
+
 namespace mostlylucid.mockllmapi.Testing;
 
 /// <summary>
-/// HTTP message handler that intercepts requests and applies mock configuration
+///     HTTP message handler that intercepts requests and applies mock configuration
 /// </summary>
 public class MockLlmHttpHandler : DelegatingHandler
 {
-    private readonly List<MockEndpointConfig> _endpointConfigs = new();
     private readonly string? _baseApiPath;
+    private readonly List<MockEndpointConfig> _endpointConfigs = new();
 
     /// <summary>
-    /// Creates a new MockLlmHttpHandler
+    ///     Creates a new MockLlmHttpHandler
     /// </summary>
-    /// <param name="baseApiPath">Base API path for mock endpoints (e.g., "/api/mock"). If specified, this path will be prepended to all requests.</param>
+    /// <param name="baseApiPath">
+    ///     Base API path for mock endpoints (e.g., "/api/mock"). If specified, this path will be
+    ///     prepended to all requests.
+    /// </param>
     /// <param name="innerHandler">Inner HTTP handler (optional, uses HttpClientHandler by default)</param>
     public MockLlmHttpHandler(string? baseApiPath = null, HttpMessageHandler? innerHandler = null)
     {
@@ -20,7 +25,7 @@ public class MockLlmHttpHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// Adds an endpoint configuration
+    ///     Adds an endpoint configuration
     /// </summary>
     public MockLlmHttpHandler AddEndpoint(MockEndpointConfig config)
     {
@@ -29,7 +34,7 @@ public class MockLlmHttpHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// Adds an endpoint configuration using a fluent builder
+    ///     Adds an endpoint configuration using a fluent builder
     /// </summary>
     public MockLlmHttpHandler ForEndpoint(string pathPattern, Action<MockEndpointConfigBuilder> configure)
     {
@@ -40,7 +45,7 @@ public class MockLlmHttpHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// Removes all endpoint configurations
+    ///     Removes all endpoint configurations
     /// </summary>
     public MockLlmHttpHandler ClearEndpoints()
     {
@@ -87,10 +92,7 @@ public class MockLlmHttpHandler : DelegatingHandler
                     {
                         // Find the position after the first path segment
                         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                        if (segments.Length > 0)
-                        {
-                            path = $"/{segments[0]}/stream/{string.Join("/", segments.Skip(1))}";
-                        }
+                        if (segments.Length > 0) path = $"/{segments[0]}/stream/{string.Join("/", segments.Skip(1))}";
                     }
 
                     var uriBuilder = new UriBuilder(request.RequestUri)
@@ -110,7 +112,7 @@ public class MockLlmHttpHandler : DelegatingHandler
 }
 
 /// <summary>
-/// Fluent builder for MockEndpointConfig
+///     Fluent builder for MockEndpointConfig
 /// </summary>
 public class MockEndpointConfigBuilder
 {
@@ -122,7 +124,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Specifies the HTTP method to match (GET, POST, etc.)
+    ///     Specifies the HTTP method to match (GET, POST, etc.)
     /// </summary>
     public MockEndpointConfigBuilder WithMethod(string method)
     {
@@ -131,7 +133,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Specifies the JSON shape/schema for the response
+    ///     Specifies the JSON shape/schema for the response
     /// </summary>
     public MockEndpointConfigBuilder WithShape(string shape)
     {
@@ -140,16 +142,16 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Specifies the JSON shape/schema using an object that will be serialized
+    ///     Specifies the JSON shape/schema using an object that will be serialized
     /// </summary>
     public MockEndpointConfigBuilder WithShape(object shapeObject)
     {
-        _config.Shape = System.Text.Json.JsonSerializer.Serialize(shapeObject);
+        _config.Shape = JsonSerializer.Serialize(shapeObject);
         return this;
     }
 
     /// <summary>
-    /// Configures an error response
+    ///     Configures an error response
     /// </summary>
     public MockEndpointConfigBuilder WithError(int statusCode, string? message = null, string? details = null)
     {
@@ -158,7 +160,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Sets the number of cached variants to generate
+    ///     Sets the number of cached variants to generate
     /// </summary>
     public MockEndpointConfigBuilder WithCache(int cacheSize)
     {
@@ -167,7 +169,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Specifies which LLM backend to use
+    ///     Specifies which LLM backend to use
     /// </summary>
     public MockEndpointConfigBuilder WithBackend(string backend)
     {
@@ -176,7 +178,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Adds a custom header to the request
+    ///     Adds a custom header to the request
     /// </summary>
     public MockEndpointConfigBuilder WithHeader(string name, string value)
     {
@@ -185,7 +187,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Adds a query parameter to the request
+    ///     Adds a query parameter to the request
     /// </summary>
     public MockEndpointConfigBuilder WithQueryParameter(string name, string value)
     {
@@ -194,7 +196,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Enables streaming for this endpoint
+    ///     Enables streaming for this endpoint
     /// </summary>
     public MockEndpointConfigBuilder WithStreaming(bool enabled = true)
     {
@@ -203,7 +205,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Sets the SSE mode for streaming (LlmTokens, CompleteObjects, ArrayItems)
+    ///     Sets the SSE mode for streaming (LlmTokens, CompleteObjects, ArrayItems)
     /// </summary>
     public MockEndpointConfigBuilder WithSseMode(string mode)
     {
@@ -212,20 +214,17 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Enables continuous streaming
+    ///     Enables continuous streaming
     /// </summary>
     public MockEndpointConfigBuilder WithContinuousStreaming(bool enabled = true, int? intervalMs = null)
     {
         _config.Continuous = enabled;
-        if (intervalMs.HasValue)
-        {
-            _config.ContinuousInterval = intervalMs.Value;
-        }
+        if (intervalMs.HasValue) _config.ContinuousInterval = intervalMs.Value;
         return this;
     }
 
     /// <summary>
-    /// Configures auto-chunking for large responses
+    ///     Configures auto-chunking for large responses
     /// </summary>
     public MockEndpointConfigBuilder WithAutoChunking(bool enabled = true)
     {
@@ -234,7 +233,7 @@ public class MockEndpointConfigBuilder
     }
 
     /// <summary>
-    /// Sets maximum items per response
+    ///     Sets maximum items per response
     /// </summary>
     public MockEndpointConfigBuilder WithMaxItems(int maxItems)
     {
@@ -242,5 +241,8 @@ public class MockEndpointConfigBuilder
         return this;
     }
 
-    internal MockEndpointConfig Build() => _config;
+    internal MockEndpointConfig Build()
+    {
+        return _config;
+    }
 }

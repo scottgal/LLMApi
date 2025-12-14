@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Windows;
+using Microsoft.Extensions.Logging;
 
 namespace LLMockApiClient.Services;
 
@@ -29,10 +29,9 @@ public class LogEntry
 
 public class LogCaptureService
 {
-    private readonly ObservableCollection<LogEntry> _logs = new();
     private const int MaxLogEntries = 1000;
 
-    public ObservableCollection<LogEntry> Logs => _logs;
+    public ObservableCollection<LogEntry> Logs { get; } = new();
 
     public void AddLog(LogLevel level, string category, string message, Exception? exception = null)
     {
@@ -48,22 +47,16 @@ public class LogCaptureService
         // Must run on UI thread for ObservableCollection
         Application.Current.Dispatcher.Invoke(() =>
         {
-            _logs.Insert(0, entry);
+            Logs.Insert(0, entry);
 
             // Keep only the most recent entries
-            while (_logs.Count > MaxLogEntries)
-            {
-                _logs.RemoveAt(_logs.Count - 1);
-            }
+            while (Logs.Count > MaxLogEntries) Logs.RemoveAt(Logs.Count - 1);
         });
     }
 
     public void Clear()
     {
-        Application.Current.Dispatcher.Invoke(() =>
-        {
-            _logs.Clear();
-        });
+        Application.Current.Dispatcher.Invoke(() => { Logs.Clear(); });
     }
 }
 
@@ -82,7 +75,9 @@ public class LogCaptureProvider : ILoggerProvider
         return new LogCaptureLogger(_captureService, categoryName);
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+    }
 }
 
 public class LogCaptureLogger : ILogger
@@ -96,11 +91,18 @@ public class LogCaptureLogger : ILogger
         _categoryName = categoryName;
     }
 
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        return null;
+    }
 
-    public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Information;
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return logLevel >= LogLevel.Information;
+    }
 
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter)
     {
         if (!IsEnabled(logLevel))
             return;

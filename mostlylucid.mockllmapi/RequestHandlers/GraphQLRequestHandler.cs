@@ -1,27 +1,27 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles GraphQL mock API requests with automatic chunking support
+///     Handles GraphQL mock API requests with automatic chunking support
 /// </summary>
 public class GraphQLRequestHandler
 {
-    private readonly LLMockApiOptions _options;
-    private readonly ShapeExtractor _shapeExtractor;
+    private readonly AutoShapeManager _autoShapeManager;
+    private readonly ChunkingCoordinator _chunkingCoordinator;
     private readonly ContextExtractor _contextExtractor;
     private readonly OpenApiContextManager _contextManager;
-    private readonly PromptBuilder _promptBuilder;
-    private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
-    private readonly ChunkingCoordinator _chunkingCoordinator;
-    private readonly AutoShapeManager _autoShapeManager;
+    private readonly LlmClient _llmClient;
     private readonly ILogger<GraphQLRequestHandler> _logger;
+    private readonly LLMockApiOptions _options;
+    private readonly PromptBuilder _promptBuilder;
+    private readonly ShapeExtractor _shapeExtractor;
 
     public GraphQLRequestHandler(
         IOptions<LLMockApiOptions> options,
@@ -48,7 +48,7 @@ public class GraphQLRequestHandler
     }
 
     /// <summary>
-    /// Handles a GraphQL request
+    ///     Handles a GraphQL request
     /// </summary>
     public async Task<string> HandleGraphQLRequestAsync(
         string? body,
@@ -90,21 +90,23 @@ public class GraphQLRequestHandler
             // Try to get valid JSON from LLM (with retry)
             const int maxAttempts = 2;
 
-            for (int attempt = 1; attempt <= maxAttempts; attempt++)
-            {
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
                 try
                 {
                     // Get response from LLM with max_tokens to prevent truncation
-                    var rawResponse = await _llmClient.GetCompletionAsync(prompt, cancellationToken, _options.GraphQLMaxTokens);
+                    var rawResponse =
+                        await _llmClient.GetCompletionAsync(prompt, cancellationToken, _options.GraphQLMaxTokens);
 
                     _logger.LogDebug("Attempt {Attempt}/{MaxAttempts}: Raw LLM response (first 500 chars): {Response}",
-                        attempt, maxAttempts, rawResponse.Length > 500 ? rawResponse.Substring(0, 500) + "..." : rawResponse);
+                        attempt, maxAttempts,
+                        rawResponse.Length > 500 ? rawResponse.Substring(0, 500) + "..." : rawResponse);
 
                     var cleanJson = JsonExtractor.ExtractJson(rawResponse);
 
                     if (string.IsNullOrWhiteSpace(cleanJson))
                     {
-                        _logger.LogWarning("Attempt {Attempt}/{MaxAttempts}: JsonExtractor returned empty result", attempt, maxAttempts);
+                        _logger.LogWarning("Attempt {Attempt}/{MaxAttempts}: JsonExtractor returned empty result",
+                            attempt, maxAttempts);
 
                         if (attempt < maxAttempts)
                         {
@@ -125,27 +127,24 @@ public class GraphQLRequestHandler
 
                     // Store in context if context name was provided
                     if (!string.IsNullOrWhiteSpace(contextName))
-                    {
                         _contextManager.AddToContext(contextName, "POST", "/graphql", body, graphQLResponse);
-                    }
 
                     // Store shape from response if autoshape is enabled
                     _autoShapeManager.StoreShapeFromResponse(request, graphQLResponse);
 
                     // Success! Return the valid response
                     if (attempt > 1)
-                    {
-                        _logger.LogInformation("Successfully generated valid GraphQL response on attempt {Attempt}", attempt);
-                    }
+                        _logger.LogInformation("Successfully generated valid GraphQL response on attempt {Attempt}",
+                            attempt);
 
                     return graphQLResponse;
                 }
                 catch (JsonException ex) when (attempt < maxAttempts)
                 {
-                    _logger.LogWarning(ex, "Attempt {Attempt}/{MaxAttempts}: JSON parsing failed, retrying", attempt, maxAttempts);
+                    _logger.LogWarning(ex, "Attempt {Attempt}/{MaxAttempts}: JSON parsing failed, retrying", attempt,
+                        maxAttempts);
                     prompt = BuildRetryPrompt(graphQLRequest);
                 }
-            }
 
             // If we get here, all attempts failed
             return CreateGraphQLError("Failed to generate valid GraphQL response after multiple attempts");
@@ -159,20 +158,14 @@ public class GraphQLRequestHandler
 
     private static GraphQLRequest ParseGraphQLRequest(string? body)
     {
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            throw new InvalidOperationException("GraphQL request body is empty");
-        }
+        if (string.IsNullOrWhiteSpace(body)) throw new InvalidOperationException("GraphQL request body is empty");
 
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var request = JsonSerializer.Deserialize<GraphQLRequest>(body, options);
+            var request = JsonSerializer.Deserialize(body, LLMockSerializerContext.CaseInsensitiveInstance.GraphQLRequest);
 
             if (request == null || string.IsNullOrWhiteSpace(request.Query))
-            {
                 throw new InvalidOperationException("GraphQL query is required");
-            }
 
             return request;
         }
@@ -202,10 +195,8 @@ GOOD: {{""users"":[{{""id"":1,""name"":""Bob""}}]}}
 BAD: {{""users"":[{{""id"":1,""name"":""Bob"",""profile"":{{""address"":{{""street"":""123...";
 
         if (request.Variables != null && request.Variables.Count > 0)
-        {
             prompt += $@"
-Vars: {JsonSerializer.Serialize(request.Variables)}";
-        }
+Vars: {JsonSerializer.Serialize(request.Variables, LLMockSerializerContext.Default.DictionaryStringObject)}";
 
         return prompt;
     }
@@ -233,10 +224,7 @@ Example: {{""data"":[{{""id"":1}}]}}";
             using var doc = JsonDocument.Parse(dataJson);
 
             // Wrap in GraphQL response format
-            return JsonSerializer.Serialize(new
-            {
-                data = doc.RootElement
-            });
+            return LLMockSerializerContext.SerializeGraphQLData(doc.RootElement);
         }
         catch (JsonException ex)
         {
@@ -248,24 +236,7 @@ Example: {{""data"":[{{""id"":1}}]}}";
 
     private static string CreateGraphQLError(string message)
     {
-        return JsonSerializer.Serialize(new
-        {
-            data = (object?)null,
-            errors = new[]
-            {
-                new
-                {
-                    message,
-                    extensions = new { code = "INTERNAL_SERVER_ERROR" }
-                }
-            }
-        });
+        return LLMockSerializerContext.SerializeGraphQLError(message);
     }
 
-    private class GraphQLRequest
-    {
-        public string Query { get; set; } = string.Empty;
-        public Dictionary<string, object>? Variables { get; set; }
-        public string? OperationName { get; set; }
-    }
 }

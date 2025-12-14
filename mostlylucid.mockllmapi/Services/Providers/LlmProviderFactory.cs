@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace mostlylucid.mockllmapi.Services.Providers;
 
 /// <summary>
-/// Factory for creating LLM provider instances
+///     Factory for creating LLM provider instances
 /// </summary>
 public class LlmProviderFactory
 {
-    private readonly Dictionary<string, ILlmProvider> _providers;
     private readonly ILogger<LlmProviderFactory> _logger;
+    private readonly Dictionary<string, ILlmProvider> _providers;
 
     public LlmProviderFactory(ILogger<LlmProviderFactory> logger)
     {
@@ -22,7 +22,7 @@ public class LlmProviderFactory
     }
 
     /// <summary>
-    /// Gets a provider by name, returns Ollama as default
+    ///     Gets a provider by name, returns Ollama as default
     /// </summary>
     public ILlmProvider GetProvider(string providerName)
     {
@@ -46,7 +46,7 @@ public class LlmProviderFactory
     }
 
     /// <summary>
-    /// Registers a custom provider
+    ///     Registers a custom provider
     /// </summary>
     public void RegisterProvider(string name, ILlmProvider provider)
     {
@@ -55,7 +55,7 @@ public class LlmProviderFactory
     }
 
     /// <summary>
-    /// Gets all available provider names
+    ///     Gets all available provider names
     /// </summary>
     public IEnumerable<string> GetAvailableProviders()
     {

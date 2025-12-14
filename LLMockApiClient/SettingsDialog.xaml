@@ -7,43 +7,55 @@
         WindowStartupLocation="CenterOwner">
     <Grid Margin="24">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="⚙️ Application Settings" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+        <TextBlock Grid.Row="0" Text="⚙️ Application Settings" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,24"
+                   Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
 
         <TabControl Grid.Row="1">
             <!-- Backends Tab -->
             <TabItem Header="🌐 Backends">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock Text="Configure API Backends" FontSize="16" Margin="0,0,0,12" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                        <TextBlock Text="Add multiple backends (Ollama, LM Studio, etc.) and select models" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Text="Configure API Backends" FontSize="16" Margin="0,0,0,12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                        <TextBlock Text="Add multiple backends (Ollama, LM Studio, etc.) and select models"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
                     </StackPanel>
 
                     <!-- Active Backend Selector -->
                     <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
                             CornerRadius="8" Padding="16" Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="🎯 Active Backend" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                            <TextBlock Text="Select which backend to use for API calls" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontSize="11" Margin="0,0,0,8"/>
+                            <TextBlock Text="🎯 Active Backend" FontWeight="SemiBold" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                            <TextBlock Text="Select which backend to use for API calls"
+                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                       FontSize="11" Margin="0,0,0,8" />
                             <ComboBox x:Name="ActiveBackendComboBox" SelectionChanged="ActiveBackend_SelectionChanged">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,0,8,0" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                                            <TextBlock Text="-" Margin="0,0,8,0" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                                            <TextBlock Text="{Binding Provider}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,8,0"/>
-                                            <TextBlock Text="{Binding SelectedModel, FallbackValue='(no model)'}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" FontStyle="Italic"/>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,0,8,0"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                            <TextBlock Text="-" Margin="0,0,8,0"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                            <TextBlock Text="{Binding Provider}"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                       Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding SelectedModel, FallbackValue='(no model)'}"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                       FontStyle="Italic" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
@@ -54,32 +66,45 @@
                     <ListBox Grid.Row="2" x:Name="BackendsListBox" Margin="0,0,0,12">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="8" Margin="4" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" CornerRadius="4">
+                                <Border Padding="8" Margin="4"
+                                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                        BorderThickness="1" CornerRadius="4">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                                                <TextBlock Text=" - " Margin="4,0" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                                                <TextBlock Text="{Binding BaseUrl}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                                <TextBlock Text=" - " Margin="4,0"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                                <TextBlock Text="{Binding BaseUrl}"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
                                             </StackPanel>
-                                            <TextBlock Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,2">
-                                                <Run Text="Provider:"/>
-                                                <Run Text="{Binding Provider, Mode=OneWay}"/>
+                                            <TextBlock
+                                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                Margin="0,0,0,2">
+                                                <Run Text="Provider:" />
+                                                <Run Text="{Binding Provider, Mode=OneWay}" />
                                             </TextBlock>
-                                            <TextBlock Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,2">
-                                                <Run Text="Model:"/>
-                                                <Run Text="{Binding SelectedModel, Mode=OneWay, FallbackValue='Not set'}"/>
+                                            <TextBlock
+                                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                Margin="0,0,0,2">
+                                                <Run Text="Model:" />
+                                                <Run
+                                                    Text="{Binding SelectedModel, Mode=OneWay, FallbackValue='Not set'}" />
                                             </TextBlock>
-                                            <TextBlock Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
-                                                <Run Text="Context Length:"/>
-                                                <Run Text="{Binding ContextLength, Mode=OneWay, FallbackValue='Unknown'}"/>
+                                            <TextBlock
+                                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                                                <Run Text="Context Length:" />
+                                                <Run
+                                                    Text="{Binding ContextLength, Mode=OneWay, FallbackValue='Unknown'}" />
                                             </TextBlock>
                                         </StackPanel>
-                                        <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" Content="Enabled" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" Content="Enabled"
+                                                  VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -87,10 +112,10 @@
                     </ListBox>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal">
-                        <Button Content="➕ Add Backend" Click="AddBackend_Click" Padding="12,6" Margin="0,0,8,0"/>
-                        <Button Content="✏️ Edit" Click="EditBackend_Click" Padding="12,6" Margin="0,0,8,0"/>
-                        <Button Content="🗑️ Remove" Click="RemoveBackend_Click" Padding="12,6" Margin="0,0,8,0"/>
-                        <Button Content="🔄 Refresh Models" Click="RefreshModels_Click" Padding="12,6"/>
+                        <Button Content="➕ Add Backend" Click="AddBackend_Click" Padding="12,6" Margin="0,0,8,0" />
+                        <Button Content="✏️ Edit" Click="EditBackend_Click" Padding="12,6" Margin="0,0,8,0" />
+                        <Button Content="🗑️ Remove" Click="RemoveBackend_Click" Padding="12,6" Margin="0,0,8,0" />
+                        <Button Content="🔄 Refresh Models" Click="RefreshModels_Click" Padding="12,6" />
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -99,29 +124,34 @@
             <TabItem Header="📊 Traffic Monitor">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                        <CheckBox x:Name="EnableTrafficLoggingCheckBox" Content="Enable Traffic Logging" IsChecked="True" Margin="0,0,0,8"/>
-                        <TextBlock Text="View all HTTP requests and responses in real-time" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <CheckBox x:Name="EnableTrafficLoggingCheckBox" Content="Enable Traffic Logging"
+                                  IsChecked="True" Margin="0,0,0,8" />
+                        <TextBlock Text="View all HTTP requests and responses in real-time"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
                     </StackPanel>
 
-                    <DataGrid Grid.Row="1" x:Name="TrafficDataGrid" AutoGenerateColumns="False" IsReadOnly="True" Margin="0,0,0,12">
+                    <DataGrid Grid.Row="1" x:Name="TrafficDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                              Margin="0,0,0,12">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=HH:mm:ss}" Width="80"/>
-                            <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="70"/>
-                            <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding StatusCode}" Width="60"/>
-                            <DataGridTextColumn Header="Duration" Binding="{Binding Duration, StringFormat={}{0:0.000}s}" Width="80"/>
+                            <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=HH:mm:ss}"
+                                                Width="80" />
+                            <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="70" />
+                            <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusCode}" Width="60" />
+                            <DataGridTextColumn Header="Duration"
+                                                Binding="{Binding Duration, StringFormat={}{0:0.000}s}" Width="80" />
                         </DataGrid.Columns>
                     </DataGrid>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal">
-                        <Button Content="📥 Export to CSV" Click="ExportTraffic_Click" Padding="12,6" Margin="0,0,8,0"/>
-                        <Button Content="🗑️ Clear Traffic Log" Click="ClearTraffic_Click" Padding="12,6"/>
+                        <Button Content="📥 Export to CSV" Click="ExportTraffic_Click" Padding="12,6" Margin="0,0,8,0" />
+                        <Button Content="🗑️ Clear Traffic Log" Click="ClearTraffic_Click" Padding="12,6" />
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -129,18 +159,24 @@
             <!-- General Tab -->
             <TabItem Header="⚙️ General">
                 <StackPanel Margin="16">
-                    <TextBlock Text="General Settings" FontSize="16" Margin="0,0,0,16" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                    <CheckBox x:Name="AutoReconnectCheckBox" Content="Auto-reconnect SignalR on disconnect" IsChecked="True" Margin="0,0,0,12"/>
-                    <Separator Margin="0,16"/>
-                    <TextBlock Text="Configuration Storage" FontWeight="SemiBold" Margin="0,16,0,8" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                    <TextBlock Text="Settings are saved to appsettings.json in the application directory" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" TextWrapping="Wrap"/>
+                    <TextBlock Text="General Settings" FontSize="16" Margin="0,0,0,16"
+                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                    <CheckBox x:Name="AutoReconnectCheckBox" Content="Auto-reconnect SignalR on disconnect"
+                              IsChecked="True" Margin="0,0,0,12" />
+                    <Separator Margin="0,16" />
+                    <TextBlock Text="Configuration Storage" FontWeight="SemiBold" Margin="0,16,0,8"
+                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                    <TextBlock Text="Settings are saved to appsettings.json in the application directory"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </TabItem>
         </TabControl>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="💾 Save" Click="Save_Click" Padding="20,8" Margin="0,0,12,0" Style="{StaticResource AccentButtonStyle}"/>
-            <Button Content="Cancel" Click="Cancel_Click" Padding="20,8"/>
+            <Button Content="💾 Save" Click="Save_Click" Padding="20,8" Margin="0,0,12,0"
+                    Style="{StaticResource AccentButtonStyle}" />
+            <Button Content="Cancel" Click="Cancel_Click" Padding="20,8" />
         </StackPanel>
     </Grid>
 </Window>

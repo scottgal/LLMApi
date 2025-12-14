@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using mostlylucid.mockllmapi;
 
@@ -9,19 +9,19 @@ namespace LLMockApiClient.Services;
 
 public class WebServerHostService
 {
+    private readonly LogCaptureService? _logCapture;
     private WebApplication? _app;
     private Task? _runTask;
-    private readonly string _baseUrl;
-    private readonly LogCaptureService? _logCapture;
-
-    public string BaseUrl => _baseUrl;
-    public bool IsRunning => _app != null && _runTask != null && !_runTask.IsCompleted;
 
     public WebServerHostService(LogCaptureService? logCapture = null, string baseUrl = "http://localhost:5116")
     {
-        _baseUrl = baseUrl;
+        BaseUrl = baseUrl;
         _logCapture = logCapture;
     }
+
+    public string BaseUrl { get; }
+
+    public bool IsRunning => _app != null && _runTask != null && !_runTask.IsCompleted;
 
     public async Task StartAsync()
     {
@@ -36,7 +36,7 @@ public class WebServerHostService
         });
 
         // Configure to listen on the specified URL
-        builder.WebHost.UseUrls(_baseUrl);
+        builder.WebHost.UseUrls(BaseUrl);
 
         // Configure logging with capture
         if (_logCapture != null)
@@ -66,13 +66,13 @@ public class WebServerHostService
         _app.UseRouting();
 
         // Map LLMock API endpoints
-        _app.MapLLMockApi("/api/mock", includeStreaming: true);
-        _app.MapLLMockSignalR("/hub/mock", "/api/mock");
+        _app.MapLLMockApi();
+        _app.MapLLMockSignalR();
         _app.MapLLMockOpenApi();
         _app.MapLLMockOpenApiManagement();
-        _app.MapLLMockApiContextManagement("/api/contexts");
-        _app.MapLLMockGrpcManagement("/api/grpc-protos");
-        _app.MapLLMockGrpc("/api/grpc");
+        _app.MapLLMockApiContextManagement();
+        _app.MapLLMockGrpcManagement();
+        _app.MapLLMockGrpc();
 
         // Start the web server on a background thread
         _runTask = Task.Run(async () =>
@@ -83,7 +83,7 @@ public class WebServerHostService
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Web server error: {ex.Message}");
+                Debug.WriteLine($"Web server error: {ex.Message}");
             }
         });
 
@@ -110,6 +110,7 @@ public class WebServerHostService
             {
                 // Ignore errors during shutdown
             }
+
             _runTask = null;
         }
     }

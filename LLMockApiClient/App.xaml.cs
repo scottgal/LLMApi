@@ -1,17 +1,18 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.Windows;
 using LLMockApiClient.Services;
 using ModernWpf;
 
 namespace LLMockApiClient;
 
 /// <summary>
-/// Interaction logic for App.xaml
+///     Interaction logic for App.xaml
 /// </summary>
 public partial class App : Application
 {
-    public TrafficMonitor TrafficMonitor { get; } = new TrafficMonitor();
-    public LogCaptureService LogCapture { get; } = new LogCaptureService();
-    public ActivityIndicatorService ActivityIndicator { get; } = new ActivityIndicatorService();
+    public TrafficMonitor TrafficMonitor { get; } = new();
+    public LogCaptureService LogCapture { get; } = new();
+    public ActivityIndicatorService ActivityIndicator { get; } = new();
     public WebServerHostService WebServer { get; private set; } = null!;
 
     private async void Application_Startup(object sender, StartupEventArgs e)
@@ -25,21 +26,19 @@ public partial class App : Application
         try
         {
             await WebServer.StartAsync();
-            System.Diagnostics.Debug.WriteLine($"Web server started at {WebServer.BaseUrl}");
+            Debug.WriteLine($"Web server started at {WebServer.BaseUrl}");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to start web server: {ex.Message}", "Server Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Failed to start web server: {ex.Message}", "Server Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
     private async void Application_Exit(object sender, ExitEventArgs e)
     {
         // Stop the web server on app exit
-        if (WebServer != null)
-        {
-            await WebServer.StopAsync();
-        }
+        if (WebServer != null) await WebServer.StopAsync();
     }
 
     public void ToggleTheme()
@@ -49,4 +48,3 @@ public partial class App : Application
             currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark;
     }
 }
-

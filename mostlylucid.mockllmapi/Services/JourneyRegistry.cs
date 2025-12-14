@@ -5,17 +5,17 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Registry for journey templates. Loads journeys from configuration and provides
-/// access to them by name or modality.
+///     Registry for journey templates. Loads journeys from configuration and provides
+///     access to them by name or modality.
 /// </summary>
 public class JourneyRegistry
 {
+    private readonly object _lock = new();
     private readonly ILogger<JourneyRegistry> _logger;
     private readonly IOptionsMonitor<LLMockApiOptions> _options;
-    private readonly object _lock = new();
-    private Dictionary<string, JourneyTemplate> _journeysByName = new(StringComparer.OrdinalIgnoreCase);
     private List<JourneyTemplate> _allJourneys = new();
     private bool _initialized;
+    private Dictionary<string, JourneyTemplate> _journeysByName = new(StringComparer.OrdinalIgnoreCase);
 
     public JourneyRegistry(
         ILogger<JourneyRegistry> logger,
@@ -27,12 +27,12 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Gets whether journeys are enabled.
+    ///     Gets whether journeys are enabled.
     /// </summary>
     public bool IsEnabled => _options.CurrentValue.Journeys?.Enabled ?? false;
 
     /// <summary>
-    /// Gets all registered journey templates.
+    ///     Gets all registered journey templates.
     /// </summary>
     public IReadOnlyList<JourneyTemplate> GetAllJourneys()
     {
@@ -44,7 +44,7 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Gets a journey template by name.
+    ///     Gets a journey template by name.
     /// </summary>
     public JourneyTemplate? GetJourney(string name)
     {
@@ -56,7 +56,7 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Gets all journeys for a specific modality.
+    ///     Gets all journeys for a specific modality.
     /// </summary>
     public IReadOnlyList<JourneyTemplate> GetJourneysByModality(JourneyModality modality)
     {
@@ -68,7 +68,7 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Selects a random journey based on weights, optionally filtered by modality.
+    ///     Selects a random journey based on weights, optionally filtered by modality.
     /// </summary>
     public JourneyTemplate? SelectRandomJourney(JourneyModality? modality = null, Random? random = null)
     {
@@ -104,7 +104,7 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Registers a journey template programmatically.
+    ///     Registers a journey template programmatically.
     /// </summary>
     public void RegisterJourney(JourneyTemplate journey)
     {
@@ -126,7 +126,7 @@ public class JourneyRegistry
     }
 
     /// <summary>
-    /// Removes a journey template by name.
+    ///     Removes a journey template by name.
     /// </summary>
     public bool RemoveJourney(string name)
     {
@@ -138,12 +138,13 @@ public class JourneyRegistry
                 _allJourneys.RemoveAll(j => j.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 _logger.LogInformation("Removed journey '{JourneyName}'", name);
             }
+
             return removed;
         }
     }
 
     /// <summary>
-    /// Gets journey names and their step counts for management APIs.
+    ///     Gets journey names and their step counts for management APIs.
     /// </summary>
     public IReadOnlyList<(string Name, JourneyModality Modality, int StepCount, double Weight)> GetJourneySummaries()
     {
@@ -191,7 +192,6 @@ public class JourneyRegistry
         var newByName = new Dictionary<string, JourneyTemplate>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var journeyConfig in config.Journeys)
-        {
             try
             {
                 var journey = journeyConfig.ToRecord();
@@ -204,7 +204,6 @@ public class JourneyRegistry
             {
                 _logger.LogWarning(ex, "Failed to load journey '{JourneyName}'", journeyConfig.Name);
             }
-        }
 
         _allJourneys = newJourneys;
         _journeysByName = newByName;

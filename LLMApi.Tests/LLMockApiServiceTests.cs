@@ -1,24 +1,94 @@
+using System.Diagnostics;
+using System.Text;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
+using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
+using mostlylucid.mockllmapi.Services.Providers;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace LLMApi.Tests;
 
 public class LLMockApiServiceTests
 {
-    private class MockHttpClientFactory : IHttpClientFactory
-    {
-        public HttpClient CreateClient(string name) => new HttpClient();
-    }
-
     private IOptions<LLMockApiOptions> CreateOptions(LLMockApiOptions? options = null)
     {
         options ??= new LLMockApiOptions();
         return Options.Create(options);
+    }
+
+    private LLMockApiService CreateService(LLMockApiOptions? options = null)
+    {
+        var opts = CreateOptions(options);
+        var httpClientFactory = new MockHttpClientFactory();
+        var logger = NullLogger<LLMockApiService>.Instance;
+
+        var shapeExtractor = new ShapeExtractor();
+        var contextExtractor = new ContextExtractor();
+        var journeyExtractor = new JourneyExtractor();
+        var memoryCache = new MemoryCache(
+            new MemoryCacheOptions());
+        var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
+        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts, contextStore);
+        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
+        var promptBuilder = new PromptBuilder(opts, validationService, NullLogger<PromptBuilder>.Instance);
+        var backendSelector = new LlmBackendSelector(opts, NullLogger<LlmBackendSelector>.Instance);
+        var providerFactory = new LlmProviderFactory(NullLogger<LlmProviderFactory>.Instance);
+        var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance, backendSelector,
+            providerFactory);
+        var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
+        var delayHelper = new DelayHelper(opts);
+        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, opts);
+        var rateLimitService = new RateLimitService(opts);
+        var batchingCoordinator =
+            new BatchingCoordinator(llmClient, rateLimitService, opts, NullLogger<BatchingCoordinator>.Instance);
+
+        // Journey system (minimal setup for tests)
+        var optionsMonitor = new Mock<IOptionsMonitor<LLMockApiOptions>>();
+        optionsMonitor.Setup(m => m.CurrentValue).Returns(opts.Value);
+        var journeyRegistry = new JourneyRegistry(NullLogger<JourneyRegistry>.Instance, optionsMonitor.Object);
+        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance,
+            optionsMonitor.Object, journeyRegistry, memoryCache);
+        var journeyPromptInfluencer = new JourneyPromptInfluencer();
+
+        // Tool system (minimal setup for tests)
+        var toolExecutors = new IToolExecutor[] { };
+        var toolRegistry = new ToolRegistry(toolExecutors, opts, NullLogger<ToolRegistry>.Instance);
+        var toolOrchestrator =
+            new ToolOrchestrator(toolRegistry, memoryCache, opts, NullLogger<ToolOrchestrator>.Instance);
+
+        // AutoShape system
+        var shapeExtractorFromResponse =
+            new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new MemoryCacheShapeStore(memoryCache, NullLogger<MemoryCacheShapeStore>.Instance);
+        var autoShapeManager = new AutoShapeManager(opts, shapeStore, shapeExtractorFromResponse,
+            NullLogger<AutoShapeManager>.Instance);
+
+        var regularHandler = new RegularRequestHandler(
+            opts, shapeExtractor, contextExtractor, journeyExtractor, contextManager, journeySessionManager,
+            journeyPromptInfluencer,
+            promptBuilder, llmClient, cacheManager, delayHelper,
+            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager,
+            NullLogger<RegularRequestHandler>.Instance);
+
+        var streamingHandler = new StreamingRequestHandler(
+            opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,
+            chunkingCoordinator, autoShapeManager, NullLogger<StreamingRequestHandler>.Instance);
+
+        return new LLMockApiService(regularHandler, streamingHandler);
+    }
+
+    private class MockHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name)
+        {
+            return new HttpClient();
+        }
     }
 
     #region Body Reading Tests
@@ -45,7 +115,7 @@ public class LLMockApiServiceTests
         var service = CreateService();
         var context = new DefaultHttpContext();
         var content = "{\"test\":\"value\"}";
-        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var bytes = Encoding.UTF8.GetBytes(content);
         context.Request.Body = new MemoryStream(bytes);
         context.Request.ContentLength = bytes.Length;
 
@@ -225,7 +295,7 @@ public class LLMockApiServiceTests
             RandomRequestDelayMaxMs = 0
         });
         var helper = new DelayHelper(options);
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         // Act
         await helper.ApplyRequestDelayAsync();
@@ -245,7 +315,7 @@ public class LLMockApiServiceTests
             RandomRequestDelayMaxMs = 100
         });
         var helper = new DelayHelper(options);
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         // Act
         await helper.ApplyRequestDelayAsync();
@@ -257,57 +327,4 @@ public class LLMockApiServiceTests
     }
 
     #endregion
-
-    private LLMockApiService CreateService(LLMockApiOptions? options = null)
-    {
-        var opts = CreateOptions(options);
-        var httpClientFactory = new MockHttpClientFactory();
-        var logger = NullLogger<LLMockApiService>.Instance;
-
-        var shapeExtractor = new ShapeExtractor();
-        var contextExtractor = new ContextExtractor();
-        var journeyExtractor = new JourneyExtractor();
-        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
-        var contextStore = new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, opts, contextStore);
-        var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
-        var promptBuilder = new PromptBuilder(opts, validationService, NullLogger<PromptBuilder>.Instance);
-        var backendSelector = new LlmBackendSelector(opts, NullLogger<LlmBackendSelector>.Instance);
-        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
-        var llmClient = new LlmClient(opts, httpClientFactory, NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
-        var cacheManager = new CacheManager(opts, NullLogger<CacheManager>.Instance);
-        var delayHelper = new DelayHelper(opts);
-        var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, opts);
-        var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(opts);
-        var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, opts, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
-
-        // Journey system (minimal setup for tests)
-        var optionsMonitor = new Mock<IOptionsMonitor<LLMockApiOptions>>();
-        optionsMonitor.Setup(m => m.CurrentValue).Returns(opts.Value);
-        var journeyRegistry = new JourneyRegistry(NullLogger<JourneyRegistry>.Instance, optionsMonitor.Object);
-        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance, optionsMonitor.Object, journeyRegistry, memoryCache);
-        var journeyPromptInfluencer = new JourneyPromptInfluencer();
-
-        // Tool system (minimal setup for tests)
-        var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
-        var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
-        var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
-
-        // AutoShape system
-        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
-        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(memoryCache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
-        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(opts, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
-
-        var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
-            opts, shapeExtractor, contextExtractor, journeyExtractor, contextManager, journeySessionManager, journeyPromptInfluencer,
-            promptBuilder, llmClient, cacheManager, delayHelper,
-            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
-
-        var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
-            opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,
-            chunkingCoordinator, autoShapeManager, NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
-
-        return new LLMockApiService(regularHandler, streamingHandler);
-    }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -14,8 +15,8 @@ namespace LLMockApiClient.Pages;
 public partial class OpenApiGeneratorPage : Page
 {
     private readonly ApiService _apiService;
-    private string? _generatedSpec;
     private string? _generatedContextName;
+    private string? _generatedSpec;
 
     public OpenApiGeneratorPage(ApiService apiService)
     {
@@ -25,10 +26,7 @@ public partial class OpenApiGeneratorPage : Page
 
     private void ExampleButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string description)
-        {
-            DescriptionTextBox.Text = description;
-        }
+        if (sender is Button button && button.Tag is string description) DescriptionTextBox.Text = description;
     }
 
     private async void GenerateButton_Click(object sender, RoutedEventArgs e)
@@ -53,11 +51,11 @@ public partial class OpenApiGeneratorPage : Page
 
             var requestBody = new
             {
-                description = description,
-                contextName = contextName,
-                basePath = basePath,
-                autoSetup = autoSetup,
-                generateUI = generateUI
+                description,
+                contextName,
+                basePath,
+                autoSetup,
+                generateUI
             };
 
             using var client = new HttpClient();
@@ -83,6 +81,7 @@ public partial class OpenApiGeneratorPage : Page
                 {
                     errorDoc?.Dispose();
                 }
+
                 return;
             }
 
@@ -115,24 +114,17 @@ public partial class OpenApiGeneratorPage : Page
                 message.Append($"\n✅ API endpoints are now live at {basePath}");
                 ViewInSwaggerButton.Visibility = Visibility.Visible;
             }
-            if (uiGenerated)
-            {
-                message.Append("\n✅ Demo UI generated");
-            }
+
+            if (uiGenerated) message.Append("\n✅ Demo UI generated");
 
             ShowStatus(message.ToString(), StatusType.Success);
 
             // Signal activity
-            if (Application.Current is App app)
-            {
-                app.ActivityIndicator.TriggerActivity(ActivityType.OpenAPI);
-            }
+            if (Application.Current is App app) app.ActivityIndicator.TriggerActivity(ActivityType.OpenAPI);
 
             // Show toast notification
             if (Application.Current.MainWindow is MainWindow mainWindow)
-            {
-                mainWindow.ShowToast($"Generated OpenAPI spec: {_generatedContextName}", Controls.ToastNotification.ToastType.Success);
-            }
+                mainWindow.ShowToast($"Generated OpenAPI spec: {_generatedContextName}");
 
             result.Dispose();
         }
@@ -165,9 +157,7 @@ public partial class OpenApiGeneratorPage : Page
             ShowStatus("✓ Specification copied to clipboard!", StatusType.Success);
 
             if (Application.Current.MainWindow is MainWindow mainWindow)
-            {
-                mainWindow.ShowToast("Specification copied to clipboard", Controls.ToastNotification.ToastType.Success);
-            }
+                mainWindow.ShowToast("Specification copied to clipboard");
 
             doc.Dispose();
         }
@@ -204,9 +194,7 @@ public partial class OpenApiGeneratorPage : Page
                 ShowStatus($"✓ Saved to {Path.GetFileName(dialog.FileName)}", StatusType.Success);
 
                 if (Application.Current.MainWindow is MainWindow mainWindow)
-                {
-                    mainWindow.ShowToast($"Specification saved to {Path.GetFileName(dialog.FileName)}", Controls.ToastNotification.ToastType.Success);
-                }
+                    mainWindow.ShowToast($"Specification saved to {Path.GetFileName(dialog.FileName)}");
 
                 doc.Dispose();
             }
@@ -222,7 +210,7 @@ public partial class OpenApiGeneratorPage : Page
         try
         {
             var url = $"{_apiService.BaseUrl}/swagger";
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            Process.Start(new ProcessStartInfo
             {
                 FileName = url,
                 UseShellExecute = true
@@ -232,13 +220,6 @@ public partial class OpenApiGeneratorPage : Page
         {
             ShowStatus($"Failed to open browser: {ex.Message}", StatusType.Error);
         }
-    }
-
-    private enum StatusType
-    {
-        Success,
-        Error,
-        Info
     }
 
     private void ShowStatus(string message, StatusType type)
@@ -255,5 +236,12 @@ public partial class OpenApiGeneratorPage : Page
         };
 
         StatusBorder.Background = brush;
+    }
+
+    private enum StatusType
+    {
+        Success,
+        Error,
+        Info
     }
 }

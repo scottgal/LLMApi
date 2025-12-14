@@ -4,17 +4,18 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Logging;
-using Xunit;
+using mostlylucid.mockllmapi.Models;
+using mostlylucid.mockllmapi.Services;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Custom Fact attribute that skips tests in CI environments.
-/// Checks for CI, GITHUB_ACTIONS, TF_BUILD, or JENKINS_URL environment variables.
+///     Custom Fact attribute that skips tests in CI environments.
+///     Checks for CI, GITHUB_ACTIONS, TF_BUILD, or JENKINS_URL environment variables.
 /// </summary>
 public sealed class FactUnlessCI : FactAttribute
 {
-    private static readonly bool IsCI = 
+    private static readonly bool IsCI =
         Environment.GetEnvironmentVariable("CI") == "true" ||
         Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" ||
         Environment.GetEnvironmentVariable("TF_BUILD") == "True" ||
@@ -22,21 +23,18 @@ public sealed class FactUnlessCI : FactAttribute
 
     public FactUnlessCI()
     {
-        if (IsCI)
-        {
-            Skip = "Test skipped in CI environment - requires Ollama LLM service";
-        }
+        if (IsCI) Skip = "Test skipped in CI environment - requires Ollama LLM service";
     }
 }
 
 /// <summary>
-/// Tests for gRPC proto management and service call functionality
+///     Tests for gRPC proto management and service call functionality
 /// </summary>
 [Trait("Category", "Integration")]
 public class GrpcTests : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _factory;
 
     public GrpcTests(WebApplicationFactory<Program> factory)
     {
@@ -49,7 +47,7 @@ public class GrpcTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public void ProtoParser_ParsesBasicProtoFile()
     {
-        var parser = new mostlylucid.mockllmapi.Services.ProtoParser();
+        var parser = new ProtoParser();
         var protoContent = @"
 syntax = ""proto3"";
 package test;
@@ -81,7 +79,7 @@ message Response {
     [Fact]
     public void ProtoParser_ParsesMultipleServices()
     {
-        var parser = new mostlylucid.mockllmapi.Services.ProtoParser();
+        var parser = new ProtoParser();
         var protoContent = @"
 syntax = ""proto3"";
 package multi;
@@ -109,7 +107,7 @@ message Product { string title = 1; }";
     [Fact]
     public void ProtoParser_ParsesStreamingMethods()
     {
-        var parser = new mostlylucid.mockllmapi.Services.ProtoParser();
+        var parser = new ProtoParser();
         var protoContent = @"
 syntax = ""proto3"";
 service StreamService {
@@ -128,25 +126,25 @@ message Response { string data = 1; }";
         Assert.Equal("ServerStream", serverStream.Name);
         Assert.False(serverStream.ClientStreaming);
         Assert.True(serverStream.ServerStreaming);
-        Assert.Equal(mostlylucid.mockllmapi.Models.MethodType.ServerStreaming, serverStream.GetMethodType());
+        Assert.Equal(MethodType.ServerStreaming, serverStream.GetMethodType());
 
         var clientStream = definition.Services[0].Methods[1];
         Assert.Equal("ClientStream", clientStream.Name);
         Assert.True(clientStream.ClientStreaming);
         Assert.False(clientStream.ServerStreaming);
-        Assert.Equal(mostlylucid.mockllmapi.Models.MethodType.ClientStreaming, clientStream.GetMethodType());
+        Assert.Equal(MethodType.ClientStreaming, clientStream.GetMethodType());
 
         var bidiStream = definition.Services[0].Methods[2];
         Assert.Equal("BidirectionalStream", bidiStream.Name);
         Assert.True(bidiStream.ClientStreaming);
         Assert.True(bidiStream.ServerStreaming);
-        Assert.Equal(mostlylucid.mockllmapi.Models.MethodType.BidirectionalStreaming, bidiStream.GetMethodType());
+        Assert.Equal(MethodType.BidirectionalStreaming, bidiStream.GetMethodType());
     }
 
     [Fact]
     public void ProtoParser_ParsesFieldTypes()
     {
-        var parser = new mostlylucid.mockllmapi.Services.ProtoParser();
+        var parser = new ProtoParser();
         var protoContent = @"
 syntax = ""proto3"";
 message ComplexMessage {
@@ -177,7 +175,7 @@ message ComplexMessage {
     [Fact]
     public void ProtoParser_GeneratesJsonShape()
     {
-        var parser = new mostlylucid.mockllmapi.Services.ProtoParser();
+        var parser = new ProtoParser();
         var protoContent = @"
 syntax = ""proto3"";
 message User {
@@ -232,7 +230,8 @@ message User { int32 id = 1; string name = 2; }";
     public async Task ProtoManagement_ListProtos_ReturnsUploadedDefinitions()
     {
         // Upload a proto first
-        var protoContent = "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var protoContent =
+            "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
         await _client.PostAsync("/api/grpc-protos",
             new StringContent(protoContent, Encoding.UTF8, "text/plain"));
 
@@ -251,7 +250,8 @@ message User { int32 id = 1; string name = 2; }";
     public async Task ProtoManagement_GetSpecificProto_ReturnsDetails()
     {
         // Upload a proto
-        var protoContent = "syntax = \"proto3\"; package test; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var protoContent =
+            "syntax = \"proto3\"; package test; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
         await _client.PostAsync("/api/grpc-protos",
             new StringContent(protoContent, Encoding.UTF8, "text/plain"));
 
@@ -283,7 +283,8 @@ message User { int32 id = 1; string name = 2; }";
     public async Task ProtoManagement_DeleteProto_Success()
     {
         // Upload a proto
-        var protoContent = "syntax = \"proto3\"; service DeleteTest { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var protoContent =
+            "syntax = \"proto3\"; service DeleteTest { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
         await _client.PostAsync("/api/grpc-protos",
             new StringContent(protoContent, Encoding.UTF8, "text/plain"));
 
@@ -301,7 +302,8 @@ message User { int32 id = 1; string name = 2; }";
     {
         // Upload multiple protos
         await _client.PostAsync("/api/grpc-protos",
-            new StringContent("syntax = \"proto3\"; service S1 { rpc M (R) returns (R); } message R { int32 id = 1; }", Encoding.UTF8, "text/plain"));
+            new StringContent("syntax = \"proto3\"; service S1 { rpc M (R) returns (R); } message R { int32 id = 1; }",
+                Encoding.UTF8, "text/plain"));
 
         // Clear all
         var response = await _client.DeleteAsync("/api/grpc-protos");
@@ -445,7 +447,8 @@ message Config {
     public async Task GrpcCall_NonExistentMethod_Returns400()
     {
         // Upload proto
-        var protoContent = "syntax = \"proto3\"; service TestService { rpc RealMethod (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var protoContent =
+            "syntax = \"proto3\"; service TestService { rpc RealMethod (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
         await _client.PostAsync("/api/grpc-protos",
             new StringContent(protoContent, Encoding.UTF8, "text/plain"));
 
@@ -475,7 +478,8 @@ message Response { string data = 1; }";
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Contains("not a unary call", result.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not a unary call", result.GetProperty("error").GetString(),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [FactUnlessCI]
@@ -574,9 +578,10 @@ message Order {
     public void ProtoDefinitionManager_AddAndRetrieveDefinition()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
-        var protoContent = "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var logger = loggerFactory.CreateLogger<ProtoDefinitionManager>();
+        var manager = new ProtoDefinitionManager(logger);
+        var protoContent =
+            "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         var definition = manager.AddProtoDefinition(protoContent, "test.proto");
 
@@ -591,9 +596,10 @@ message Order {
     public void ProtoDefinitionManager_FindService_Success()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
-        var protoContent = "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var logger = loggerFactory.CreateLogger<ProtoDefinitionManager>();
+        var manager = new ProtoDefinitionManager(logger);
+        var protoContent =
+            "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "user.proto");
 
@@ -608,9 +614,10 @@ message Order {
     public void ProtoDefinitionManager_FindMethod_Success()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
-        var protoContent = "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var logger = loggerFactory.CreateLogger<ProtoDefinitionManager>();
+        var manager = new ProtoDefinitionManager(logger);
+        var protoContent =
+            "syntax = \"proto3\"; service UserService { rpc GetUser (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "user.proto");
 
@@ -626,9 +633,10 @@ message Order {
     public void ProtoDefinitionManager_RemoveDefinition_Success()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
-        var protoContent = "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
+        var logger = loggerFactory.CreateLogger<ProtoDefinitionManager>();
+        var manager = new ProtoDefinitionManager(logger);
+        var protoContent =
+            "syntax = \"proto3\"; service TestService { rpc Test (Request) returns (Response); } message Request { int32 id = 1; } message Response { string data = 1; }";
 
         manager.AddProtoDefinition(protoContent, "test.proto");
 
@@ -643,11 +651,13 @@ message Order {
     public void ProtoDefinitionManager_ClearAll_Success()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<mostlylucid.mockllmapi.Services.ProtoDefinitionManager>();
-        var manager = new mostlylucid.mockllmapi.Services.ProtoDefinitionManager(logger);
+        var logger = loggerFactory.CreateLogger<ProtoDefinitionManager>();
+        var manager = new ProtoDefinitionManager(logger);
 
-        manager.AddProtoDefinition("syntax = \"proto3\"; service S1 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto1.proto");
-        manager.AddProtoDefinition("syntax = \"proto3\"; service S2 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto2.proto");
+        manager.AddProtoDefinition(
+            "syntax = \"proto3\"; service S1 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto1.proto");
+        manager.AddProtoDefinition(
+            "syntax = \"proto3\"; service S2 { rpc M (R) returns (R); } message R { int32 id = 1; }", "proto2.proto");
 
         manager.ClearAll();
 

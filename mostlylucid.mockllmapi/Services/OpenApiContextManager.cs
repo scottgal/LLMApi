@@ -1,23 +1,17 @@
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
-using System.Text;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages shared contexts for OpenAPI endpoints to maintain consistency across related requests.
-/// Uses IContextStore for storage with automatic expiration (default: 15 minutes of inactivity).
+///     Manages shared contexts for OpenAPI endpoints to maintain consistency across related requests.
+///     Uses IContextStore for storage with automatic expiration (default: 15 minutes of inactivity).
 /// </summary>
 public class OpenApiContextManager
 {
-    private readonly ILogger<OpenApiContextManager> _logger;
-    private readonly LLMockApiOptions _options;
-    private readonly IContextStore _contextStore;
-    private readonly object _contextLock = new object(); // Global lock for thread safety
-    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
     private const int MaxRecentCalls = 15;
     private const int SummarizeThreshold = 20;
 
@@ -26,6 +20,11 @@ public class OpenApiContextManager
     // but JSON/code tends to be ~3 chars per token due to punctuation and keywords
     private const double TokensPerCharForJson = 0.33; // ~3 chars per token for JSON
     private const double TokensPerCharForText = 0.25; // ~4 chars per token for natural text
+    private readonly object _contextLock = new(); // Global lock for thread safety
+    private readonly IContextStore _contextStore;
+    private readonly ILogger<OpenApiContextManager> _logger;
+    private readonly LLMockApiOptions _options;
+    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
 
     public OpenApiContextManager(
         ILogger<OpenApiContextManager> logger,
@@ -35,7 +34,7 @@ public class OpenApiContextManager
         _logger = logger;
         _options = options.Value;
         _contextStore = contextStore;
-        
+
         // Create a StringBuilder pool to reduce allocations in hot paths
         // StringBuilderPooledObjectPolicy clears the builder on return
         _stringBuilderPool = new DefaultObjectPool<StringBuilder>(
@@ -43,7 +42,7 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Adds a request/response pair to the context
+    ///     Adds a request/response pair to the context
     /// </summary>
     public void AddToContext(string contextName, string method, string path, string? requestBody, string responseBody)
     {
@@ -87,10 +86,7 @@ public class OpenApiContextManager
                 ExtractSharedData(context, responseBody);
 
                 // If we have too many calls, summarize older ones
-                if (context.RecentCalls.Count > MaxRecentCalls)
-                {
-                    SummarizeOldCalls(context);
-                }
+                if (context.RecentCalls.Count > MaxRecentCalls) SummarizeOldCalls(context);
             }
         }
 
@@ -98,12 +94,13 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Gets the context history formatted for inclusion in LLM prompts.
-    /// Uses pooled StringBuilder to reduce allocations on this hot path.
+    ///     Gets the context history formatted for inclusion in LLM prompts.
+    ///     Uses pooled StringBuilder to reduce allocations on this hot path.
     /// </summary>
     public string? GetContextForPrompt(string contextName)
     {
-        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) || context == null)
+        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) ||
+            context == null)
             return null;
 
         _contextStore.TouchContext(contextName); // Refresh sliding expiration
@@ -132,10 +129,7 @@ public class OpenApiContextManager
             if (sharedDataSnapshot.Count > 0)
             {
                 sb.AppendLine("\nShared data to maintain consistency:");
-                foreach (var kvp in sharedDataSnapshot)
-                {
-                    sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
-                }
+                foreach (var kvp in sharedDataSnapshot) sb.AppendLine($"  {kvp.Key}: {kvp.Value}");
             }
 
             // Add recent calls with dynamic truncation based on MaxInputTokens
@@ -153,7 +147,8 @@ public class OpenApiContextManager
                     var maxContextTokens = (int)(_options.MaxInputTokens * 0.2);
                     var remainingTokens = maxContextTokens - baseTokens;
 
-                    _logger.LogDebug("Context '{Context}': Base tokens={BaseTokens}, Max context tokens={MaxContext}, Remaining={Remaining}",
+                    _logger.LogDebug(
+                        "Context '{Context}': Base tokens={BaseTokens}, Max context tokens={MaxContext}, Remaining={Remaining}",
                         contextName, baseTokens, maxContextTokens, remainingTokens);
 
                     // Add calls from most recent, stopping if we exceed token limit
@@ -170,9 +165,7 @@ public class OpenApiContextManager
                             callTextBuilder.Clear();
                             callTextBuilder.AppendLine($"  [{call.Timestamp:HH:mm:ss}] {call.Method} {call.Path}");
                             if (!string.IsNullOrWhiteSpace(call.RequestBody))
-                            {
                                 callTextBuilder.AppendLine($"    Request: {TruncateJson(call.RequestBody, 200)}");
-                            }
                             callTextBuilder.AppendLine($"    Response: {TruncateJson(call.ResponseBody, 300)}");
 
                             var callText = callTextBuilder.ToString();
@@ -194,23 +187,17 @@ public class OpenApiContextManager
                     }
 
                     if (droppedCalls.Count > 0)
-                    {
                         _logger.LogInformation(
                             "Context '{Context}': Dropped {DroppedCount}/{TotalCount} calls to fit {MaxTokens} token limit (20% of max). " +
                             "Dropped: [{DroppedCalls}]",
                             contextName, droppedCalls.Count, recentCalls.Count, _options.MaxInputTokens,
                             string.Join(", ", droppedCalls));
-                    }
 
-                    foreach (var callText in callsToInclude)
-                    {
-                        sb.Append(callText);
-                    }
+                    foreach (var callText in callsToInclude) sb.Append(callText);
 
                     if (callsToInclude.Count < recentCalls.Count)
-                    {
-                        sb.AppendLine($"  ... ({recentCalls.Count - callsToInclude.Count} earlier calls omitted to fit {_options.MaxInputTokens} token limit)");
-                    }
+                        sb.AppendLine(
+                            $"  ... ({recentCalls.Count - callsToInclude.Count} earlier calls omitted to fit {_options.MaxInputTokens} token limit)");
                 }
             }
 
@@ -225,10 +212,10 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Estimates token count from text using a more accurate algorithm.
-    /// JSON/code typically has ~3 chars per token due to punctuation,
-    /// while natural text averages ~4 chars per token.
-    /// This method analyzes the content type for better accuracy.
+    ///     Estimates token count from text using a more accurate algorithm.
+    ///     JSON/code typically has ~3 chars per token due to punctuation,
+    ///     while natural text averages ~4 chars per token.
+    ///     This method analyzes the content type for better accuracy.
     /// </summary>
     private int EstimateTokens(string text)
     {
@@ -240,10 +227,8 @@ public class OpenApiContextManager
         var totalChars = text.Length;
 
         foreach (var c in text)
-        {
             if (c == '{' || c == '}' || c == '[' || c == ']' || c == ':' || c == ',' || c == '"')
                 jsonChars++;
-        }
 
         // Calculate ratio of JSON to total content
         var jsonRatio = (double)jsonChars / totalChars;
@@ -262,7 +247,7 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Gets a specific context (read-only - does not update timestamps)
+    ///     Gets a specific context (read-only - does not update timestamps)
     /// </summary>
     public ApiContext? GetContext(string contextName)
     {
@@ -271,7 +256,7 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Lists all contexts
+    ///     Lists all contexts
     /// </summary>
     public List<ApiContextSummary> GetAllContexts()
     {
@@ -288,20 +273,17 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Clears a specific context
+    ///     Clears a specific context
     /// </summary>
     public bool ClearContext(string contextName)
     {
         var removed = _contextStore.TryRemove(contextName, out _);
-        if (removed)
-        {
-            _logger.LogInformation("Cleared context: {Context}", contextName);
-        }
+        if (removed) _logger.LogInformation("Cleared context: {Context}", contextName);
         return removed;
     }
 
     /// <summary>
-    /// Clears all contexts
+    ///     Clears all contexts
     /// </summary>
     public void ClearAllContexts()
     {
@@ -311,8 +293,8 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Adds journey state data to context's SharedData.
-    /// Journey keys are prefixed with "journey." to avoid conflicts.
+    ///     Adds journey state data to context's SharedData.
+    ///     Journey keys are prefixed with "journey." to avoid conflicts.
     /// </summary>
     public void AddJourneyState(string contextName, Dictionary<string, string> journeyState)
     {
@@ -320,7 +302,6 @@ public class OpenApiContextManager
             return;
 
         if (!_contextStore.TryGetValue(contextName, out var context) || context == null)
-        {
             // Create context if it doesn't exist
             context = _contextStore.GetOrAdd(contextName, _ => new ApiContext
             {
@@ -332,14 +313,10 @@ public class OpenApiContextManager
                 ContextSummary = string.Empty,
                 TotalCalls = 0
             });
-        }
 
         lock (_contextLock)
         {
-            foreach (var kvp in journeyState)
-            {
-                context.SharedData[kvp.Key] = kvp.Value;
-            }
+            foreach (var kvp in journeyState) context.SharedData[kvp.Key] = kvp.Value;
         }
 
         _contextStore.TouchContext(contextName);
@@ -347,11 +324,12 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Gets the shared data from a context (thread-safe snapshot).
+    ///     Gets the shared data from a context (thread-safe snapshot).
     /// </summary>
     public IReadOnlyDictionary<string, string>? GetSharedData(string contextName)
     {
-        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) || context == null)
+        if (string.IsNullOrWhiteSpace(contextName) || !_contextStore.TryGetValue(contextName, out var context) ||
+            context == null)
             return null;
 
         lock (_contextLock)
@@ -361,7 +339,7 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Extracts shared data from response JSON - captures ALL fields dynamically
+    ///     Extracts shared data from response JSON - captures ALL fields dynamically
     /// </summary>
     private void ExtractSharedData(ApiContext context, string responseBody)
     {
@@ -388,9 +366,10 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Recursively extracts all fields from a JSON object up to maxDepth levels
+    ///     Recursively extracts all fields from a JSON object up to maxDepth levels
     /// </summary>
-    private void ExtractAllFields(ApiContext context, JsonElement element, string prefix = "", int depth = 0, int maxDepth = 2)
+    private void ExtractAllFields(ApiContext context, JsonElement element, string prefix = "", int depth = 0,
+        int maxDepth = 2)
     {
         if (element.ValueKind != JsonValueKind.Object || depth > maxDepth)
             return;
@@ -410,6 +389,7 @@ public class OpenApiContextManager
                         context.SharedData[key] = truncatedValue;
                         AddLegacyKey(context, property.Name, truncatedValue, depth);
                     }
+
                     break;
 
                 case JsonValueKind.Number:
@@ -440,17 +420,16 @@ public class OpenApiContextManager
                     {
                         var firstArrayItem = property.Value[0];
                         if (firstArrayItem.ValueKind == JsonValueKind.Object)
-                        {
                             ExtractAllFields(context, firstArrayItem, $"{key}[0]", depth + 1, maxDepth);
-                        }
                     }
+
                     break;
             }
         }
     }
 
     /// <summary>
-    /// Adds legacy "last*" keys for common patterns to maintain backward compatibility
+    ///     Adds legacy "last*" keys for common patterns to maintain backward compatibility
     /// </summary>
     private void AddLegacyKey(ApiContext context, string fieldName, string value, int depth)
     {
@@ -468,8 +447,8 @@ public class OpenApiContextManager
     }
 
     /// <summary>
-    /// Summarizes older calls to reduce context size
-    /// This is a simplified version - in production you'd call an LLM to create the summary
+    ///     Summarizes older calls to reduce context size
+    ///     This is a simplified version - in production you'd call an LLM to create the summary
     /// </summary>
     private void SummarizeOldCalls(ApiContext context)
     {
@@ -485,25 +464,19 @@ public class OpenApiContextManager
             summary.AppendLine($"Earlier calls ({toSummarize.Count}):");
 
             var groupedByPath = toSummarize.GroupBy(c => $"{c.Method} {c.Path.Split('?')[0]}");
-            foreach (var group in groupedByPath)
-            {
-                summary.AppendLine($"  {group.Key} - called {group.Count()} time(s)");
-            }
+            foreach (var group in groupedByPath) summary.AppendLine($"  {group.Key} - called {group.Count()} time(s)");
 
             // Update or append to existing summary
             if (!string.IsNullOrWhiteSpace(context.ContextSummary))
-            {
-                context.ContextSummary += "\n" + summary.ToString();
-            }
+                context.ContextSummary += "\n" + summary;
             else
-            {
                 context.ContextSummary = summary.ToString();
-            }
 
             // Remove the summarized calls, keep only recent ones
             context.RecentCalls.RemoveRange(0, toSummarize.Count);
 
-            _logger.LogInformation("Summarized {Count} old calls in context '{Context}'", toSummarize.Count, context.Name);
+            _logger.LogInformation("Summarized {Count} old calls in context '{Context}'", toSummarize.Count,
+                context.Name);
         }
     }
 
@@ -517,7 +490,7 @@ public class OpenApiContextManager
 }
 
 /// <summary>
-/// Represents a shared context across related API calls
+///     Represents a shared context across related API calls
 /// </summary>
 public class ApiContext
 {
@@ -531,7 +504,7 @@ public class ApiContext
 }
 
 /// <summary>
-/// Summary of a single request/response
+///     Summary of a single request/response
 /// </summary>
 public class RequestSummary
 {
@@ -543,7 +516,7 @@ public class RequestSummary
 }
 
 /// <summary>
-/// Summary information about a context (for API responses)
+///     Summary information about a context (for API responses)
 /// </summary>
 public class ApiContextSummary
 {

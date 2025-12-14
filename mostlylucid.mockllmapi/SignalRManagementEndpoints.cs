@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
 
 namespace mostlylucid.mockllmapi;
@@ -16,7 +17,7 @@ internal static class SignalRManagementEndpoints
     {
         try
         {
-            Models.HubContextConfig? config;
+            HubContextConfig? config;
 
             // Check Content-Type to determine how to parse the body
             var contentType = ctx.Request.ContentType?.ToLowerInvariant() ?? "";
@@ -25,14 +26,22 @@ internal static class SignalRManagementEndpoints
             {
                 // Parse form-encoded data
                 var form = await ctx.Request.ReadFormAsync();
-                config = new Models.HubContextConfig
+                config = new HubContextConfig
                 {
                     Name = form.ContainsKey("name") ? form["name"].ToString() : string.Empty,
                     Description = form.ContainsKey("description") ? form["description"].ToString() : string.Empty,
-                    Method = form.ContainsKey("method") && !string.IsNullOrWhiteSpace(form["method"]) ? form["method"].ToString() : "GET",
-                    Path = form.ContainsKey("path") && !string.IsNullOrWhiteSpace(form["path"]) ? form["path"].ToString() : "/data",
-                    Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"]) ? form["body"].ToString() : null,
-                    Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"]) ? form["shape"].ToString() : null
+                    Method = form.ContainsKey("method") && !string.IsNullOrWhiteSpace(form["method"])
+                        ? form["method"].ToString()
+                        : "GET",
+                    Path = form.ContainsKey("path") && !string.IsNullOrWhiteSpace(form["path"])
+                        ? form["path"].ToString()
+                        : "/data",
+                    Body = form.ContainsKey("body") && !string.IsNullOrWhiteSpace(form["body"])
+                        ? form["body"].ToString()
+                        : null,
+                    Shape = form.ContainsKey("shape") && !string.IsNullOrWhiteSpace(form["shape"])
+                        ? form["shape"].ToString()
+                        : null
                 };
 
                 // Parse error configuration if present
@@ -41,14 +50,16 @@ internal static class SignalRManagementEndpoints
                     var errorStr = form["error"].ToString();
                     if (int.TryParse(errorStr, out var errorCode) && errorCode >= 100 && errorCode < 600)
                     {
-                        var errorMessage = form.ContainsKey("errorMessage") && !string.IsNullOrWhiteSpace(form["errorMessage"])
+                        var errorMessage = form.ContainsKey("errorMessage") &&
+                                           !string.IsNullOrWhiteSpace(form["errorMessage"])
                             ? form["errorMessage"].ToString()
                             : null;
-                        var errorDetails = form.ContainsKey("errorDetails") && !string.IsNullOrWhiteSpace(form["errorDetails"])
+                        var errorDetails = form.ContainsKey("errorDetails") &&
+                                           !string.IsNullOrWhiteSpace(form["errorDetails"])
                             ? form["errorDetails"].ToString()
                             : null;
 
-                        config.ErrorConfig = new Models.ErrorConfig(errorCode, errorMessage, errorDetails);
+                        config.ErrorConfig = new ErrorConfig(errorCode, errorMessage, errorDetails);
                     }
                 }
             }
@@ -57,17 +68,11 @@ internal static class SignalRManagementEndpoints
                 // Parse JSON data
                 using var reader = new StreamReader(ctx.Request.Body);
                 var json = await reader.ReadToEndAsync();
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                config = JsonSerializer.Deserialize<Models.HubContextConfig>(json, options);
+                config = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.HubContextConfig);
             }
 
             if (config == null || string.IsNullOrWhiteSpace(config.Name))
-            {
                 return Results.BadRequest(new { error = "Invalid context configuration. Name is required." });
-            }
 
             // If description is provided but no shape, use LLM to generate shape
             if (!string.IsNullOrWhiteSpace(config.Description) && string.IsNullOrWhiteSpace(config.Shape))
@@ -109,7 +114,8 @@ Example format:
 
             if (success)
             {
-                logger.LogInformation("Context registered successfully: {Name}, IsActive={IsActive}, ConnectionCount={Count}",
+                logger.LogInformation(
+                    "Context registered successfully: {Name}, IsActive={IsActive}, ConnectionCount={Count}",
                     config.Name, config.IsActive, config.ConnectionCount);
 
                 return Results.Ok(new
@@ -118,11 +124,9 @@ Example format:
                     context = config
                 });
             }
-            else
-            {
-                logger.LogWarning("Context registration failed - already exists: {Name}", config.Name);
-                return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
-            }
+
+            logger.LogWarning("Context registration failed - already exists: {Name}", config.Name);
+            return Results.Conflict(new { error = $"Context '{config.Name}' already exists" });
         }
         catch (Exception ex)
         {
@@ -141,24 +145,17 @@ Example format:
         // Also read configured contexts directly from appsettings to ensure they are always present
         var configured = configuration
             .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
-            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>() ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
+            .Get<List<HubContextConfig>>() ?? new List<HubContextConfig>();
 
         // Merge configured + dynamic, with dynamic taking precedence on name collisions
-        var merged = new Dictionary<string, mostlylucid.mockllmapi.Models.HubContextConfig>(StringComparer.OrdinalIgnoreCase);
+        var merged = new Dictionary<string, HubContextConfig>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in configured)
-        {
             if (!string.IsNullOrWhiteSpace(c.Name))
-            {
                 merged[c.Name] = c;
-            }
-        }
+
         foreach (var c in dynamicContexts)
-        {
             if (!string.IsNullOrWhiteSpace(c.Name))
-            {
                 merged[c.Name] = c; // override configured with dynamic instance
-            }
-        }
 
         var contexts = merged.Values.ToList();
         return Results.Ok(new { contexts, count = contexts.Count });
@@ -171,22 +168,18 @@ Example format:
     {
         // First try dynamic runtime contexts
         var context = contextManager.GetContext(contextName);
-        if (context != null)
-        {
-            return Results.Ok(context);
-        }
+        if (context != null) return Results.Ok(context);
 
         // Fallback to configured contexts from appsettings.json to ensure visibility even if not dynamically registered
         var configured = configuration
-            .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
-            .Get<List<mostlylucid.mockllmapi.Models.HubContextConfig>>()
-            ?? new List<mostlylucid.mockllmapi.Models.HubContextConfig>();
+                             .GetSection($"{LLMockApiOptions.SectionName}:HubContexts")
+                             .Get<List<HubContextConfig>>()
+                         ?? new List<HubContextConfig>();
 
-        var match = configured.Find(c => !string.IsNullOrWhiteSpace(c.Name) && string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
-        if (match != null)
-        {
-            return Results.Ok(match);
-        }
+        var match = configured.Find(c =>
+            !string.IsNullOrWhiteSpace(c.Name) &&
+            string.Equals(c.Name, contextName, StringComparison.OrdinalIgnoreCase));
+        if (match != null) return Results.Ok(match);
 
         return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
@@ -197,14 +190,9 @@ Example format:
     {
         var success = contextManager.UnregisterContext(contextName);
 
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
+        if (success) return Results.Ok(new { message = $"Context '{contextName}' deleted successfully" });
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     internal static IResult HandleStartContext(
@@ -213,14 +201,9 @@ Example format:
     {
         var success = contextManager.StartContext(contextName);
 
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
+        if (success) return Results.Ok(new { message = $"Context '{contextName}' started successfully" });
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 
     internal static IResult HandleStopContext(
@@ -229,13 +212,8 @@ Example format:
     {
         var success = contextManager.StopContext(contextName);
 
-        if (success)
-        {
-            return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
-        }
-        else
-        {
-            return Results.NotFound(new { error = $"Context '{contextName}' not found" });
-        }
+        if (success) return Results.Ok(new { message = $"Context '{contextName}' stopped successfully" });
+
+        return Results.NotFound(new { error = $"Context '{contextName}' not found" });
     }
 }

@@ -1,9 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
@@ -176,6 +172,7 @@ public class OpenApiManagementTests
 
         // Assert
         Assert.True(result.Success);
+        Assert.NotNull(result.Endpoints);
         Assert.NotEmpty(result.Endpoints);
 
         // Check that endpoints have expected properties
@@ -250,7 +247,7 @@ public class OpenApiManagementTests
         var specUrl = "https://petstore3.swagger.io/api/v3/openapi.json";
 
         // Act
-        var result = await manager.LoadSpecAsync("default-path", specUrl, basePath: null);
+        var result = await manager.LoadSpecAsync("default-path", specUrl, null);
 
         // Assert
         Assert.True(result.Success);
@@ -324,6 +321,7 @@ public class OpenApiManagementTests
 
         // Assert
         Assert.True(result.Success);
+        Assert.NotNull(result.Endpoints);
         Assert.NotEmpty(result.Endpoints);
 
         // Check that at least some endpoints have metadata

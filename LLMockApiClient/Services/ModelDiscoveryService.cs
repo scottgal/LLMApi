@@ -1,5 +1,7 @@
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace LLMockApiClient.Services;
 
@@ -36,7 +38,6 @@ public class ModelDiscoveryService
 
             var models = new List<ModelInfo>();
             if (doc.RootElement.TryGetProperty("models", out var modelsArray))
-            {
                 foreach (var model in modelsArray.EnumerateArray())
                 {
                     var modelInfo = new ModelInfo
@@ -49,16 +50,14 @@ public class ModelDiscoveryService
                         modelInfo.Size = size.GetInt64();
 
                     if (model.TryGetProperty("modified_at", out var modified))
-                    {
                         if (DateTime.TryParse(modified.GetString(), out var dt))
                             modelInfo.ModifiedAt = dt;
-                    }
 
                     // Try to get model details for context length
                     try
                     {
                         var requestBody = JsonSerializer.Serialize(new { name = modelInfo.Name });
-                        var content = new System.Net.Http.StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
+                        var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
                         var detailsResponse = await _httpClient.PostAsync($"{baseUrl}/api/show", content);
 
                         if (detailsResponse.IsSuccessStatusCode)
@@ -70,20 +69,19 @@ public class ModelDiscoveryService
                             {
                                 var modelfileStr = modelfile.GetString() ?? "";
                                 // Look for num_ctx in modelfile
-                                var numCtxMatch = System.Text.RegularExpressions.Regex.Match(
+                                var numCtxMatch = Regex.Match(
                                     modelfileStr, @"num_ctx\s+(\d+)");
                                 if (numCtxMatch.Success && int.TryParse(numCtxMatch.Groups[1].Value, out var ctx))
-                                {
                                     modelInfo.ContextLength = ctx;
-                                }
                             }
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                    }
 
                     models.Add(modelInfo);
                 }
-            }
 
             return models;
         }
@@ -108,7 +106,6 @@ public class ModelDiscoveryService
 
             var models = new List<ModelInfo>();
             if (doc.RootElement.TryGetProperty("data", out var dataArray))
-            {
                 foreach (var model in dataArray.EnumerateArray())
                 {
                     var modelInfo = new ModelInfo
@@ -122,7 +119,6 @@ public class ModelDiscoveryService
 
                     models.Add(modelInfo);
                 }
-            }
 
             return models;
         }

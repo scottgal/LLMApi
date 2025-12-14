@@ -1,16 +1,15 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using mostlylucid.mockllmapi.Utilities;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Utility for extracting clean JSON from LLM responses that might include markdown or explanatory text
+///     Utility for extracting clean JSON from LLM responses that might include markdown or explanatory text
 /// </summary>
 public static class JsonExtractor
 {
     /// <summary>
-    /// Extracts clean JSON from LLM response that might include markdown or explanatory text
+    ///     Extracts clean JSON from LLM response that might include markdown or explanatory text
     /// </summary>
     public static string ExtractJson(string response)
     {
@@ -23,15 +22,11 @@ public static class JsonExtractor
         trimmed = CleanupLlmArtifacts(trimmed);
 
         // Fix comma-separated objects (should be array)
-        if (trimmed.StartsWith("{") && !trimmed.StartsWith("["))
-        {
-            trimmed = WrapCommaSeparatedObjectsInArray(trimmed);
-        }
+        if (trimmed.StartsWith("{") && !trimmed.StartsWith("[")) trimmed = WrapCommaSeparatedObjectsInArray(trimmed);
 
         // Check if it's already valid JSON
         if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
             (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
-        {
             try
             {
                 JsonDocument.Parse(trimmed);
@@ -41,28 +36,20 @@ public static class JsonExtractor
             {
                 // If parsing fails, continue with extraction logic
             }
-        }
 
         // Remove markdown code blocks (using cached regex for performance)
         var match = ValidationRegex.JsonMarkdownCodeBlockRegex().Match(response);
-        if (match.Success)
-        {
-            return match.Groups[1].Value.Trim();
-        }
+        if (match.Success) return match.Groups[1].Value.Trim();
 
         // Try to find JSON object or array in the text using bracket matching
         // This avoids greedy regex issues where text like "here is {a} and {b}" would capture "a} and {b"
         var extractedJson = ExtractBalancedJson(response);
-        if (!string.IsNullOrEmpty(extractedJson))
-        {
-            return extractedJson;
-        }
+        if (!string.IsNullOrEmpty(extractedJson)) return extractedJson;
 
         // Fallback to non-greedy regex patterns (using cached regex for performance)
         // Use *? for non-greedy matching - but this may not find the complete JSON
         var objectMatch = ValidationRegex.JsonObjectRegex().Match(response);
         if (objectMatch.Success)
-        {
             // Validate it's actually valid JSON before returning
             try
             {
@@ -73,11 +60,9 @@ public static class JsonExtractor
             {
                 // Not valid JSON, continue
             }
-        }
 
         var arrayMatch = ValidationRegex.JsonArrayRegex().Match(response);
         if (arrayMatch.Success)
-        {
             try
             {
                 JsonDocument.Parse(arrayMatch.Value);
@@ -87,15 +72,14 @@ public static class JsonExtractor
             {
                 // Not valid JSON, continue
             }
-        }
 
         // Return as-is if no patterns matched
         return trimmed;
     }
 
     /// <summary>
-    /// Extracts JSON using balanced bracket matching.
-    /// This is more accurate than regex for finding complete JSON structures.
+    ///     Extracts JSON using balanced bracket matching.
+    ///     This is more accurate than regex for finding complete JSON structures.
     /// </summary>
     private static string? ExtractBalancedJson(string text)
     {
@@ -108,7 +92,7 @@ public static class JsonExtractor
 
         if (objectStart == -1 && arrayStart == -1)
             return null;
-        else if (objectStart == -1)
+        if (objectStart == -1)
         {
             start = arrayStart;
             openBracket = '[';
@@ -196,11 +180,11 @@ public static class JsonExtractor
     }
 
     /// <summary>
-    /// Removes common LLM artifacts that break JSON parsing:
-    /// - Ellipsis (...) used to indicate truncation
-    /// - C-style comments (// ...)
-    /// - Trailing commas before closing brackets
-    /// Uses cached regex patterns for performance.
+    ///     Removes common LLM artifacts that break JSON parsing:
+    ///     - Ellipsis (...) used to indicate truncation
+    ///     - C-style comments (// ...)
+    ///     - Trailing commas before closing brackets
+    ///     Uses cached regex patterns for performance.
     /// </summary>
     private static string CleanupLlmArtifacts(string json)
     {
@@ -209,27 +193,27 @@ public static class JsonExtractor
 
         // Remove ellipsis patterns that indicate truncation (using cached regex)
         // Match: "...", ..., "field": "...", etc.
-        json = ValidationRegex.LlmEllipsisQuotedRegex().Replace(json, @"""""");  // "..." -> ""
-        json = ValidationRegex.LlmEllipsisAfterColonRegex().Replace(json, ": null");  // : ... -> : null
-        json = ValidationRegex.LlmEllipsisBeforeCloseRegex().Replace(json, "");  // , ... before closing -> remove
-        json = ValidationRegex.LlmEllipsisLineRegex().Replace(json, "");  // Entire lines with just ...
+        json = ValidationRegex.LlmEllipsisQuotedRegex().Replace(json, @""""""); // "..." -> ""
+        json = ValidationRegex.LlmEllipsisAfterColonRegex().Replace(json, ": null"); // : ... -> : null
+        json = ValidationRegex.LlmEllipsisBeforeCloseRegex().Replace(json, ""); // , ... before closing -> remove
+        json = ValidationRegex.LlmEllipsisLineRegex().Replace(json, ""); // Entire lines with just ...
 
         // Remove C-style comments (// ...) using cached regex
-        json = ValidationRegex.LlmCStyleCommentRegex().Replace(json, "");  // Remove // comments
+        json = ValidationRegex.LlmCStyleCommentRegex().Replace(json, ""); // Remove // comments
 
         // Remove trailing commas before closing brackets (common LLM mistake)
-        json = ValidationRegex.LlmTrailingCommaRegex().Replace(json, "$1");  // , } -> } and , ] -> ]
+        json = ValidationRegex.LlmTrailingCommaRegex().Replace(json, "$1"); // , } -> } and , ] -> ]
 
         // Remove empty array/object elements created by cleanup
-        json = ValidationRegex.LlmLeadingCommaRegex().Replace(json, "[");  // [, -> [
-        json = ValidationRegex.LlmConsecutiveCommaRegex().Replace(json, ",");   // ,, -> ,
+        json = ValidationRegex.LlmLeadingCommaRegex().Replace(json, "["); // [, -> [
+        json = ValidationRegex.LlmConsecutiveCommaRegex().Replace(json, ","); // ,, -> ,
 
         return json;
     }
 
     /// <summary>
-    /// Wraps comma-separated JSON objects in an array
-    /// Handles cases where LLM returns: {...}, {...}, {...} instead of [{...}, {...}, {...}]
+    ///     Wraps comma-separated JSON objects in an array
+    ///     Handles cases where LLM returns: {...}, {...}, {...} instead of [{...}, {...}, {...}]
     /// </summary>
     private static string WrapCommaSeparatedObjectsInArray(string json)
     {
@@ -239,7 +223,6 @@ public static class JsonExtractor
         // Check if this looks like comma-separated objects
         // Pattern: starts with {, contains }, { pattern
         if (json.StartsWith("{") && json.Contains("}, {"))
-        {
             // Try to parse as-is first
             try
             {
@@ -261,7 +244,6 @@ public static class JsonExtractor
                     return json;
                 }
             }
-        }
 
         return json;
     }

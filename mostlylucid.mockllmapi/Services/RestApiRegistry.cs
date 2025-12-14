@@ -1,19 +1,19 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using mostlylucid.mockllmapi.Models;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Registry for managing pre-configured REST API definitions
-/// Provides lookup, listing, and validation of configured APIs
+///     Registry for managing pre-configured REST API definitions
+///     Provides lookup, listing, and validation of configured APIs
 /// </summary>
 public class RestApiRegistry
 {
+    private readonly ConcurrentDictionary<string, RestApiConfig> _apiCache;
     private readonly ILogger<RestApiRegistry> _logger;
     private readonly IOptionsMonitor<LLMockApiOptions> _options;
-    private readonly ConcurrentDictionary<string, RestApiConfig> _apiCache;
 
     public RestApiRegistry(
         ILogger<RestApiRegistry> logger,
@@ -31,7 +31,17 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Load all configured APIs from options
+    ///     Get count of loaded APIs
+    /// </summary>
+    public int Count => _apiCache.Count(kvp => kvp.Value.Enabled);
+
+    /// <summary>
+    ///     Get count of all APIs (including disabled)
+    /// </summary>
+    public int TotalCount => _apiCache.Count;
+
+    /// <summary>
+    ///     Load all configured APIs from options
     /// </summary>
     private void LoadApis()
     {
@@ -42,7 +52,6 @@ public class RestApiRegistry
         var errors = new List<string>();
 
         foreach (var api in apis)
-        {
             try
             {
                 // Validate configuration
@@ -79,7 +88,6 @@ public class RestApiRegistry
                     api.Name);
                 errors.Add($"{api.Name}: {ex.Message}");
             }
-        }
 
         _logger.LogInformation(
             "Loaded {Count} REST API configurations ({Errors} errors)",
@@ -88,7 +96,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get a specific API configuration by name
+    ///     Get a specific API configuration by name
     /// </summary>
     public RestApiConfig? GetApi(string name)
     {
@@ -100,7 +108,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get all configured APIs
+    ///     Get all configured APIs
     /// </summary>
     public IReadOnlyList<RestApiConfig> GetAllApis()
     {
@@ -111,7 +119,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get APIs filtered by tags
+    ///     Get APIs filtered by tags
     /// </summary>
     public IReadOnlyList<RestApiConfig> GetApisByTags(params string[] tags)
     {
@@ -125,7 +133,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get all unique tags across all APIs
+    ///     Get all unique tags across all APIs
     /// </summary>
     public IReadOnlyList<string> GetAllTags()
     {
@@ -137,14 +145,13 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get APIs grouped by their primary tag
+    ///     Get APIs grouped by their primary tag
     /// </summary>
     public Dictionary<string, List<RestApiConfig>> GetApisGroupedByTag()
     {
         var groups = new Dictionary<string, List<RestApiConfig>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var api in _apiCache.Values.Where(a => a.Enabled))
-        {
             if (api.Tags.Count == 0)
             {
                 // Add to "untagged" group
@@ -160,13 +167,12 @@ public class RestApiRegistry
                     groups[tag] = new List<RestApiConfig>();
                 groups[tag].Add(api);
             }
-        }
 
         return groups;
     }
 
     /// <summary>
-    /// Check if an API with the given name exists
+    ///     Check if an API with the given name exists
     /// </summary>
     public bool Exists(string name)
     {
@@ -177,17 +183,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get count of loaded APIs
-    /// </summary>
-    public int Count => _apiCache.Count(kvp => kvp.Value.Enabled);
-
-    /// <summary>
-    /// Get count of all APIs (including disabled)
-    /// </summary>
-    public int TotalCount => _apiCache.Count;
-
-    /// <summary>
-    /// Validate an API configuration
+    ///     Validate an API configuration
     /// </summary>
     private List<string> ValidateApiConfig(RestApiConfig api)
     {
@@ -210,22 +206,18 @@ public class RestApiRegistry
         // Either Shape or OpenApiSpec must be provided
         if (string.IsNullOrWhiteSpace(api.Shape) &&
             string.IsNullOrWhiteSpace(api.OpenApiSpec))
-        {
             // This is actually OK - we can generate without a shape
             // Just log a warning, not an error
             _logger.LogDebug(
                 "REST API '{Name}' has no Shape or OpenApiSpec - will use LLM default generation",
                 api.Name);
-        }
 
         // If OpenApiSpec is specified, OpenApiOperationId should also be specified
         if (!string.IsNullOrWhiteSpace(api.OpenApiSpec) &&
             string.IsNullOrWhiteSpace(api.OpenApiOperationId))
-        {
             _logger.LogWarning(
                 "REST API '{Name}' specifies OpenApiSpec but not OpenApiOperationId - shape may not be applied",
                 api.Name);
-        }
 
         // Validate CacheCount
         if (api.CacheCount.HasValue && api.CacheCount.Value <= 0)
@@ -239,7 +231,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Check if HTTP method is valid
+    ///     Check if HTTP method is valid
     /// </summary>
     private bool IsValidHttpMethod(string method)
     {
@@ -248,7 +240,7 @@ public class RestApiRegistry
     }
 
     /// <summary>
-    /// Get summary information about all APIs
+    ///     Get summary information about all APIs
     /// </summary>
     public object GetRegistrySummary()
     {
@@ -261,7 +253,7 @@ public class RestApiRegistry
             totalApis = TotalCount,
             enabledApis = Count,
             disabledApis = TotalCount - Count,
-            tags = tags,
+            tags,
             groups = groups.Select(g => new
             {
                 tag = g.Key,

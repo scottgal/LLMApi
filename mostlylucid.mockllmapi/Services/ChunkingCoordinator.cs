@@ -1,21 +1,23 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Coordinates automatic chunking of large requests to fit within LLM token limits.
-/// Transparently splits requests into optimal chunks, maintains consistency, and combines results.
+///     Coordinates automatic chunking of large requests to fit within LLM token limits.
+///     Transparently splits requests into optimal chunks, maintains consistency, and combines results.
 /// </summary>
+[SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "Mock API library uses dynamic JSON serialization by design")]
 public class ChunkingCoordinator
 {
-    private readonly ILogger<ChunkingCoordinator> _logger;
-    private readonly LLMockApiOptions _options;
     private const int EstimatedTokensPerChar = 4; // Rough estimate: 1 token ≈ 4 characters
     private const double PromptOverheadRatio = 0.25; // Reserve 25% of output tokens for prompt/overhead
+    private readonly ILogger<ChunkingCoordinator> _logger;
+    private readonly LLMockApiOptions _options;
 
     public ChunkingCoordinator(
         ILogger<ChunkingCoordinator> logger,
@@ -26,7 +28,7 @@ public class ChunkingCoordinator
     }
 
     /// <summary>
-    /// Determines if chunking is needed for this request
+    ///     Determines if chunking is needed for this request
     /// </summary>
     public bool ShouldChunk(HttpRequest request, string? shape, int requestedCount)
     {
@@ -46,10 +48,7 @@ public class ChunkingCoordinator
         }
 
         // If no count specified or count is 1, no chunking needed
-        if (requestedCount <= 1)
-        {
-            return false;
-        }
+        if (requestedCount <= 1) return false;
 
         // Estimate if the request would exceed token limits
         var estimatedTokensPerItem = EstimateTokensPerItem(shape);
@@ -59,17 +58,15 @@ public class ChunkingCoordinator
         var needsChunking = estimatedTotalTokens > availableOutputTokens;
 
         if (needsChunking)
-        {
             _logger.LogInformation(
                 "Request needs chunking: {RequestedCount} items × {TokensPerItem} tokens/item = {TotalTokens} tokens > {AvailableTokens} available",
                 requestedCount, estimatedTokensPerItem, estimatedTotalTokens, availableOutputTokens);
-        }
 
         return needsChunking;
     }
 
     /// <summary>
-    /// Calculates optimal chunk configuration for a request
+    ///     Calculates optimal chunk configuration for a request
     /// </summary>
     public ChunkingStrategy CalculateChunkingStrategy(string? shape, int requestedCount)
     {
@@ -83,10 +80,7 @@ public class ChunkingCoordinator
         var totalChunks = (int)Math.Ceiling((double)requestedCount / itemsPerChunk);
 
         // Adjust items per chunk to distribute evenly
-        if (totalChunks > 1)
-        {
-            itemsPerChunk = (int)Math.Ceiling((double)requestedCount / totalChunks);
-        }
+        if (totalChunks > 1) itemsPerChunk = (int)Math.Ceiling((double)requestedCount / totalChunks);
 
         _logger.LogInformation(
             "Chunking strategy: {RequestedCount} items → {TotalChunks} chunks × ~{ItemsPerChunk} items/chunk " +
@@ -103,18 +97,16 @@ public class ChunkingCoordinator
     }
 
     /// <summary>
-    /// Extracts the requested count from HTTP request (query params, shape, or defaults to 1)
-    /// Checks: ?count, ?limit, ?size, ?items, ?per_page query parameters
-    /// Automatically caps at MaxItems configuration setting.
+    ///     Extracts the requested count from HTTP request (query params, shape, or defaults to 1)
+    ///     Checks: ?count, ?limit, ?size, ?items, ?per_page query parameters
+    ///     Automatically caps at MaxItems configuration setting.
     /// </summary>
     public int ExtractRequestedCountFromRequest(HttpRequest request, string? shape)
     {
         // Priority 1: Explicit query parameters
         var queryKeys = new[] { "count", "limit", "size", "items", "per_page", "pageSize", "top" };
         foreach (var key in queryKeys)
-        {
             if (request.Query.TryGetValue(key, out var value) && value.Count > 0)
-            {
                 if (int.TryParse(value[0], out var count) && count > 0)
                 {
                     // Cap at MaxItems limit
@@ -130,8 +122,6 @@ public class ChunkingCoordinator
                     _logger.LogDebug("Found explicit count in query parameter '{Key}': {Count}", key, count);
                     return count;
                 }
-            }
-        }
 
         // Priority 2: Look in shape JSON
         var shapeCount = ExtractRequestedCount(shape);
@@ -145,22 +135,21 @@ public class ChunkingCoordinator
                     shapeCount, _options.MaxItems, _options.MaxItems);
                 shapeCount = _options.MaxItems;
             }
+
             return shapeCount;
         }
 
         // Priority 3: If shape is an array, default to reasonable count
         if (!string.IsNullOrWhiteSpace(shape) && shape.TrimStart().StartsWith("["))
-        {
             // Array shape without explicit count - assume user wants multiple items
             // Default to 1 (no chunking needed) unless explicitly specified
             return 1;
-        }
 
         return 1;
     }
 
     /// <summary>
-    /// Extracts the requested count from shape JSON (looks for array lengths, counts, limits, etc.)
+    ///     Extracts the requested count from shape JSON (looks for array lengths, counts, limits, etc.)
     /// </summary>
     public int ExtractRequestedCount(string? shape)
     {
@@ -177,7 +166,6 @@ public class ChunkingCoordinator
             // Pattern 1: [{...}] with explicit count - not directly in JSON, but inferred from context
             // Pattern 2: Look for "count", "limit", "size" properties
             if (root.ValueKind == JsonValueKind.Object)
-            {
                 foreach (var prop in root.EnumerateObject())
                 {
                     var name = prop.Name.ToLowerInvariant();
@@ -192,15 +180,12 @@ public class ChunkingCoordinator
                         }
                     }
                 }
-            }
 
             // Pattern 3: Array of objects - assume requesting multiple items
             if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
-            {
                 // Array notation suggests multiple items, but we don't know how many
                 // Conservative default: assume user wants what they asked for elsewhere
                 return 1; // Caller should provide explicit count
-            }
         }
         catch (JsonException)
         {
@@ -211,15 +196,13 @@ public class ChunkingCoordinator
     }
 
     /// <summary>
-    /// Estimates token count per item based on shape complexity
+    ///     Estimates token count per item based on shape complexity
     /// </summary>
     private int EstimateTokensPerItem(string? shape)
     {
         if (string.IsNullOrWhiteSpace(shape))
-        {
             // No shape provided - assume moderate complexity
             return 100;
-        }
 
         // Rough estimation based on shape size and structure
         var baseTokens = shape.Length / EstimatedTokensPerChar;
@@ -235,13 +218,14 @@ public class ChunkingCoordinator
 
         _logger.LogDebug(
             "Estimated {Tokens} tokens/item (shape size: {ShapeSize} chars, nesting: {Depth}, arrays: {Arrays}, complexity: {Multiplier:F2}x)",
-            estimatedTokens, shape.Length, complexity.NestingDepth, complexity.ArrayCount, complexity.ComplexityMultiplier);
+            estimatedTokens, shape.Length, complexity.NestingDepth, complexity.ArrayCount,
+            complexity.ComplexityMultiplier);
 
         return estimatedTokens;
     }
 
     /// <summary>
-    /// Analyzes shape JSON complexity to better estimate output size
+    ///     Analyzes shape JSON complexity to better estimate output size
     /// </summary>
     private ShapeComplexity AnalyzeShapeComplexity(string shape)
     {
@@ -317,7 +301,7 @@ public class ChunkingCoordinator
     }
 
     /// <summary>
-    /// Executes a request with automatic chunking if needed
+    ///     Executes a request with automatic chunking if needed
     /// </summary>
     /// <param name="request">HTTP request</param>
     /// <param name="shape">JSON shape for the response</param>
@@ -354,7 +338,7 @@ public class ChunkingCoordinator
         var previousResults = new List<string>();
         var allItems = new List<JsonElement>();
 
-        for (int chunkNum = 1; chunkNum <= strategy.TotalChunks; chunkNum++)
+        for (var chunkNum = 1; chunkNum <= strategy.TotalChunks; chunkNum++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -385,10 +369,7 @@ public class ChunkingCoordinator
 
                 if (root.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in root.EnumerateArray())
-                    {
-                        allItems.Add(item.Clone());
-                    }
+                    foreach (var item in root.EnumerateArray()) allItems.Add(item.Clone());
                     _logger.LogDebug("Chunk {ChunkNum} returned {ItemCount} items", chunkNum, root.GetArrayLength());
                 }
                 else if (root.ValueKind == JsonValueKind.Object)
@@ -410,7 +391,7 @@ public class ChunkingCoordinator
         }
 
         // Combine all items into a single JSON array
-        var combinedJson = System.Text.Json.JsonSerializer.Serialize(allItems, new JsonSerializerOptions
+        var combinedJson = JsonSerializer.Serialize(allItems, new JsonSerializerOptions
         {
             WriteIndented = false
         });
@@ -424,7 +405,7 @@ public class ChunkingCoordinator
     }
 
     /// <summary>
-    /// Creates context prompt for subsequent chunks to maintain consistency
+    ///     Creates context prompt for subsequent chunks to maintain consistency
     /// </summary>
     public string BuildChunkContext(List<string> previousChunkResults, int currentChunkNumber, int totalChunks)
     {
@@ -435,7 +416,7 @@ public class ChunkingCoordinator
         context += "This is a continuation of a larger request. Previous parts have generated:\n";
 
         // Include summaries of previous chunks
-        for (int i = 0; i < previousChunkResults.Count; i++)
+        for (var i = 0; i < previousChunkResults.Count; i++)
         {
             var result = previousChunkResults[i];
             var summary = SummarizeChunkResult(result);
@@ -444,13 +425,14 @@ public class ChunkingCoordinator
 
         context += "\nEnsure consistency with the above data (IDs, names, relationships, style).\n";
         context += "Continue numbering, IDs, and patterns logically from where the previous part left off.\n";
-        context += "\nCRITICAL: Output MUST be a valid JSON array starting with [ and ending with ]. Do NOT output comma-separated objects.\n";
+        context +=
+            "\nCRITICAL: Output MUST be a valid JSON array starting with [ and ending with ]. Do NOT output comma-separated objects.\n";
 
         return context;
     }
 
     /// <summary>
-    /// Summarizes a chunk result for context (extracts key info without full content)
+    ///     Summarizes a chunk result for context (extracts key info without full content)
     /// </summary>
     private string SummarizeChunkResult(string result)
     {
@@ -473,12 +455,11 @@ public class ChunkingCoordinator
 
                     return $"{count} items (first: {firstInfo}, last: {lastInfo})";
                 }
+
                 return $"{count} items";
             }
-            else if (root.ValueKind == JsonValueKind.Object)
-            {
-                return ExtractItemSummary(root);
-            }
+
+            if (root.ValueKind == JsonValueKind.Object) return ExtractItemSummary(root);
         }
         catch (JsonException)
         {
@@ -505,7 +486,7 @@ public class ChunkingCoordinator
 }
 
 /// <summary>
-/// Describes how a request should be chunked
+///     Describes how a request should be chunked
 /// </summary>
 public class ChunkingStrategy
 {
@@ -516,7 +497,7 @@ public class ChunkingStrategy
 }
 
 /// <summary>
-/// Represents the complexity of a JSON shape
+///     Represents the complexity of a JSON shape
 /// </summary>
 public class ShapeComplexity
 {

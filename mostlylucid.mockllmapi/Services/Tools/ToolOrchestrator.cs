@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,18 +8,17 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services.Tools;
 
 /// <summary>
-/// Orchestrates tool execution with chaining, caching, and concurrency control
-/// Prevents infinite loops and manages tool execution lifecycle
+///     Orchestrates tool execution with chaining, caching, and concurrency control
+///     Prevents infinite loops and manages tool execution lifecycle
 /// </summary>
 public class ToolOrchestrator
 {
-    private readonly ToolRegistry _registry;
+    // Track execution depth per request to prevent infinite recursion
+    private static readonly ConcurrentDictionary<string, int> _executionDepth = new();
     private readonly IMemoryCache _cache;
     private readonly ILogger<ToolOrchestrator> _logger;
     private readonly LLMockApiOptions _options;
-
-    // Track execution depth per request to prevent infinite recursion
-    private static readonly ConcurrentDictionary<string, int> _executionDepth = new();
+    private readonly ToolRegistry _registry;
 
     public ToolOrchestrator(
         ToolRegistry registry,
@@ -33,7 +33,7 @@ public class ToolOrchestrator
     }
 
     /// <summary>
-    /// Execute a single tool by name
+    ///     Execute a single tool by name
     /// </summary>
     public async Task<ToolResult> ExecuteToolAsync(
         string toolName,
@@ -43,14 +43,12 @@ public class ToolOrchestrator
     {
         // Check execution mode
         if (_options.ToolExecutionMode == ToolExecutionMode.Disabled)
-        {
             return new ToolResult
             {
                 Success = false,
                 Error = "Tool execution is disabled",
                 ToolName = toolName
             };
-        }
 
         // Check if tool exists
         var tool = _registry.GetTool(toolName);
@@ -66,14 +64,12 @@ public class ToolOrchestrator
         }
 
         if (!tool.Enabled)
-        {
             return new ToolResult
             {
                 Success = false,
                 Error = $"Tool '{toolName}' is disabled",
                 ToolName = toolName
             };
-        }
 
         // Check chain depth to prevent infinite recursion
         var currentDepth = _executionDepth.GetOrAdd(requestId, 0);
@@ -108,14 +104,12 @@ public class ToolOrchestrator
             // Get executor
             var executor = _registry.GetExecutor(tool.Type);
             if (executor == null)
-            {
                 return new ToolResult
                 {
                     Success = false,
                     Error = $"No executor found for tool type '{tool.Type}'",
                     ToolName = toolName
                 };
-            }
 
             // Execute tool
             _logger.LogInformation("Executing tool '{ToolName}' (type: {ToolType})", toolName, tool.Type);
@@ -149,14 +143,12 @@ public class ToolOrchestrator
 
             // Clean up if depth reaches 0
             if (_executionDepth.TryGetValue(requestId, out var finalDepth) && finalDepth == 0)
-            {
                 _executionDepth.TryRemove(requestId, out _);
-            }
         }
     }
 
     /// <summary>
-    /// Execute multiple tools in parallel (respecting MaxConcurrentTools limit)
+    ///     Execute multiple tools in parallel (respecting MaxConcurrentTools limit)
     /// </summary>
     public async Task<List<ToolResult>> ExecuteToolsAsync(
         List<string> toolNames,
@@ -178,19 +170,20 @@ public class ToolOrchestrator
     }
 
     /// <summary>
-    /// Parse tool calls from LLM response (Phase 2 implementation)
-    /// Expected format: TOOL_CALL: toolName(param1=value1, param2=value2)
+    ///     Parse tool calls from LLM response (Phase 2 implementation)
+    ///     Expected format: TOOL_CALL: toolName(param1=value1, param2=value2)
     /// </summary>
-    public List<(string toolName, Dictionary<string, object> parameters)> ParseToolCallsFromLlmResponse(string llmResponse)
+    public List<(string toolName, Dictionary<string, object> parameters)> ParseToolCallsFromLlmResponse(
+        string llmResponse)
     {
         var toolCalls = new List<(string, Dictionary<string, object>)>();
 
         // Simple regex-based parsing for Phase 1
         // In Phase 2, this could be replaced with structured JSON parsing or function calling API
         var pattern = @"TOOL_CALL:\s*(\w+)\((.*?)\)";
-        var matches = System.Text.RegularExpressions.Regex.Matches(llmResponse, pattern);
+        var matches = Regex.Matches(llmResponse, pattern);
 
-        foreach (System.Text.RegularExpressions.Match match in matches)
+        foreach (Match match in matches)
         {
             var toolName = match.Groups[1].Value;
             var paramsStr = match.Groups[2].Value;
@@ -199,14 +192,12 @@ public class ToolOrchestrator
             if (!string.IsNullOrWhiteSpace(paramsStr))
             {
                 // Parse param1=value1, param2=value2
-                var paramPairs = paramsStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var paramPairs = paramsStr.Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 foreach (var pair in paramPairs)
                 {
                     var parts = pair.Split('=', 2);
-                    if (parts.Length == 2)
-                    {
-                        parameters[parts[0].Trim()] = parts[1].Trim().Trim('"');
-                    }
+                    if (parts.Length == 2) parameters[parts[0].Trim()] = parts[1].Trim().Trim('"');
                 }
             }
 
@@ -217,20 +208,17 @@ public class ToolOrchestrator
     }
 
     /// <summary>
-    /// Format tool result for inclusion in LLM context
+    ///     Format tool result for inclusion in LLM context
     /// </summary>
     public string FormatToolResultForContext(ToolResult result)
     {
-        if (!result.Success)
-        {
-            return $"Tool '{result.ToolName}' failed: {result.Error}";
-        }
+        if (!result.Success) return $"Tool '{result.ToolName}' failed: {result.Error}";
 
         return $"Tool '{result.ToolName}' result:\n{result.Data}";
     }
 
     /// <summary>
-    /// Format multiple tool results for context
+    ///     Format multiple tool results for context
     /// </summary>
     public string FormatToolResultsForContext(List<ToolResult> results)
     {
@@ -241,7 +229,7 @@ public class ToolOrchestrator
     }
 
     /// <summary>
-    /// Compute cache key from tool name and parameters
+    ///     Compute cache key from tool name and parameters
     /// </summary>
     private string ComputeCacheKey(string toolName, Dictionary<string, object> parameters)
     {

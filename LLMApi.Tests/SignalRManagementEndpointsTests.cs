@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using LLMApi.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -9,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services;
-using Xunit;
 
 namespace LLMApi.Tests;
 
@@ -51,7 +49,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         // Assert
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<ContextListResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var result = JsonSerializer.Deserialize<ContextListResponse>(content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         Assert.NotNull(result);
         Assert.NotNull(result.Contexts);
@@ -239,7 +238,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         // Verify deletion
         var listAfterDelete = await client.GetAsync("/api/mock/contexts");
         var listAfterContent = await listAfterDelete.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<ContextListResponse>(listAfterContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var result = JsonSerializer.Deserialize<ContextListResponse>(listAfterContent,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(result);
 
         // Note: There might be other contexts from config, so we just check these specific ones don't exist
@@ -295,7 +295,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         getResponse.EnsureSuccessStatusCode();
         var content = await getResponse.Content.ReadAsStringAsync();
-        var contextData = JsonSerializer.Deserialize<HubContextConfig>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var contextData = JsonSerializer.Deserialize<HubContextConfig>(content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(contextData);
         Assert.False(contextData.IsActive);
 
@@ -328,7 +329,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         // Verify context is now active
         var getResponse = await client.GetAsync("/api/mock/contexts/start-test");
         var contextContent = await getResponse.Content.ReadAsStringAsync();
-        var contextData = JsonSerializer.Deserialize<HubContextConfig>(contextContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var contextData = JsonSerializer.Deserialize<HubContextConfig>(contextContent,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(contextData);
         Assert.True(contextData.IsActive);
 
@@ -361,7 +363,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         // Verify context is now inactive
         var getResponse = await client.GetAsync("/api/mock/contexts/stop-test");
         var contextContent = await getResponse.Content.ReadAsStringAsync();
-        var contextData = JsonSerializer.Deserialize<HubContextConfig>(contextContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var contextData = JsonSerializer.Deserialize<HubContextConfig>(contextContent,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(contextData);
         Assert.False(contextData.IsActive);
 
@@ -451,7 +454,8 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         // Assert
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        var contextData = JsonSerializer.Deserialize<HubContextConfig>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var contextData = JsonSerializer.Deserialize<HubContextConfig>(content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.NotNull(contextData);
         Assert.True(contextData.ConnectionCount >= 0); // ConnectionCount should be 0 or higher
 
@@ -469,16 +473,22 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         var response = await client.GetAsync("/api/mock/contexts");
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<ContextListResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var result = JsonSerializer.Deserialize<ContextListResponse>(content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         // Assert
         Assert.NotNull(result);
-        var weather = result!.Contexts.FirstOrDefault(c => string.Equals(c.Name, "weather", StringComparison.OrdinalIgnoreCase));
-        var cars = result!.Contexts.FirstOrDefault(c => string.Equals(c.Name, "cars", StringComparison.OrdinalIgnoreCase));
+        var weather =
+            result!.Contexts.FirstOrDefault(c => string.Equals(c.Name, "weather", StringComparison.OrdinalIgnoreCase));
+        var cars = result!.Contexts.FirstOrDefault(c =>
+            string.Equals(c.Name, "cars", StringComparison.OrdinalIgnoreCase));
         Assert.NotNull(weather);
         Assert.NotNull(cars);
-        Assert.Equal("Realistic weather data with temperature, conditions, humidity, and wind speed for a single location", weather!.Description);
-        Assert.Equal("Vehicle status with plate number, location coordinates, speed, fuel level, and battery charge", cars!.Description);
+        Assert.Equal(
+            "Realistic weather data with temperature, conditions, humidity, and wind speed for a single location",
+            weather!.Description);
+        Assert.Equal("Vehicle status with plate number, location coordinates, speed, fuel level, and battery charge",
+            cars!.Description);
     }
 
     [Fact]
@@ -491,12 +501,15 @@ public class SignalRManagementEndpointsTests : IClassFixture<WebApplicationFacto
         var response = await client.GetAsync("/api/mock/contexts/weather");
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        var context = JsonSerializer.Deserialize<HubContextConfig>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var context = JsonSerializer.Deserialize<HubContextConfig>(content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         // Assert
         Assert.NotNull(context);
         Assert.Equal("weather", context!.Name);
-        Assert.Equal("Realistic weather data with temperature, conditions, humidity, and wind speed for a single location", context.Description);
+        Assert.Equal(
+            "Realistic weather data with temperature, conditions, humidity, and wind speed for a single location",
+            context.Description);
     }
 
     private class ContextListResponse

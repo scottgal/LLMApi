@@ -1,6 +1,9 @@
-using mostlylucid.mockllmapi;
-using Microsoft.OpenApi.Readers;
+using System.Text;
+using System.Text.Json;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Readers;
+using mostlylucid.mockllmapi;
+using mostlylucid.mockllmapi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,12 +23,13 @@ builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "LLMock API Demo",
         Version = "v2.1.0",
-        Description = "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, comprehensive validation suite, and enhanced chunking reliability.",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        Description =
+            "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, comprehensive validation suite, and enhanced chunking reliability.",
+        Contact = new OpenApiContact
         {
             Name = "GitHub Repository",
             Url = new Uri("https://github.com/scottgallant/mostlylucid.mockllmapi")
@@ -59,10 +63,10 @@ app.MapRazorPages();
 app.MapGet("/", () => Results.Redirect("/Dashboard"));
 
 // Map LLMock API endpoints at /api/mock
-app.MapLLMockApi("/api/mock", includeStreaming: true);
+app.MapLLMockApi();
 
 // Map LLMock SignalR hub and management endpoints
-app.MapLLMockSignalR("/hub/mock", "/api/mock");
+app.MapLLMockSignalR();
 
 // Map LLMock OpenAPI endpoints
 app.MapLLMockOpenApi();
@@ -71,24 +75,24 @@ app.MapLLMockOpenApi();
 app.MapLLMockOpenApiManagement();
 
 // Map API Context management endpoints (for viewing/modifying context history)
-app.MapLLMockApiContextManagement("/api/contexts");
+app.MapLLMockApiContextManagement();
 
 // Map gRPC proto management endpoints (for uploading/managing .proto files)
-app.MapLLMockGrpcManagement("/api/grpc-protos");
+app.MapLLMockGrpcManagement();
 
 // Map gRPC service call endpoints (for invoking mock gRPC methods)
-app.MapLLMockGrpc("/api/grpc");
+app.MapLLMockGrpc();
 
 // Map Tool Fitness testing and evolution endpoints
-app.MapLLMockToolFitness("/api/tools/fitness");
+app.MapLLMockToolFitness();
 
 // Map Unit Test Generation endpoints (Pyguin + LLM fallback)
-app.MapLLMockUnitTestGeneration("/api/tools");
+app.MapLLMockUnitTestGeneration();
 
 // Dashboard statistics endpoint
 app.MapGet("/api/dashboard/stats", (
-    mostlylucid.mockllmapi.Services.DynamicHubContextManager hubManager,
-    mostlylucid.mockllmapi.Services.OpenApiContextManager contextManager) =>
+    DynamicHubContextManager hubManager,
+    OpenApiContextManager contextManager) =>
 {
     var apiContexts = contextManager.GetAllContexts();
     var hubContexts = hubManager.GetAllContexts();
@@ -103,7 +107,7 @@ app.MapGet("/api/dashboard/stats", (
         timestamp = DateTime.UtcNow,
         connections = hubConnectionsEstimate,
         activeContexts = activeApiContexts,
-        totalRequests = totalRequests,
+        totalRequests,
         hubContexts = activeHubContexts,
         apiContexts = apiContexts.Select(c => new
         {
@@ -117,8 +121,8 @@ app.MapGet("/api/dashboard/stats", (
 // OpenAPI specification generator endpoint with validation and retry
 app.MapPost("/api/openapi/generate", async (
     HttpRequest request,
-    mostlylucid.mockllmapi.Services.LlmClient llmClient,
-    mostlylucid.mockllmapi.Services.DynamicOpenApiManager openApiManager,
+    LlmClient llmClient,
+    DynamicOpenApiManager openApiManager,
     ILogger<Program> logger) =>
 {
     try
@@ -126,16 +130,11 @@ app.MapPost("/api/openapi/generate", async (
         // Parse request body
         var requestData = await request.ReadFromJsonAsync<OpenApiGenerateRequest>();
         if (requestData == null || string.IsNullOrWhiteSpace(requestData.Description))
-        {
             return Results.BadRequest(new { error = "Description is required" });
-        }
 
         // Generate context name if not provided
         var specName = requestData.ContextName;
-        if (string.IsNullOrWhiteSpace(specName))
-        {
-            specName = GenerateContextName(requestData.Description);
-        }
+        if (string.IsNullOrWhiteSpace(specName)) specName = GenerateContextName(requestData.Description);
 
         logger.LogInformation("Generating OpenAPI spec for: {Description}", requestData.Description);
 
@@ -145,23 +144,24 @@ app.MapPost("/api/openapi/generate", async (
         OpenApiDocument? validatedSpec = null;
         string? lastError = null;
 
-        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             logger.LogInformation("OpenAPI generation attempt {Attempt}/{MaxAttempts}", attempt, maxAttempts);
 
             // Build prompt (include validation errors from previous attempt)
             var prompt = attempt == 1
                 ? BuildOpenApiGenerationPrompt(requestData.Description, requestData.BasePath ?? "/api/v1")
-                : BuildOpenApiFixPrompt(requestData.Description, requestData.BasePath ?? "/api/v1", specJson!, lastError!);
+                : BuildOpenApiFixPrompt(requestData.Description, requestData.BasePath ?? "/api/v1", specJson!,
+                    lastError!);
 
             // Call LLM to generate the spec
             var llmResponse = await llmClient.GetCompletionAsync(
-                prompt: prompt,
+                prompt,
                 maxTokens: 4000,
                 request: request);
 
             // Extract JSON from response
-            specJson = mostlylucid.mockllmapi.Services.JsonExtractor.ExtractJson(llmResponse);
+            specJson = JsonExtractor.ExtractJson(llmResponse);
             if (string.IsNullOrWhiteSpace(specJson))
             {
                 lastError = "Failed to extract JSON from LLM response";
@@ -172,7 +172,7 @@ app.MapPost("/api/openapi/generate", async (
             // Validate JSON syntax
             try
             {
-                System.Text.Json.JsonDocument.Parse(specJson);
+                JsonDocument.Parse(specJson);
             }
             catch (Exception ex)
             {
@@ -186,31 +186,31 @@ app.MapPost("/api/openapi/generate", async (
             if (isValid && openApiDoc != null)
             {
                 validatedSpec = openApiDoc;
-                logger.LogInformation("Successfully generated and validated OpenAPI spec on attempt {Attempt}", attempt);
+                logger.LogInformation("Successfully generated and validated OpenAPI spec on attempt {Attempt}",
+                    attempt);
                 break;
             }
-            else
-            {
-                lastError = $"OpenAPI validation failed: {string.Join("; ", validationErrors)}";
-                logger.LogWarning("Attempt {Attempt}: {Error}", attempt, lastError);
-            }
+
+            lastError = $"OpenAPI validation failed: {string.Join("; ", validationErrors)}";
+            logger.LogWarning("Attempt {Attempt}: {Error}", attempt, lastError);
         }
 
         // Check if we succeeded
         if (validatedSpec == null || string.IsNullOrWhiteSpace(specJson))
         {
-            logger.LogError("Failed to generate valid OpenAPI spec after {MaxAttempts} attempts. Last error: {Error}", maxAttempts, lastError);
+            logger.LogError("Failed to generate valid OpenAPI spec after {MaxAttempts} attempts. Last error: {Error}",
+                maxAttempts, lastError);
             return Results.Json(new
             {
                 error = $"Failed to generate valid OpenAPI specification after {maxAttempts} attempts",
-                lastError = lastError,
+                lastError,
                 attempts = maxAttempts
             }, statusCode: 500);
         }
 
         var result = new
         {
-            specification = System.Text.Json.JsonDocument.Parse(specJson).RootElement,
+            specification = JsonDocument.Parse(specJson).RootElement,
             contextName = specName,
             endpointsCreated = false,
             uiGenerated = false,
@@ -219,19 +219,19 @@ app.MapPost("/api/openapi/generate", async (
 
         // Optionally auto-setup the API
         if (requestData.AutoSetup)
-        {
             try
             {
                 // Create data URI for the spec
-                var dataUri = $"data:application/json;base64,{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(specJson))}";
+                var dataUri =
+                    $"data:application/json;base64,{Convert.ToBase64String(Encoding.UTF8.GetBytes(specJson))}";
 
                 // Load the spec using DynamicOpenApiManager
                 var loadResult = await openApiManager.LoadSpecAsync(
-                    name: specName,
-                    source: dataUri,
-                    basePath: requestData.BasePath,
-                    contextName: specName,
-                    cancellationToken: request.HttpContext.RequestAborted);
+                    specName,
+                    dataUri,
+                    requestData.BasePath,
+                    specName,
+                    request.HttpContext.RequestAborted);
 
                 if (loadResult.Success)
                 {
@@ -248,15 +248,12 @@ app.MapPost("/api/openapi/generate", async (
             {
                 logger.LogWarning(ex, "Failed to auto-setup endpoints for spec: {SpecName}", specName);
             }
-        }
 
         // TODO: UI generation (experimental feature)
         if (requestData.GenerateUI)
-        {
             // This would generate a simple UI for the API
             // For now, we'll leave this as a future enhancement
             logger.LogInformation("UI generation requested but not yet implemented");
-        }
 
         return Results.Json(result);
     }
@@ -279,7 +276,8 @@ static string GenerateContextName(string description)
 
 static string BuildOpenApiGenerationPrompt(string description, string basePath)
 {
-    return $@"You are an expert API designer. Generate a complete OpenAPI 3.0.0 specification in JSON format for the following system:
+    return
+        $@"You are an expert API designer. Generate a complete OpenAPI 3.0.0 specification in JSON format for the following system:
 
 {description}
 
@@ -350,25 +348,20 @@ static (bool isValid, OpenApiDocument? document, List<string> errors) ValidateOp
 
     try
     {
-        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(specJson));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specJson));
         var reader = new OpenApiStreamReader();
-        var diagnostic = new Microsoft.OpenApi.Readers.OpenApiDiagnostic();
+        var diagnostic = new OpenApiDiagnostic();
 
         var document = reader.Read(stream, out diagnostic);
 
-        if (diagnostic.Errors.Any())
-        {
-            errors.AddRange(diagnostic.Errors.Select(e => $"[{e.Pointer}] {e.Message}"));
-        }
+        if (diagnostic.Errors.Any()) errors.AddRange(diagnostic.Errors.Select(e => $"[{e.Pointer}] {e.Message}"));
 
         if (diagnostic.Warnings.Any())
-        {
             // Log warnings but don't fail validation
             foreach (var warning in diagnostic.Warnings)
             {
                 // We'll be lenient with warnings for now
             }
-        }
 
         // Additional validation checks
         if (document == null)
@@ -377,20 +370,11 @@ static (bool isValid, OpenApiDocument? document, List<string> errors) ValidateOp
             return (false, null, errors);
         }
 
-        if (document.Paths == null || !document.Paths.Any())
-        {
-            errors.Add("No paths defined in the specification");
-        }
+        if (document.Paths == null || !document.Paths.Any()) errors.Add("No paths defined in the specification");
 
-        if (string.IsNullOrWhiteSpace(document.Info?.Title))
-        {
-            errors.Add("Missing required field: info.title");
-        }
+        if (string.IsNullOrWhiteSpace(document.Info?.Title)) errors.Add("Missing required field: info.title");
 
-        if (string.IsNullOrWhiteSpace(document.Info?.Version))
-        {
-            errors.Add("Missing required field: info.version");
-        }
+        if (string.IsNullOrWhiteSpace(document.Info?.Version)) errors.Add("Missing required field: info.version");
 
         return (errors.Count == 0, document, errors);
     }
@@ -404,7 +388,7 @@ static (bool isValid, OpenApiDocument? document, List<string> errors) ValidateOp
 app.Run();
 
 // Type declarations for OpenAPI generation
-record OpenApiGenerateRequest(
+internal record OpenApiGenerateRequest(
     string Description,
     string? ContextName,
     string? BasePath,
@@ -413,4 +397,6 @@ record OpenApiGenerateRequest(
 );
 
 // Expose Program as partial to support WebApplicationFactory in integration tests
-public partial class Program { }
+public partial class Program
+{
+}

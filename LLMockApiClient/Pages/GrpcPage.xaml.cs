@@ -1,6 +1,6 @@
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Text.Json;
 using LLMockApiClient.Services;
 
 namespace LLMockApiClient.Pages;
@@ -30,15 +30,15 @@ public partial class GrpcPage : Page
             ProtosListBox.Items.Clear();
 
             if (doc.RootElement.TryGetProperty("protos", out var protos))
-            {
                 foreach (var proto in protos.EnumerateArray())
                 {
                     var name = proto.GetProperty("name").GetString();
                     ProtosListBox.Items.Add(name);
                 }
-            }
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private async void UploadProto_Click(object sender, RoutedEventArgs e)

@@ -6,12 +6,12 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Extracts and processes JSON shape/schema information from requests
+///     Extracts and processes JSON shape/schema information from requests
 /// </summary>
 public class ShapeExtractor
 {
     /// <summary>
-    /// Extracts shape information from the request, including cache hints, error config, and JSON Schema detection
+    ///     Extracts shape information from the request, including cache hints, error config, and JSON Schema detection
     /// </summary>
     public ShapeInfo ExtractShapeInfo(HttpRequest request, string? body)
     {
@@ -19,12 +19,10 @@ public class ShapeExtractor
         var errorConfig = ExtractErrorConfig(request, body, shapeText);
 
         if (string.IsNullOrWhiteSpace(shapeText))
-        {
             return new ShapeInfo
             {
                 ErrorConfig = errorConfig
             };
-        }
 
         var isJsonSchema = DetectJsonSchema(shapeText);
         var (sanitizedShape, cacheCount) = ExtractCacheHintAndSanitize(shapeText);
@@ -40,47 +38,38 @@ public class ShapeExtractor
     }
 
     /// <summary>
-    /// Extracts raw shape text from query param, header, or body
+    ///     Extracts raw shape text from query param, header, or body
     /// </summary>
     private string? ExtractShapeText(HttpRequest request, string? body)
     {
         // 1) Query parameter
-        if (request.Query.TryGetValue("shape", out var shapeQuery) && shapeQuery.Count > 0)
-        {
-            return shapeQuery[0];
-        }
+        if (request.Query.TryGetValue("shape", out var shapeQuery) && shapeQuery.Count > 0) return shapeQuery[0];
 
         // 2) Header
         if (request.Headers.TryGetValue("X-Response-Shape", out var shapeHeader) && shapeHeader.Count > 0)
-        {
             return shapeHeader[0];
-        }
 
         // 3) Body property
         if (!string.IsNullOrWhiteSpace(body) &&
             request.ContentType != null &&
             request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object &&
                     doc.RootElement.TryGetProperty("shape", out var shapeNode))
-                {
                     return shapeNode.GetRawText();
-                }
             }
             catch
             {
                 // ignore JSON parse errors
             }
-        }
 
         return null;
     }
 
     /// <summary>
-    /// Detects if the shape is a JSON Schema (vs descriptive shape)
+    ///     Detects if the shape is a JSON Schema (vs descriptive shape)
     /// </summary>
     private bool DetectJsonSchema(string shapeText)
     {
@@ -88,12 +77,10 @@ public class ShapeExtractor
         {
             using var doc = JsonDocument.Parse(shapeText);
             if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
                 // JSON Schema indicators
                 return doc.RootElement.TryGetProperty("$schema", out _) ||
                        doc.RootElement.TryGetProperty("type", out _) ||
                        doc.RootElement.TryGetProperty("properties", out _);
-            }
         }
         catch
         {
@@ -104,19 +91,17 @@ public class ShapeExtractor
     }
 
     /// <summary>
-    /// Extracts cache hints ($cache, $cacheCount, cache) and returns sanitized shape
+    ///     Extracts cache hints ($cache, $cacheCount, cache) and returns sanitized shape
     /// </summary>
     private (string? sanitizedShape, int cacheCount) ExtractCacheHintAndSanitize(string shapeText)
     {
-        int cacheCount = 0;
+        var cacheCount = 0;
 
         try
         {
             using var doc = JsonDocument.Parse(shapeText);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return (shapeText, 0); // not an object, cannot contain cache hint
-            }
+            if (doc.RootElement.ValueKind !=
+                JsonValueKind.Object) return (shapeText, 0); // not an object, cannot contain cache hint
 
             // Build sanitized object without cache hints
             using var stream = new MemoryStream();
@@ -131,17 +116,15 @@ public class ShapeExtractor
                         string.Equals(name, "cache", StringComparison.OrdinalIgnoreCase))
                     {
                         if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out var n) && n > 0)
-                        {
                             cacheCount = n;
-                        }
-                        else if (prop.Value.ValueKind == JsonValueKind.String && int.TryParse(prop.Value.GetString(), out var ns) && ns > 0)
-                        {
-                            cacheCount = ns;
-                        }
+                        else if (prop.Value.ValueKind == JsonValueKind.String &&
+                                 int.TryParse(prop.Value.GetString(), out var ns) && ns > 0) cacheCount = ns;
                         continue; // skip writing cache hint
                     }
+
                     prop.WriteTo(writer);
                 }
+
                 writer.WriteEndObject();
             }
 
@@ -155,8 +138,8 @@ public class ShapeExtractor
     }
 
     /// <summary>
-    /// Extracts error configuration from query params, headers, or shape JSON
-    /// Precedence: Query params > Headers > Shape JSON
+    ///     Extracts error configuration from query params, headers, or shape JSON
+    ///     Precedence: Query params > Headers > Shape JSON
     /// </summary>
     private ErrorConfig? ExtractErrorConfig(HttpRequest request, string? body, string? shapeText)
     {
@@ -186,7 +169,8 @@ public class ShapeExtractor
                 var message = request.Headers.TryGetValue("X-Error-Message", out var msgHeader) && msgHeader.Count > 0
                     ? msgHeader[0]
                     : null;
-                var details = request.Headers.TryGetValue("X-Error-Details", out var detailsHeader) && detailsHeader.Count > 0
+                var details = request.Headers.TryGetValue("X-Error-Details", out var detailsHeader) &&
+                              detailsHeader.Count > 0
                     ? detailsHeader[0]
                     : null;
 
@@ -196,7 +180,6 @@ public class ShapeExtractor
 
         // 3) Shape JSON: {"$error": 404} or {"$error": {"code": 404, "message": "...", "details": "..."}}
         if (!string.IsNullOrWhiteSpace(shapeText))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(shapeText);
@@ -205,14 +188,11 @@ public class ShapeExtractor
                 {
                     // Simple form: {"$error": 404}
                     if (errorProp.ValueKind == JsonValueKind.Number && errorProp.TryGetInt32(out var simpleCode))
-                    {
                         if (simpleCode >= 100 && simpleCode < 600)
                             return new ErrorConfig(simpleCode);
-                    }
 
                     // Complex form: {"$error": {"code": 404, "message": "...", "details": "..."}}
                     if (errorProp.ValueKind == JsonValueKind.Object)
-                    {
                         if (errorProp.TryGetProperty("code", out var codeProp) &&
                             codeProp.ValueKind == JsonValueKind.Number &&
                             codeProp.TryGetInt32(out var complexCode) &&
@@ -230,20 +210,17 @@ public class ShapeExtractor
 
                             return new ErrorConfig(complexCode, message, details);
                         }
-                    }
                 }
             }
             catch
             {
                 // ignore JSON parse errors
             }
-        }
 
         // 4) Body property: {"error": 404} or {"error": {"code": 404, ...}}
         if (!string.IsNullOrWhiteSpace(body) &&
             request.ContentType != null &&
             request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
-        {
             try
             {
                 using var doc = JsonDocument.Parse(body);
@@ -252,14 +229,11 @@ public class ShapeExtractor
                 {
                     // Simple form
                     if (errorProp.ValueKind == JsonValueKind.Number && errorProp.TryGetInt32(out var simpleCode))
-                    {
                         if (simpleCode >= 100 && simpleCode < 600)
                             return new ErrorConfig(simpleCode);
-                    }
 
                     // Complex form
                     if (errorProp.ValueKind == JsonValueKind.Object)
-                    {
                         if (errorProp.TryGetProperty("code", out var codeProp) &&
                             codeProp.ValueKind == JsonValueKind.Number &&
                             codeProp.TryGetInt32(out var complexCode) &&
@@ -277,20 +251,18 @@ public class ShapeExtractor
 
                             return new ErrorConfig(complexCode, message, details);
                         }
-                    }
                 }
             }
             catch
             {
                 // ignore JSON parse errors
             }
-        }
 
         return null;
     }
 
     /// <summary>
-    /// Removes $error hints from shape JSON
+    ///     Removes $error hints from shape JSON
     /// </summary>
     private string? SanitizeErrorHints(string? shapeText)
     {
@@ -319,6 +291,7 @@ public class ShapeExtractor
 
                     prop.WriteTo(writer);
                 }
+
                 writer.WriteEndObject();
             }
 

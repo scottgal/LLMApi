@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using mostlylucid.mockllmapi.Models;
@@ -6,25 +6,13 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services.Providers;
 
 /// <summary>
-/// LM Studio provider (local LLM server with OpenAI-compatible API)
-/// Endpoint: http://localhost:1234/v1/
-/// Works with any model loaded in LM Studio
+///     LM Studio provider (local LLM server with OpenAI-compatible API)
+///     Endpoint: http://localhost:1234/v1/
+///     Works with any model loaded in LM Studio
 /// </summary>
 public class LMStudioProvider : ILlmProvider
 {
     public string Name => "lmstudio";
-
-    private static string EscapeJsonString(string str)
-    {
-        // Manual JSON string escaping to avoid reflection-based serialization
-        return "\"" + str
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t")
-            + "\"";
-    }
 
     public async Task<string> GetCompletionAsync(
         HttpClient client,
@@ -39,7 +27,8 @@ public class LMStudioProvider : ILlmProvider
         var escapedModel = EscapeJsonString(modelName);
         var maxTokensJson = maxTokens.HasValue ? $",\"max_tokens\":{maxTokens.Value}" : "";
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2}{maxTokensJson},\"stream\":false}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2}{maxTokensJson},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -51,7 +40,8 @@ public class LMStudioProvider : ILlmProvider
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
         // Use source-generated JSON serialization for .NET 10 AOT compatibility
-        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
+        var result =
+            JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
         return result.FirstContent ?? "{}";
     }
 
@@ -66,7 +56,8 @@ public class LMStudioProvider : ILlmProvider
         var escapedPrompt = EscapeJsonString(prompt);
         var escapedModel = EscapeJsonString(modelName);
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"stream\":true}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"stream\":true}}";
 
         var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -91,7 +82,8 @@ public class LMStudioProvider : ILlmProvider
         var escapedPrompt = EscapeJsonString(prompt);
         var escapedModel = EscapeJsonString(modelName);
 
-        var jsonPayload = $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"n\":{n},\"stream\":false}}";
+        var jsonPayload =
+            $"{{\"model\":{escapedModel},\"messages\":[{{\"role\":\"user\",\"content\":{escapedPrompt}}}],\"temperature\":{temperature:F2},\"n\":{n},\"stream\":false}}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
@@ -103,17 +95,14 @@ public class LMStudioProvider : ILlmProvider
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
         // Use source-generated JSON serialization for .NET 10 AOT compatibility
-        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
+        var result =
+            JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
         var list = new List<string>();
 
         if (result.Choices != null)
-        {
             foreach (var choice in result.Choices)
-            {
                 if (!string.IsNullOrEmpty(choice.Message.Content))
                     list.Add(choice.Message.Content);
-            }
-        }
 
         return list;
     }
@@ -123,9 +112,19 @@ public class LMStudioProvider : ILlmProvider
         // LM Studio typically doesn't require authentication
         // But support it if provided
         if (!string.IsNullOrWhiteSpace(apiKey))
-        {
             client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-        }
+                new AuthenticationHeaderValue("Bearer", apiKey);
+    }
+
+    private static string EscapeJsonString(string str)
+    {
+        // Manual JSON string escaping to avoid reflection-based serialization
+        return "\"" + str
+                        .Replace("\\", "\\\\")
+                        .Replace("\"", "\\\"")
+                        .Replace("\n", "\\n")
+                        .Replace("\r", "\\r")
+                        .Replace("\t", "\\t")
+                    + "\"";
     }
 }

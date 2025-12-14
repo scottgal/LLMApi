@@ -9,22 +9,21 @@ using mostlylucid.mockllmapi.Services;
 namespace mostlylucid.mockllmapi.RequestHandlers;
 
 /// <summary>
-/// Handles streaming mock API requests with Server-Sent Events
+///     Handles streaming mock API requests with Server-Sent Events
 /// </summary>
 public class StreamingRequestHandler
 {
-    private readonly LLMockApiOptions _options;
-    private readonly ShapeExtractor _shapeExtractor;
+    private const int MaxSchemaHeaderLength = 4000;
+    private readonly AutoShapeManager _autoShapeManager;
+    private readonly ChunkingCoordinator _chunkingCoordinator;
     private readonly ContextExtractor _contextExtractor;
     private readonly OpenApiContextManager _contextManager;
-    private readonly PromptBuilder _promptBuilder;
-    private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
-    private readonly ChunkingCoordinator _chunkingCoordinator;
-    private readonly AutoShapeManager _autoShapeManager;
+    private readonly LlmClient _llmClient;
     private readonly ILogger<StreamingRequestHandler> _logger;
-
-    private const int MaxSchemaHeaderLength = 4000;
+    private readonly LLMockApiOptions _options;
+    private readonly PromptBuilder _promptBuilder;
+    private readonly ShapeExtractor _shapeExtractor;
 
     public StreamingRequestHandler(
         IOptions<LLMockApiOptions> options,
@@ -51,95 +50,75 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Extracts SSE mode from request query parameter or uses configured default
+    ///     Extracts SSE mode from request query parameter or uses configured default
     /// </summary>
     private SseMode GetSseMode(HttpRequest request)
     {
         if (request.Query.TryGetValue("sseMode", out var modeParam) && !string.IsNullOrWhiteSpace(modeParam))
-        {
-            if (Enum.TryParse<SseMode>(modeParam, ignoreCase: true, out var parsedMode))
-            {
+            if (Enum.TryParse<SseMode>(modeParam, true, out var parsedMode))
                 return parsedMode;
-            }
-        }
+
         return _options.SseMode;
     }
 
     /// <summary>
-    /// Checks if continuous streaming is enabled (global config or per-request)
+    ///     Checks if continuous streaming is enabled (global config or per-request)
     /// </summary>
     private bool IsContinuousMode(HttpRequest request)
     {
         // Check query parameter first
         if (request.Query.TryGetValue("continuous", out var continuousParam))
-        {
             if (bool.TryParse(continuousParam, out var isContinuous))
-            {
                 return isContinuous;
-            }
-        }
 
         // Check header
         if (request.Headers.TryGetValue("X-Continuous-Streaming", out var headerValue))
-        {
             if (bool.TryParse(headerValue, out var isContinuous))
-            {
                 return isContinuous;
-            }
-        }
 
         // Check shape JSON for $continuous property
         if (request.Query.TryGetValue("shape", out var shapeParam))
-        {
             try
             {
                 var shapeDoc = JsonDocument.Parse(shapeParam.ToString());
                 if (shapeDoc.RootElement.TryGetProperty("$continuous", out var continuousProp))
-                {
                     if (continuousProp.ValueKind == JsonValueKind.True)
-                    {
                         return true;
-                    }
-                }
             }
-            catch { /* Invalid JSON, ignore */ }
-        }
+            catch
+            {
+                /* Invalid JSON, ignore */
+            }
 
         return _options.EnableContinuousStreaming;
     }
 
     /// <summary>
-    /// Gets the interval (in milliseconds) between continuous streaming events
+    ///     Gets the interval (in milliseconds) between continuous streaming events
     /// </summary>
     private int GetContinuousInterval(HttpRequest request)
     {
         if (request.Query.TryGetValue("interval", out var intervalParam))
-        {
             if (int.TryParse(intervalParam, out var interval) && interval > 0)
-            {
                 return interval;
-            }
-        }
+
         return _options.ContinuousStreamingIntervalMs;
     }
 
     /// <summary>
-    /// Gets the maximum duration (in seconds) for continuous streaming
+    ///     Gets the maximum duration (in seconds) for continuous streaming
     /// </summary>
     private int GetMaxDuration(HttpRequest request)
     {
         if (request.Query.TryGetValue("maxDuration", out var durationParam))
-        {
             if (int.TryParse(durationParam, out var duration) && duration >= 0)
-            {
                 return duration;
-            }
-        }
+
         return _options.ContinuousStreamingMaxDurationSeconds;
     }
 
     /// <summary>
-    /// Handles a streaming request
+    ///     Handles a streaming request
     /// </summary>
     public async Task HandleStreamingRequestAsync(
         string method,
@@ -160,7 +139,6 @@ public class StreamingRequestHandler
         {
             var autoShape = _autoShapeManager.GetShapeForRequest(request, shapeInfo);
             if (!string.IsNullOrWhiteSpace(autoShape))
-            {
                 shapeInfo = new ShapeInfo
                 {
                     Shape = autoShape,
@@ -168,7 +146,6 @@ public class StreamingRequestHandler
                     IsJsonSchema = shapeInfo.IsJsonSchema,
                     ErrorConfig = shapeInfo.ErrorConfig
                 };
-            }
         }
 
         // Determine SSE mode
@@ -200,7 +177,8 @@ public class StreamingRequestHandler
             : null;
 
         // Build prompt
-        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, streaming: true, contextHistory: contextHistory);
+        var prompt = _promptBuilder.BuildPrompt(method, fullPathWithQuery, body, shapeInfo, true,
+            contextHistory: contextHistory);
 
         // Set response headers for SSE
         context.Response.StatusCode = 200;
@@ -215,31 +193,31 @@ public class StreamingRequestHandler
         var isContinuous = IsContinuousMode(request);
 
         if (isContinuous)
-        {
             // Continuous streaming mode - keeps connection open and generates new data periodically
-            await HandleContinuousStreamingAsync(context, request, sseMode, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
-        }
+            await HandleContinuousStreamingAsync(context, request, sseMode, prompt, shapeInfo, contextName, method,
+                fullPathWithQuery, body, cancellationToken);
         else
-        {
             // Single-shot streaming mode - generate once and close
             switch (sseMode)
             {
                 case SseMode.CompleteObjects:
-                    await StreamCompleteObjectsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    await StreamCompleteObjectsAsync(context, request, prompt, shapeInfo, contextName, method,
+                        fullPathWithQuery, body, cancellationToken);
                     break;
                 case SseMode.ArrayItems:
-                    await StreamArrayItemsAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    await StreamArrayItemsAsync(context, request, prompt, shapeInfo, contextName, method,
+                        fullPathWithQuery, body, cancellationToken);
                     break;
                 case SseMode.LlmTokens:
                 default:
-                    await StreamLlmTokensAsync(context, request, prompt, shapeInfo, contextName, method, fullPathWithQuery, body, cancellationToken);
+                    await StreamLlmTokensAsync(context, request, prompt, shapeInfo, contextName, method,
+                        fullPathWithQuery, body, cancellationToken);
                     break;
             }
-        }
     }
 
     /// <summary>
-    /// Stream LLM generation token-by-token (original behavior)
+    ///     Stream LLM generation token-by-token (original behavior)
     /// </summary>
     private async Task StreamLlmTokensAsync(
         HttpContext context,
@@ -274,24 +252,19 @@ public class StreamingRequestHandler
 
                     // Store in context if context name was provided
                     if (!string.IsNullOrWhiteSpace(contextName))
-                    {
                         _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, finalJson);
-                    }
 
                     // Store shape from response if autoshape is enabled
                     _autoShapeManager.StoreShapeFromResponse(request, finalJson);
 
                     // Include schema in final event payload if enabled
-                    object finalPayload;
+                    string finalPayloadJson;
                     if (ShouldIncludeSchema(request) && !string.IsNullOrWhiteSpace(shapeInfo.Shape))
-                    {
-                        finalPayload = new { content = finalJson, done = true, schema = shapeInfo.Shape };
-                    }
+                        finalPayloadJson =
+                            LLMockSerializerContext.SerializeSseFinalWithSchema(finalJson, shapeInfo.Shape);
                     else
-                    {
-                        finalPayload = new { content = finalJson, done = true };
-                    }
-                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalPayload)}\n\n");
+                        finalPayloadJson = LLMockSerializerContext.SerializeSseFinal(finalJson);
+                    await context.Response.WriteAsync($"data: {finalPayloadJson}\n\n");
                     await context.Response.Body.FlushAsync();
                     break;
                 }
@@ -308,14 +281,10 @@ public class StreamingRequestHandler
 
                         if (choice.TryGetProperty("delta", out var delta) &&
                             delta.TryGetProperty("content", out var deltaContent))
-                        {
                             chunk = deltaContent.GetString();
-                        }
                         else if (choice.TryGetProperty("message", out var msg) &&
                                  msg.TryGetProperty("content", out var msgContent))
-                        {
                             chunk = msgContent.GetString();
-                        }
 
                         if (!string.IsNullOrEmpty(chunk))
                         {
@@ -325,11 +294,8 @@ public class StreamingRequestHandler
                             await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
 
                             // Send the accumulated content so far (partial JSON building up)
-                            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(new {
-                                chunk,
-                                accumulated = accumulated.ToString(),
-                                done = false
-                            })}\n\n");
+                            await context.Response.WriteAsync(
+                                $"data: {LLMockSerializerContext.SerializeSseChunk(chunk, accumulated.ToString())}\n\n");
                             await context.Response.Body.FlushAsync();
                         }
                     }
@@ -343,7 +309,7 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Stream complete JSON objects as separate SSE events (realistic REST API mode)
+    ///     Stream complete JSON objects as separate SSE events (realistic REST API mode)
     /// </summary>
     private async Task StreamCompleteObjectsAsync(
         HttpContext context,
@@ -362,9 +328,7 @@ public class StreamingRequestHandler
 
         // Store in context if context name was provided
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
-        }
 
         // Parse JSON to extract objects
         JsonDocument? doc = null;
@@ -388,14 +352,10 @@ public class StreamingRequestHandler
                     .FirstOrDefault(p => p.Value.ValueKind == JsonValueKind.Array);
 
                 if (arrayProp.Value.ValueKind == JsonValueKind.Array)
-                {
                     items = arrayProp.Value.EnumerateArray().ToArray();
-                }
                 else
-                {
                     // Single object: stream as one event
                     items = new[] { root };
-                }
             }
             else
             {
@@ -404,26 +364,15 @@ public class StreamingRequestHandler
             }
 
             // Stream each complete object as a separate SSE event
-            for (int i = 0; i < items.Length; i++)
+            for (var i = 0; i < items.Length; i++)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
                 // Apply streaming delay between objects
-                if (i > 0)
-                {
-                    await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
-                }
+                if (i > 0) await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
 
-                var itemJson = JsonSerializer.Serialize(items[i]);
-                var eventData = new
-                {
-                    data = items[i],
-                    index = i,
-                    total = items.Length,
-                    done = i == items.Length - 1
-                };
-
-                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.WriteAsync(
+                    $"data: {LLMockSerializerContext.SerializeSseCompleteObject(items[i], i, items.Length, i == items.Length - 1)}\n\n");
                 await context.Response.Body.FlushAsync(cancellationToken);
             }
         }
@@ -431,8 +380,8 @@ public class StreamingRequestHandler
         {
             _logger.LogError(ex, "Failed to parse JSON for CompleteObjects streaming mode");
             // Send error event
-            var errorData = new { error = "Failed to parse generated JSON", done = true };
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorData)}\n\n");
+            await context.Response.WriteAsync(
+                $"data: {LLMockSerializerContext.SerializeSseError("Failed to parse generated JSON")}\n\n");
             await context.Response.Body.FlushAsync(cancellationToken);
         }
         finally
@@ -442,7 +391,7 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Stream array items individually with metadata (paginated results mode)
+    ///     Stream array items individually with metadata (paginated results mode)
     /// </summary>
     private async Task StreamArrayItemsAsync(
         HttpContext context,
@@ -461,9 +410,7 @@ public class StreamingRequestHandler
 
         // Store in context if context name was provided
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
-        }
 
         // Parse JSON to extract array items
         JsonDocument? doc = null;
@@ -503,27 +450,15 @@ public class StreamingRequestHandler
             }
 
             // Stream each item with rich metadata
-            for (int i = 0; i < items.Length; i++)
+            for (var i = 0; i < items.Length; i++)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
                 // Apply streaming delay between items
-                if (i > 0)
-                {
-                    await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
-                }
+                if (i > 0) await _delayHelper.ApplyStreamingDelayAsync(cancellationToken);
 
-                var eventData = new
-                {
-                    item = items[i],
-                    index = i,
-                    total = items.Length,
-                    arrayName,
-                    hasMore = i < items.Length - 1,
-                    done = i == items.Length - 1
-                };
-
-                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.WriteAsync(
+                    $"data: {LLMockSerializerContext.SerializeSseArrayItem(items[i], i, items.Length, arrayName, i < items.Length - 1, i == items.Length - 1)}\n\n");
                 await context.Response.Body.FlushAsync(cancellationToken);
             }
         }
@@ -531,8 +466,8 @@ public class StreamingRequestHandler
         {
             _logger.LogError(ex, "Failed to parse JSON for ArrayItems streaming mode");
             // Send error event
-            var errorData = new { error = "Failed to parse generated JSON", done = true };
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorData)}\n\n");
+            await context.Response.WriteAsync(
+                $"data: {LLMockSerializerContext.SerializeSseError("Failed to parse generated JSON")}\n\n");
             await context.Response.Body.FlushAsync(cancellationToken);
         }
         finally
@@ -542,8 +477,8 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Handles continuous SSE streaming - keeps connection open and periodically generates new data
-    /// Similar to SignalR's continuous data generation but using SSE
+    ///     Handles continuous SSE streaming - keeps connection open and periodically generates new data
+    ///     Similar to SignalR's continuous data generation but using SSE
     /// </summary>
     private async Task HandleContinuousStreamingAsync(
         HttpContext context,
@@ -562,21 +497,15 @@ public class StreamingRequestHandler
         var startTime = DateTime.UtcNow;
         var eventCount = 0;
 
-        _logger.LogInformation("Starting continuous SSE streaming - Mode: {Mode}, Interval: {Interval}ms, MaxDuration: {Duration}s",
+        _logger.LogInformation(
+            "Starting continuous SSE streaming - Mode: {Mode}, Interval: {Interval}ms, MaxDuration: {Duration}s",
             sseMode, interval, maxDurationSeconds);
 
         try
         {
             // Send initial heartbeat/info event
-            var infoEvent = new
-            {
-                type = "info",
-                message = "Continuous streaming started",
-                mode = sseMode.ToString(),
-                intervalMs = interval,
-                maxDurationSeconds = maxDurationSeconds
-            };
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(infoEvent)}\n\n");
+            await context.Response.WriteAsync(
+                $"data: {LLMockSerializerContext.SerializeContinuousInfo(sseMode.ToString(), interval, maxDurationSeconds)}\n\n");
             await context.Response.Body.FlushAsync(cancellationToken);
 
             while (!cancellationToken.IsCancellationRequested)
@@ -588,8 +517,8 @@ public class StreamingRequestHandler
                     if (elapsed >= maxDurationSeconds)
                     {
                         _logger.LogInformation("Continuous streaming max duration reached: {Elapsed}s", elapsed);
-                        var endEvent = new { type = "end", message = "Max duration reached", eventCount, done = true };
-                        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(endEvent)}\n\n");
+                        await context.Response.WriteAsync(
+                            $"data: {LLMockSerializerContext.SerializeSseEnd("Max duration reached", eventCount)}\n\n");
                         await context.Response.Body.FlushAsync(cancellationToken);
                         break;
                     }
@@ -599,19 +528,23 @@ public class StreamingRequestHandler
                 try
                 {
                     // Add timestamp and event count to prompt for variation
-                    var continuousPrompt = $"{basePrompt}\n\nIMPORTANT: Generate DIFFERENT data than previous events. Event #{eventCount + 1} at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}. Vary values to simulate real-time changes.";
+                    var continuousPrompt =
+                        $"{basePrompt}\n\nIMPORTANT: Generate DIFFERENT data than previous events. Event #{eventCount + 1} at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}. Vary values to simulate real-time changes.";
 
                     switch (sseMode)
                     {
                         case SseMode.CompleteObjects:
-                            await GenerateContinuousCompleteObject(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            await GenerateContinuousCompleteObject(context, request, continuousPrompt, contextName,
+                                method, fullPathWithQuery, body, eventCount, cancellationToken);
                             break;
                         case SseMode.ArrayItems:
-                            await GenerateContinuousArrayItems(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            await GenerateContinuousArrayItems(context, request, continuousPrompt, contextName, method,
+                                fullPathWithQuery, body, eventCount, cancellationToken);
                             break;
                         case SseMode.LlmTokens:
                         default:
-                            await GenerateContinuousLlmTokens(context, request, continuousPrompt, contextName, method, fullPathWithQuery, body, eventCount, cancellationToken);
+                            await GenerateContinuousLlmTokens(context, request, continuousPrompt, contextName, method,
+                                fullPathWithQuery, body, eventCount, cancellationToken);
                             break;
                     }
 
@@ -620,8 +553,8 @@ public class StreamingRequestHandler
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error generating continuous SSE event #{EventCount}", eventCount);
-                    var errorEvent = new { type = "error", message = ex.Message, eventCount };
-                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(errorEvent)}\n\n");
+                    await context.Response.WriteAsync(
+                        $"data: {LLMockSerializerContext.SerializeContinuousError(ex.Message, eventCount)}\n\n");
                     await context.Response.Body.FlushAsync(cancellationToken);
                 }
 
@@ -640,7 +573,7 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Generates a single CompleteObjects event for continuous streaming
+    ///     Generates a single CompleteObjects event for continuous streaming
     /// </summary>
     private async Task GenerateContinuousCompleteObject(
         HttpContext context,
@@ -657,9 +590,7 @@ public class StreamingRequestHandler
         var cleanJson = JsonExtractor.ExtractJson(completion);
 
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
-        }
 
         try
         {
@@ -667,15 +598,8 @@ public class StreamingRequestHandler
             var root = doc.RootElement;
 
             // Send as single complete object event
-            var eventData = new
-            {
-                data = root,
-                index = eventCount,
-                timestamp = DateTime.UtcNow,
-                done = false
-            };
-
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+            await context.Response.WriteAsync(
+                $"data: {LLMockSerializerContext.SerializeContinuousData(root, eventCount, DateTime.UtcNow)}\n\n");
             await context.Response.Body.FlushAsync(cancellationToken);
         }
         catch (JsonException ex)
@@ -685,7 +609,7 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Generates ArrayItems events for continuous streaming
+    ///     Generates ArrayItems events for continuous streaming
     /// </summary>
     private async Task GenerateContinuousArrayItems(
         HttpContext context,
@@ -702,9 +626,7 @@ public class StreamingRequestHandler
         var cleanJson = JsonExtractor.ExtractJson(completion);
 
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
-        }
 
         try
         {
@@ -740,30 +662,16 @@ public class StreamingRequestHandler
             }
 
             // Send each item as a separate event
-            for (int i = 0; i < items.Length; i++)
+            for (var i = 0; i < items.Length; i++)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
-                var eventData = new
-                {
-                    item = items[i],
-                    index = i,
-                    total = items.Length,
-                    arrayName,
-                    batchNumber = eventCount,
-                    timestamp = DateTime.UtcNow,
-                    hasMore = i < items.Length - 1,
-                    done = false
-                };
-
-                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+                await context.Response.WriteAsync(
+                    $"data: {LLMockSerializerContext.SerializeContinuousArrayItem(items[i], i, items.Length, arrayName, eventCount, DateTime.UtcNow, i < items.Length - 1)}\n\n");
                 await context.Response.Body.FlushAsync(cancellationToken);
 
                 // Small delay between array items
-                if (i < items.Length - 1)
-                {
-                    await Task.Delay(50, cancellationToken);
-                }
+                if (i < items.Length - 1) await Task.Delay(50, cancellationToken);
             }
         }
         catch (JsonException ex)
@@ -773,7 +681,7 @@ public class StreamingRequestHandler
     }
 
     /// <summary>
-    /// Generates LlmTokens events for continuous streaming (simplified version)
+    ///     Generates LlmTokens events for continuous streaming (simplified version)
     /// </summary>
     private async Task GenerateContinuousLlmTokens(
         HttpContext context,
@@ -791,44 +699,29 @@ public class StreamingRequestHandler
         var cleanJson = JsonExtractor.ExtractJson(completion);
 
         if (!string.IsNullOrWhiteSpace(contextName))
-        {
             _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, cleanJson);
-        }
 
         // Simulate token-by-token streaming by chunking the complete response
         var chunkSize = 10; // characters per chunk
         var accumulated = new StringBuilder();
 
-        for (int i = 0; i < cleanJson.Length; i += chunkSize)
+        for (var i = 0; i < cleanJson.Length; i += chunkSize)
         {
             if (cancellationToken.IsCancellationRequested) break;
 
             var chunk = cleanJson.Substring(i, Math.Min(chunkSize, cleanJson.Length - i));
             accumulated.Append(chunk);
 
-            var eventData = new
-            {
-                chunk,
-                accumulated = accumulated.ToString(),
-                batchNumber = eventCount,
-                done = false
-            };
-
-            await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(eventData)}\n\n");
+            await context.Response.WriteAsync(
+                $"data: {LLMockSerializerContext.SerializeContinuousToken(chunk, accumulated.ToString(), eventCount)}\n\n");
             await context.Response.Body.FlushAsync(cancellationToken);
 
             await Task.Delay(20, cancellationToken); // Small delay between tokens
         }
 
         // Send final event for this batch
-        var finalEvent = new
-        {
-            content = cleanJson,
-            batchNumber = eventCount,
-            timestamp = DateTime.UtcNow,
-            done = false // Not done with continuous stream, just this batch
-        };
-        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalEvent)}\n\n");
+        await context.Response.WriteAsync(
+            $"data: {LLMockSerializerContext.SerializeContinuousFinal(cleanJson, eventCount, DateTime.UtcNow)}\n\n");
         await context.Response.Body.FlushAsync(cancellationToken);
     }
 
@@ -840,10 +733,7 @@ public class StreamingRequestHandler
             if (string.IsNullOrWhiteSpace(shape)) return;
 
             // Only add header if shape is within limit
-            if (shape.Length <= MaxSchemaHeaderLength)
-            {
-                context.Response.Headers["X-Response-Schema"] = shape;
-            }
+            if (shape.Length <= MaxSchemaHeaderLength) context.Response.Headers["X-Response-Schema"] = shape;
         }
         catch (Exception ex)
         {
@@ -859,6 +749,7 @@ public class StreamingRequestHandler
             var val = includeParam[0];
             return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
         }
+
         return _options.IncludeShapeInResponse;
     }
 }

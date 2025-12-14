@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Normalizes endpoint paths by replacing dynamic segments (IDs, UUIDs, etc.) with placeholders.
-/// This allows grouping requests to the same logical endpoint together for autoshape memory.
-/// Example: /api/mock/users/123 -> /api/mock/users/{id}
+///     Normalizes endpoint paths by replacing dynamic segments (IDs, UUIDs, etc.) with placeholders.
+///     This allows grouping requests to the same logical endpoint together for autoshape memory.
+///     Example: /api/mock/users/123 -> /api/mock/users/{id}
 /// </summary>
 public static class PathNormalizer
 {
@@ -35,7 +35,7 @@ public static class PathNormalizer
     };
 
     /// <summary>
-    /// Normalizes a path by replacing dynamic segments with placeholders.
+    ///     Normalizes a path by replacing dynamic segments with placeholders.
     /// </summary>
     /// <param name="path">The original path (e.g., /api/mock/users/123)</param>
     /// <returns>The normalized path (e.g., /api/mock/users/{id})</returns>
@@ -51,18 +51,15 @@ public static class PathNormalizer
         var segments = pathWithoutQuery.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var normalizedSegments = new List<string>(segments.Length);
 
-        foreach (var segment in segments)
-        {
-            normalizedSegments.Add(NormalizeSegment(segment));
-        }
+        foreach (var segment in segments) normalizedSegments.Add(NormalizeSegment(segment));
 
         // Reconstruct path
         return "/" + string.Join("/", normalizedSegments);
     }
 
     /// <summary>
-    /// Normalizes a single path segment.
-    /// Returns "{id}" for dynamic IDs, or the original segment for static keywords.
+    ///     Normalizes a single path segment.
+    ///     Returns "{id}" for dynamic IDs, or the original segment for static keywords.
     /// </summary>
     private static string NormalizeSegment(string segment)
     {
@@ -90,8 +87,8 @@ public static class PathNormalizer
     }
 
     /// <summary>
-    /// Checks if a path segment appears to be a dynamic ID.
-    /// Useful for validation and logging purposes.
+    ///     Checks if a path segment appears to be a dynamic ID.
+    ///     Useful for validation and logging purposes.
     /// </summary>
     public static bool IsLikelyDynamicId(string segment)
     {

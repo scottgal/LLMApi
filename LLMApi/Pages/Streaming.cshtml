@@ -1,11 +1,11 @@
 @page
-@model LLMApi.Pages.StreamingModel
+@model StreamingModel
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>LLMock API - SSE Streaming Demo</title>
     <style>
         * {
@@ -318,121 +318,121 @@
     </style>
 </head>
 <body>
-    <h1>LLMock API - SSE Streaming Demo</h1>
-    <p class="subtitle">Real-time Server-Sent Events (SSE) streaming with three distinct modes</p>
+<h1>LLMock API - SSE Streaming Demo</h1>
+<p class="subtitle">Real-time Server-Sent Events (SSE) streaming with three distinct modes</p>
 
-    <div class="nav-links">
-        <a href="/">SignalR Demo</a>
-        <a href="/Streaming" class="active">SSE Streaming Demo</a>
+<div class="nav-links">
+    <a href="/">SignalR Demo</a>
+    <a href="/Streaming" class="active">SSE Streaming Demo</a>
+</div>
+
+<div class="docs-section">
+    <h3 style="margin-top: 0;">Three SSE Streaming Modes</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 15px 0;">
+        <div style="background: #f0f8ff; padding: 12px; border-radius: 6px; border: 2px solid #4a90e2;">
+            <h4 style="margin: 0 0 8px 0; color: #2c5aa0;">🤖 LlmTokens</h4>
+            <p style="margin: 0; font-size: 13px; color: #555;">Token-by-token streaming for AI chat interfaces. Emulates ChatGPT-style progressive text generation.</p>
+        </div>
+        <div style="background: #f0fff4; padding: 12px; border-radius: 6px; border: 2px solid #48bb78;">
+            <h4 style="margin: 0 0 8px 0; color: #276749;">📦 CompleteObjects</h4>
+            <p style="margin: 0; font-size: 13px; color: #555;">Complete JSON objects per event. Emulates Twitter/X API, stock tickers, real-time feeds.</p>
+        </div>
+        <div style="background: #fffaf0; padding: 12px; border-radius: 6px; border: 2px solid #ed8936;">
+            <h4 style="margin: 0 0 8px 0; color: #7c2d12;">📋 ArrayItems</h4>
+            <p style="margin: 0; font-size: 13px; color: #555;">Array items with metadata. Emulates paginated results, bulk exports, search results.</p>
+        </div>
     </div>
 
-    <div class="docs-section">
-        <h3 style="margin-top: 0;">Three SSE Streaming Modes</h3>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 15px 0;">
-            <div style="background: #f0f8ff; padding: 12px; border-radius: 6px; border: 2px solid #4a90e2;">
-                <h4 style="margin: 0 0 8px 0; color: #2c5aa0;">🤖 LlmTokens</h4>
-                <p style="margin: 0; font-size: 13px; color: #555;">Token-by-token streaming for AI chat interfaces. Emulates ChatGPT-style progressive text generation.</p>
+    <details open>
+        <summary>Quick Start Examples (Click to Stream)</summary>
+        <div class="example-box">
+            <h4 style="margin: 10px 0 10px 0; color: #2c5aa0;">🤖 LlmTokens Mode Examples</h4>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #4a90e2;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">AI Chat Message</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Token-by-token chat response streaming</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="chat" data-mode="LlmTokens" data-shape='{"message":"Hello!"}' style="background: #4a90e2; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
             </div>
-            <div style="background: #f0fff4; padding: 12px; border-radius: 6px; border: 2px solid #48bb78;">
-                <h4 style="margin: 0 0 8px 0; color: #276749;">📦 CompleteObjects</h4>
-                <p style="margin: 0; font-size: 13px; color: #555;">Complete JSON objects per event. Emulates Twitter/X API, stock tickers, real-time feeds.</p>
+
+            <h4 style="margin: 20px 0 10px 0; color: #276749;">📦 CompleteObjects Mode Examples</h4>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #48bb78;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">Stock Ticker Feed</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Real-time stock prices (like Twitter/X API)</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="stocks" data-mode="CompleteObjects" data-shape='{"ticker":"AAPL","price":150.25,"change":2.5}' style="background: #48bb78; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
             </div>
-            <div style="background: #fffaf0; padding: 12px; border-radius: 6px; border: 2px solid #ed8936;">
-                <h4 style="margin: 0 0 8px 0; color: #7c2d12;">📋 ArrayItems</h4>
-                <p style="margin: 0; font-size: 13px; color: #555;">Array items with metadata. Emulates paginated results, bulk exports, search results.</p>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #48bb78;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">User Updates</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Complete user objects per event</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="users" data-mode="CompleteObjects" data-shape='{"users":[{"id":0,"name":"string","email":"string"}]}' style="background: #48bb78; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+            </div>
+
+            <h4 style="margin: 20px 0 10px 0; color: #7c2d12;">📋 ArrayItems Mode Examples</h4>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">Bulk Customer Export</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Paginated results with progress tracking</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="customers" data-mode="ArrayItems" data-shape='{"customers":[{"id":"string","name":"string","email":"string"}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+            </div>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">Search Results</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Search results streamed with metadata</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="search" data-mode="ArrayItems" data-shape='{"results":[{"id":"string","title":"string","score":0.95}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+            </div>
+
+            <h4 style="margin: 20px 0 10px 0; color: #9333ea;">🔄 Continuous Mode Examples (Like SignalR)</h4>
+
+            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">Live Stock Dashboard</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">Continuous stock updates every 2 seconds</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="stocks" data-mode="CompleteObjects" data-continuous="true" data-interval="2000" data-shape='{"ticker":"AAPL","price":150.25,"change":2.5}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
+            </div>
+
+            <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 13px;">Real-Time Sensor Data</h4>
+                    <p style="margin: 3px 0; font-size: 12px; color: #666;">IoT sensors streaming continuously</p>
+                </div>
+                <button type="button" class="quick-sse-btn" data-path="sensors" data-mode="ArrayItems" data-continuous="true" data-interval="3000" data-shape='{"sensors":[{"id":"string","temp":0,"humidity":0}]}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
             </div>
         </div>
+    </details>
 
-        <details open>
-            <summary>Quick Start Examples (Click to Stream)</summary>
-            <div class="example-box">
-                <h4 style="margin: 10px 0 10px 0; color: #2c5aa0;">🤖 LlmTokens Mode Examples</h4>
+    <details>
+        <summary>View More Example Shapes</summary>
+        <div class="example-box">
+            <h4 style="margin-top: 0; font-size: 14px;">Simple User Object</h4>
+            <pre>{"id":0,"name":"string","email":"string","active":true}</pre>
 
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #4a90e2;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">AI Chat Message</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Token-by-token chat response streaming</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="chat" data-mode="LlmTokens" data-shape='{"message":"Hello!"}' style="background: #4a90e2; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
+            <h4 style="margin-top: 15px; font-size: 14px;">Product Catalog</h4>
+            <pre>{"products":[{"sku":"string","name":"string","price":0.0,"inStock":true}]}</pre>
 
-                <h4 style="margin: 20px 0 10px 0; color: #276749;">📦 CompleteObjects Mode Examples</h4>
+            <h4 style="margin-top: 15px; font-size: 14px;">Nested Order</h4>
+            <pre>{"orderId":"string","customer":{"id":"string","name":"string"},"items":[{"sku":"string","qty":0}],"total":0.0}</pre>
 
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #48bb78;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">Stock Ticker Feed</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Real-time stock prices (like Twitter/X API)</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="stocks" data-mode="CompleteObjects" data-shape='{"ticker":"AAPL","price":150.25,"change":2.5}' style="background: #48bb78; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
+            <h4 style="margin-top: 15px; font-size: 14px;">JSON Schema</h4>
+            <pre>{"type":"object","properties":{"temperature":{"type":"number"},"condition":{"type":"string"}},"required":["temperature"]}</pre>
+        </div>
+    </details>
 
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #48bb78;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">User Updates</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Complete user objects per event</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="users" data-mode="CompleteObjects" data-shape='{"users":[{"id":0,"name":"string","email":"string"}]}' style="background: #48bb78; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
-
-                <h4 style="margin: 20px 0 10px 0; color: #7c2d12;">📋 ArrayItems Mode Examples</h4>
-
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">Bulk Customer Export</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Paginated results with progress tracking</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="customers" data-mode="ArrayItems" data-shape='{"customers":[{"id":"string","name":"string","email":"string"}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
-
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ed8936;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">Search Results</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Search results streamed with metadata</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="search" data-mode="ArrayItems" data-shape='{"results":[{"id":"string","title":"string","score":0.95}]}' style="background: #ed8936; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
-
-                <h4 style="margin: 20px 0 10px 0; color: #9333ea;">🔄 Continuous Mode Examples (Like SignalR)</h4>
-
-                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">Live Stock Dashboard</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">Continuous stock updates every 2 seconds</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="stocks" data-mode="CompleteObjects" data-continuous="true" data-interval="2000" data-shape='{"ticker":"AAPL","price":150.25,"change":2.5}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
-
-                <div style="display: flex; align-items: center; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #9333ea;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 13px;">Real-Time Sensor Data</h4>
-                        <p style="margin: 3px 0; font-size: 12px; color: #666;">IoT sensors streaming continuously</p>
-                    </div>
-                    <button type="button" class="quick-sse-btn" data-path="sensors" data-mode="ArrayItems" data-continuous="true" data-interval="3000" data-shape='{"sensors":[{"id":"string","temp":0,"humidity":0}]}' style="background: #9333ea; padding: 5px 12px; font-size: 12px; white-space: nowrap;">Stream</button>
-                </div>
-            </div>
-        </details>
-
-        <details>
-            <summary>View More Example Shapes</summary>
-            <div class="example-box">
-                <h4 style="margin-top: 0; font-size: 14px;">Simple User Object</h4>
-                <pre>{"id":0,"name":"string","email":"string","active":true}</pre>
-
-                <h4 style="margin-top: 15px; font-size: 14px;">Product Catalog</h4>
-                <pre>{"products":[{"sku":"string","name":"string","price":0.0,"inStock":true}]}</pre>
-
-                <h4 style="margin-top: 15px; font-size: 14px;">Nested Order</h4>
-                <pre>{"orderId":"string","customer":{"id":"string","name":"string"},"items":[{"sku":"string","qty":0}],"total":0.0}</pre>
-
-                <h4 style="margin-top: 15px; font-size: 14px;">JSON Schema</h4>
-                <pre>{"type":"object","properties":{"temperature":{"type":"number"},"condition":{"type":"string"}},"required":["temperature"]}</pre>
-            </div>
-        </details>
-
-        <details>
-            <summary>View EventSource Code Example</summary>
-            <div class="example-box">
-                <pre style="background: #fff; padding: 10px; border-radius: 3px;"><code>// Create EventSource connection
+    <details>
+        <summary>View EventSource Code Example</summary>
+        <div class="example-box">
+            <pre style="background: #fff; padding: 10px; border-radius: 3px;"><code>// Create EventSource connection
 const eventSource = new EventSource('/api/mock/stream/users?limit=5');
 
 // Listen for messages
@@ -453,133 +453,137 @@ eventSource.onerror = (error) => {
     console.error('SSE Error:', error);
     eventSource.close();
 };</code></pre>
-            </div>
-        </details>
+        </div>
+    </details>
 
-        <details>
-            <summary>View SSE Response Formats (All Modes)</summary>
-            <div class="example-box">
-                <h4 style="margin-top: 0; font-size: 14px; color: #2c5aa0;">🤖 LlmTokens Mode Format</h4>
-                <p style="margin-bottom: 10px;"><strong>Chunk Events:</strong></p>
-                <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"chunk":"{","accumulated":"{","done":false}
+    <details>
+        <summary>View SSE Response Formats (All Modes)</summary>
+        <div class="example-box">
+            <h4 style="margin-top: 0; font-size: 14px; color: #2c5aa0;">🤖 LlmTokens Mode Format</h4>
+            <p style="margin-bottom: 10px;">
+                <strong>Chunk Events:</strong>
+            </p>
+            <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"chunk":"{","accumulated":"{","done":false}
 data: {"chunk":"\"id\"","accumulated":"{\"id\"","done":false}
 data: {"chunk":"123","accumulated":"{\"id\":123","done":false}</pre>
-                <p style="margin: 10px 0;"><strong>Final Event:</strong></p>
-                <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"content":"{\"id\":123,\"name\":\"John\"}","done":true}</pre>
+            <p style="margin: 10px 0;">
+                <strong>Final Event:</strong>
+            </p>
+            <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"content":"{\"id\":123,\"name\":\"John\"}","done":true}</pre>
 
-                <h4 style="margin: 20px 0 10px; font-size: 14px; color: #276749;">📦 CompleteObjects Mode Format</h4>
-                <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"data":{"ticker":"AAPL","price":150.32},"index":0,"total":5,"done":false}
+            <h4 style="margin: 20px 0 10px; font-size: 14px; color: #276749;">📦 CompleteObjects Mode Format</h4>
+            <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"data":{"ticker":"AAPL","price":150.32},"index":0,"total":5,"done":false}
 data: {"data":{"ticker":"AAPL","price":150.45},"index":1,"total":5,"done":false}
 data: {"data":{"ticker":"AAPL","price":150.67},"index":4,"total":5,"done":true}</pre>
 
-                <h4 style="margin: 20px 0 10px; font-size: 14px; color: #7c2d12;">📋 ArrayItems Mode Format</h4>
-                <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"item":{"id":"u1","name":"Alice"},"index":0,"total":100,"arrayName":"customers","hasMore":true,"done":false}
+            <h4 style="margin: 20px 0 10px; font-size: 14px; color: #7c2d12;">📋 ArrayItems Mode Format</h4>
+            <pre style="background: #fff; padding: 10px; border-radius: 3px;">data: {"item":{"id":"u1","name":"Alice"},"index":0,"total":100,"arrayName":"customers","hasMore":true,"done":false}
 data: {"item":{"id":"u2","name":"Bob"},"index":1,"total":100,"arrayName":"customers","hasMore":true,"done":false}
 data: {"item":{"id":"u100","name":"Zara"},"index":99,"total":100,"arrayName":"customers","hasMore":false,"done":true}</pre>
+        </div>
+    </details>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h2>Stream Configuration</h2>
+        <form id="streamForm">
+            <div class="form-group">
+                <label for="method">HTTP Method</label>
+                <select id="method" name="method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
             </div>
-        </details>
+
+            <div class="form-group">
+                <label for="sseMode">SSE Streaming Mode</label>
+                <select id="sseMode" name="sseMode">
+                    <option value="LlmTokens">🤖 LlmTokens - Token-by-token (AI chat)</option>
+                    <option value="CompleteObjects">📦 CompleteObjects - Full objects per event (Twitter API, stocks)</option>
+                    <option value="ArrayItems">📋 ArrayItems - Array items with metadata (bulk exports)</option>
+                </select>
+                <p class="help-text">Choose the streaming mode that matches your use case</p>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="continuous" name="continuous" style="width: auto; margin-right: 8px;"/>
+                    <span>🔄 Continuous Streaming Mode (like SignalR)</span>
+                </label>
+                <p class="help-text">Keep connection open and generate new data periodically</p>
+            </div>
+
+            <div id="continuousSettings" style="display: none; margin-left: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div class="form-group">
+                    <label for="interval">Interval (milliseconds)</label>
+                    <input type="number" id="interval" name="interval" value="2000" min="100" max="60000"/>
+                    <p class="help-text">Time between events (2000 = 2 seconds)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxDuration">Max Duration (seconds)</label>
+                    <input type="number" id="maxDuration" name="maxDuration" value="60" min="0" max="3600"/>
+                    <p class="help-text">Maximum connection duration (0 = unlimited)</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="path">Path</label>
+                <input type="text" id="path" name="path" value="products" placeholder="e.g., users, orders, data"/>
+                <p class="help-text">Will connect to: /api/mock/stream/{path}</p>
+            </div>
+
+            <div class="form-group">
+                <label for="queryString">Query String (optional)</label>
+                <input type="text" id="queryString" name="queryString" placeholder="e.g., limit=10&category=electronics"/>
+                <p class="help-text">Added as: ?{queryString}</p>
+            </div>
+
+            <div class="form-group">
+                <label for="shape">JSON Shape (optional)</label>
+                <textarea id="shape" name="shape" placeholder='{"id":0,"name":"string","email":"string"}'></textarea>
+                <p class="help-text">Leave empty for free-form generation, or specify exact structure</p>
+            </div>
+
+            <button type="button" id="startBtn">Start Streaming</button>
+            <button type="button" id="stopBtn" class="stop" disabled>Stop Streaming</button>
+
+            <div id="formStatus" class="status"></div>
+        </form>
     </div>
 
-    <div class="container">
-        <div class="card">
-            <h2>Stream Configuration</h2>
-            <form id="streamForm">
-                <div class="form-group">
-                    <label for="method">HTTP Method</label>
-                    <select id="method" name="method">
-                        <option value="GET">GET</option>
-                        <option value="POST">POST</option>
-                        <option value="PUT">PUT</option>
-                        <option value="DELETE">DELETE</option>
-                        <option value="PATCH">PATCH</option>
-                    </select>
-                </div>
+    <div class="card">
+        <h2>
+            Live Stream
+            <span id="connectionStatus" class="connection-status disconnected">Disconnected</span>
+        </h2>
 
-                <div class="form-group">
-                    <label for="sseMode">SSE Streaming Mode</label>
-                    <select id="sseMode" name="sseMode">
-                        <option value="LlmTokens">🤖 LlmTokens - Token-by-token (AI chat)</option>
-                        <option value="CompleteObjects">📦 CompleteObjects - Full objects per event (Twitter API, stocks)</option>
-                        <option value="ArrayItems">📋 ArrayItems - Array items with metadata (bulk exports)</option>
-                    </select>
-                    <p class="help-text">Choose the streaming mode that matches your use case</p>
-                </div>
-
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="continuous" name="continuous" style="width: auto; margin-right: 8px;" />
-                        <span>🔄 Continuous Streaming Mode (like SignalR)</span>
-                    </label>
-                    <p class="help-text">Keep connection open and generate new data periodically</p>
-                </div>
-
-                <div id="continuousSettings" style="display: none; margin-left: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                    <div class="form-group">
-                        <label for="interval">Interval (milliseconds)</label>
-                        <input type="number" id="interval" name="interval" value="2000" min="100" max="60000" />
-                        <p class="help-text">Time between events (2000 = 2 seconds)</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="maxDuration">Max Duration (seconds)</label>
-                        <input type="number" id="maxDuration" name="maxDuration" value="60" min="0" max="3600" />
-                        <p class="help-text">Maximum connection duration (0 = unlimited)</p>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="path">Path</label>
-                    <input type="text" id="path" name="path" value="products" placeholder="e.g., users, orders, data" />
-                    <p class="help-text">Will connect to: /api/mock/stream/{path}</p>
-                </div>
-
-                <div class="form-group">
-                    <label for="queryString">Query String (optional)</label>
-                    <input type="text" id="queryString" name="queryString" placeholder="e.g., limit=10&category=electronics" />
-                    <p class="help-text">Added as: ?{queryString}</p>
-                </div>
-
-                <div class="form-group">
-                    <label for="shape">JSON Shape (optional)</label>
-                    <textarea id="shape" name="shape" placeholder='{"id":0,"name":"string","email":"string"}'></textarea>
-                    <p class="help-text">Leave empty for free-form generation, or specify exact structure</p>
-                </div>
-
-                <button type="button" id="startBtn">Start Streaming</button>
-                <button type="button" id="stopBtn" class="stop" disabled>Stop Streaming</button>
-
-                <div id="formStatus" class="status"></div>
-            </form>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-label">Chunks</div>
+                <div class="stat-value" id="chunkCount">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Duration</div>
+                <div class="stat-value" id="duration">0s</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Size</div>
+                <div class="stat-value" id="dataSize">0</div>
+            </div>
         </div>
 
-        <div class="card">
-            <h2>
-                Live Stream
-                <span id="connectionStatus" class="connection-status disconnected">Disconnected</span>
-            </h2>
-
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-label">Chunks</div>
-                    <div class="stat-value" id="chunkCount">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Duration</div>
-                    <div class="stat-value" id="duration">0s</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Size</div>
-                    <div class="stat-value" id="dataSize">0</div>
-                </div>
-            </div>
-
-            <div id="streamDisplay" class="stream-display">
-                <p style="color: #999;">Click "Start Streaming" to begin...</p>
-            </div>
+        <div id="streamDisplay" class="stream-display">
+            <p style="color: #999;">Click "Start Streaming" to begin...</p>
         </div>
     </div>
+</div>
 
-    <script>
+<script>
         let eventSource = null;
         let chunkCount = 0;
         let startTime = null;

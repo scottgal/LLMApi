@@ -1,11 +1,11 @@
 @page
-@model LLMApi.Pages.DashboardModel
+@model DashboardModel
 @{
     ViewData["Title"] = "Dashboard";
 }
 
 @section Styles {
-<style>
+    <style>
     :root {
         --primary: #667eea;
         --secondary: #764ba2;
@@ -729,7 +729,7 @@
 </div>
 
 @section Scripts {
-<script>
+    <script>
     // Dashboard state
     let dashboardState = {
         startTime: Date.now(),

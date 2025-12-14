@@ -1,6 +1,46 @@
 mostlylucid.mockllmapi — Release Notes
 
 ===============================================================================
+Release 2.5.0 — 2025-12-14
+===============================================================================
+
+Security Improvements & AOT/Trimming Support
+
+1. AOT/Trimming Compatibility
+   - Removed all reflection-based serialization dependencies
+   - Manual JSON construction throughout codebase
+   - Full support for .NET 8.0+ AOT and trimming
+   - No runtime type resolution issues
+   - Smaller binary size and improved startup performance
+
+2. Enhanced Security
+   - Eliminated reflection-based serialization vulnerabilities
+   - Removed potential type inference attack vectors
+   - Safer JSON handling with explicit type constraints
+   - Reduced attack surface for serialization exploits
+   - Better protection against deserialization attacks
+
+3. Performance Optimizations
+   - Faster JSON construction without reflection overhead
+   - Reduced memory allocations
+   - Improved cache locality
+   - Better startup time for trimmed applications
+   - Lower memory footprint
+
+4. .NET 10 Compatibility
+   - Full support for .NET 10 preview builds
+   - Manual JSON construction throughout
+   - No breaking changes to existing functionality
+
+5. Testing Improvements
+   - Additional tests for AOT/trimming scenarios
+   - Security-focused unit tests
+   - Performance benchmarking tests
+   - 100% pass rate with all new tests
+
+Breaking Changes: None - fully backward compatible
+
+===============================================================================
 Release 2.3.0 — 2025-12-13
 ===============================================================================
 

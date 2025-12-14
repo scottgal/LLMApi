@@ -6,15 +6,15 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Manages automatic shape memory for endpoints.
-/// Coordinates shape storage, retrieval, and per-request configuration.
+///     Manages automatic shape memory for endpoints.
+///     Coordinates shape storage, retrieval, and per-request configuration.
 /// </summary>
 public class AutoShapeManager
 {
-    private readonly LLMockApiOptions _options;
-    private readonly IShapeStore _shapeStore;
-    private readonly ShapeExtractorFromResponse _shapeExtractor;
     private readonly ILogger<AutoShapeManager> _logger;
+    private readonly LLMockApiOptions _options;
+    private readonly ShapeExtractorFromResponse _shapeExtractor;
+    private readonly IShapeStore _shapeStore;
 
     public AutoShapeManager(
         IOptions<LLMockApiOptions> options,
@@ -29,8 +29,8 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Checks if autoshape is enabled for a specific request.
-    /// Considers both global configuration and per-request overrides.
+    ///     Checks if autoshape is enabled for a specific request.
+    ///     Considers both global configuration and per-request overrides.
     /// </summary>
     /// <param name="request">The HTTP request</param>
     /// <returns>True if autoshape should be active for this request</returns>
@@ -66,8 +66,8 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Attempts to retrieve a stored shape for the given request path.
-    /// Only retrieves if autoshape is enabled and no explicit shape is provided.
+    ///     Attempts to retrieve a stored shape for the given request path.
+    ///     Only retrieves if autoshape is enabled and no explicit shape is provided.
     /// </summary>
     /// <param name="request">The HTTP request</param>
     /// <param name="existingShapeInfo">The shape info extracted from the request (may have explicit shape)</param>
@@ -82,10 +82,7 @@ public class AutoShapeManager
         }
 
         // Check if autoshape is enabled for this request
-        if (!IsAutoShapeEnabled(request))
-        {
-            return null;
-        }
+        if (!IsAutoShapeEnabled(request)) return null;
 
         // Check for renewshape parameter - if true, skip retrieval to force new shape generation
         if (IsRenewShapeRequested(request))
@@ -114,7 +111,7 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Checks if the request is asking to renew/replace the stored shape.
+    ///     Checks if the request is asking to renew/replace the stored shape.
     /// </summary>
     /// <param name="request">The HTTP request</param>
     /// <returns>True if renewshape is requested</returns>
@@ -125,38 +122,27 @@ public class AutoShapeManager
 
         // Check query parameter: ?renewshape=true
         if (request.Query.TryGetValue("renewshape", out var queryValue) && queryValue.Count > 0)
-        {
             if (bool.TryParse(queryValue[0], out var queryRenew))
-            {
                 return queryRenew;
-            }
-        }
 
         // Check header: X-Renew-Shape: true
         if (request.Headers.TryGetValue("X-Renew-Shape", out var headerValue) && headerValue.Count > 0)
-        {
             if (bool.TryParse(headerValue[0], out var headerRenew))
-            {
                 return headerRenew;
-            }
-        }
 
         return false;
     }
 
     /// <summary>
-    /// Stores the shape extracted from a response for future requests to the same endpoint.
-    /// Only stores if autoshape is enabled and the response is valid.
+    ///     Stores the shape extracted from a response for future requests to the same endpoint.
+    ///     Only stores if autoshape is enabled and the response is valid.
     /// </summary>
     /// <param name="request">The HTTP request that generated the response</param>
     /// <param name="jsonResponse">The JSON response to extract shape from</param>
     public void StoreShapeFromResponse(HttpRequest request, string jsonResponse)
     {
         // Check if autoshape is enabled for this request
-        if (!IsAutoShapeEnabled(request))
-        {
-            return;
-        }
+        if (!IsAutoShapeEnabled(request)) return;
 
         // Validate response is suitable for shape extraction
         if (!_shapeExtractor.IsValidForShapeExtraction(jsonResponse))
@@ -182,7 +168,8 @@ public class AutoShapeManager
         if (!renewRequested)
         {
             // Check if we already have a shape for this path
-            if (_shapeStore.TryGetValue(normalizedPath, out var existingShape) && !string.IsNullOrWhiteSpace(existingShape))
+            if (_shapeStore.TryGetValue(normalizedPath, out var existingShape) &&
+                !string.IsNullOrWhiteSpace(existingShape))
             {
                 // Don't overwrite existing shape - first response wins (unless renew requested)
                 _logger.LogDebug(
@@ -209,7 +196,7 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Clears all stored shapes.
+    ///     Clears all stored shapes.
     /// </summary>
     public void ClearAllShapes()
     {
@@ -218,7 +205,7 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Gets the count of stored shapes.
+    ///     Gets the count of stored shapes.
     /// </summary>
     public int GetStoredShapeCount()
     {
@@ -226,7 +213,7 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Gets all normalized paths that have stored shapes.
+    ///     Gets all normalized paths that have stored shapes.
     /// </summary>
     public IEnumerable<string> GetStoredPaths()
     {
@@ -234,7 +221,7 @@ public class AutoShapeManager
     }
 
     /// <summary>
-    /// Removes the stored shape for a specific path.
+    ///     Removes the stored shape for a specific path.
     /// </summary>
     /// <param name="path">The path (will be normalized)</param>
     /// <returns>True if a shape was removed, false otherwise</returns>
@@ -243,10 +230,7 @@ public class AutoShapeManager
         var normalizedPath = PathNormalizer.NormalizePath(path);
         var removed = _shapeStore.TryRemove(normalizedPath, out _);
 
-        if (removed)
-        {
-            _logger.LogInformation("Removed autoshape for path '{NormalizedPath}'", normalizedPath);
-        }
+        if (removed) _logger.LogInformation("Removed autoshape for path '{NormalizedPath}'", normalizedPath);
 
         return removed;
     }

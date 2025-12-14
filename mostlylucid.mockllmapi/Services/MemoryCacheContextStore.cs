@@ -1,21 +1,21 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// In-memory context store with configurable automatic expiration (default: 15 minutes of inactivity).
-/// Uses IMemoryCache with sliding expiration to prevent memory leaks.
-/// Contexts are automatically removed when not accessed within the expiration window.
+///     In-memory context store with configurable automatic expiration (default: 15 minutes of inactivity).
+///     Uses IMemoryCache with sliding expiration to prevent memory leaks.
+///     Contexts are automatically removed when not accessed within the expiration window.
 /// </summary>
 public class MemoryCacheContextStore : IContextStore
 {
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<MemoryCacheContextStore> _logger;
-    private readonly ConcurrentDictionary<string, byte> _contextNames; // Tracks all context names
-    private readonly TimeSpan _slidingExpiration;
     private const string CacheKeyPrefix = "ApiContext_";
+    private readonly IMemoryCache _cache;
+    private readonly ConcurrentDictionary<string, byte> _contextNames; // Tracks all context names
+    private readonly ILogger<MemoryCacheContextStore> _logger;
+    private readonly TimeSpan _slidingExpiration;
 
     public MemoryCacheContextStore(
         IMemoryCache cache,
@@ -63,13 +63,11 @@ public class MemoryCacheContextStore : IContextStore
         }
 
         var cacheKey = GetCacheKey(contextName);
-        var found = _cache.TryGetValue<ApiContext>(cacheKey, out context);
+        var found = _cache.TryGetValue(cacheKey, out context);
 
         if (found && context != null)
-        {
             // Refresh sliding expiration
             SetContextInCache(cacheKey, contextName, context);
-        }
 
         return found && context != null;
     }
@@ -83,7 +81,7 @@ public class MemoryCacheContextStore : IContextStore
         }
 
         var cacheKey = GetCacheKey(contextName);
-        var found = _cache.TryGetValue<ApiContext>(cacheKey, out context);
+        var found = _cache.TryGetValue(cacheKey, out context);
 
         if (found)
         {
@@ -115,14 +113,10 @@ public class MemoryCacheContextStore : IContextStore
         {
             var cacheKey = GetCacheKey(contextName);
             if (_cache.TryGetValue<ApiContext>(cacheKey, out var context) && context != null)
-            {
                 contexts.Add(context);
-            }
             else
-            {
                 // Remove stale entry from tracking dictionary
                 _contextNames.TryRemove(contextName, out _);
-            }
         }
 
         return contexts;
@@ -154,15 +148,12 @@ public class MemoryCacheContextStore : IContextStore
             {
                 var cacheKey = GetCacheKey(contextName);
                 if (_cache.TryGetValue<ApiContext>(cacheKey, out _))
-                {
                     validCount++;
-                }
                 else
-                {
                     // Remove stale entry
                     _contextNames.TryRemove(contextName, out _);
-                }
             }
+
             return validCount;
         }
     }

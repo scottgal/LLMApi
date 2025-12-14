@@ -1,14 +1,28 @@
-using Microsoft.Extensions.Primitives;
 using System.Text.Json;
 
 namespace LLMApi.Tests;
 
 /// <summary>
-/// Tests for form body handling (application/x-www-form-urlencoded and multipart/form-data)
-/// These tests verify that manual JSON construction works correctly for .NET 10 compatibility
+///     Tests for form body handling (application/x-www-form-urlencoded and multipart/form-data)
+///     These tests verify that manual JSON construction works correctly for .NET 10 compatibility
 /// </summary>
 public class FormBodyHandlingTests
 {
+    #region Helper Methods
+
+    private static string EscapeJsonString(string str)
+    {
+        return "\"" + str
+                        .Replace("\\", "\\\\")
+                        .Replace("\"", "\\\"")
+                        .Replace("\n", "\\n")
+                        .Replace("\r", "\\r")
+                        .Replace("\t", "\\t")
+                    + "\"";
+    }
+
+    #endregion
+
     #region Form URL-Encoded Tests
 
     [Fact]
@@ -30,6 +44,7 @@ public class FormBodyHandlingTests
             var value = EscapeJsonString(kvp.Value);
             jsonParts.Add($"{key}:{value}");
         }
+
         var result = "{" + string.Join(",", jsonParts) + "}";
 
         // Assert
@@ -103,13 +118,13 @@ public class FormBodyHandlingTests
 
         // Act - Simulate what ReadMultipartFormAsync creates for file info
         var fileJson = "{" +
-            $"\"fieldName\":\"upload\"," +
-            $"\"fileName\":{EscapeJsonString(fileName)}," +
-            $"\"contentType\":{EscapeJsonString(contentType)}," +
-            $"\"size\":{size}," +
-            $"\"processed\":{processed.ToString().ToLower()}," +
-            $"\"actualBytesRead\":{bytesRead}" +
-            "}";
+                       "\"fieldName\":\"upload\"," +
+                       $"\"fileName\":{EscapeJsonString(fileName)}," +
+                       $"\"contentType\":{EscapeJsonString(contentType)}," +
+                       $"\"size\":{size}," +
+                       $"\"processed\":{processed.ToString().ToLower()}," +
+                       $"\"actualBytesRead\":{bytesRead}" +
+                       "}";
 
         // Assert
         var json = JsonDocument.Parse(fileJson);
@@ -131,8 +146,10 @@ public class FormBodyHandlingTests
             ["description"] = "Test file"
         };
 
-        var file1 = "{\"fieldName\":\"image\",\"fileName\":\"photo.jpg\",\"contentType\":\"image/jpeg\",\"size\":54321,\"processed\":true,\"actualBytesRead\":54321}";
-        var file2 = "{\"fieldName\":\"document\",\"fileName\":\"report.pdf\",\"contentType\":\"application/pdf\",\"size\":12345,\"processed\":true,\"actualBytesRead\":12345}";
+        var file1 =
+            "{\"fieldName\":\"image\",\"fileName\":\"photo.jpg\",\"contentType\":\"image/jpeg\",\"size\":54321,\"processed\":true,\"actualBytesRead\":54321}";
+        var file2 =
+            "{\"fieldName\":\"document\",\"fileName\":\"report.pdf\",\"contentType\":\"application/pdf\",\"size\":12345,\"processed\":true,\"actualBytesRead\":12345}";
 
         // Act
         var fieldsParts = fields.Select(kvp =>
@@ -190,21 +207,6 @@ public class FormBodyHandlingTests
         // Assert
         var parsed = JsonDocument.Parse(json);
         Assert.Equal(input, parsed.RootElement.GetProperty("data").GetString());
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    private static string EscapeJsonString(string str)
-    {
-        return "\"" + str
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t")
-            + "\"";
     }
 
     #endregion

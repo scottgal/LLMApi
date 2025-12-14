@@ -1,5 +1,5 @@
 @page
-@model LLMApi.Pages.GrpcModel
+@model GrpcModel
 
 @{
     ViewData["Title"] = "gRPC Demo";
@@ -405,7 +405,7 @@
 
             <div class="form-group">
                 <label for="protoName">Proto Name</label>
-                <input type="text" id="protoName" placeholder="e.g., greeter" />
+                <input type="text" id="protoName" placeholder="e.g., greeter"/>
             </div>
 
             <div class="form-group">
@@ -428,7 +428,7 @@
             <div id="protoList" class="proto-list">
                 <div class="empty-state">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     <p>No proto files uploaded yet</p>
                     <p>Use quick-start examples or upload your own</p>
@@ -457,12 +457,12 @@
             <div id="jsonTestPanel" class="test-panel active">
                 <div class="form-group">
                     <label for="jsonServiceName">Service Name</label>
-                    <input type="text" id="jsonServiceName" placeholder="e.g., Greeter" />
+                    <input type="text" id="jsonServiceName" placeholder="e.g., Greeter"/>
                 </div>
 
                 <div class="form-group">
                     <label for="jsonMethodName">Method Name</label>
-                    <input type="text" id="jsonMethodName" placeholder="e.g., SayHello" />
+                    <input type="text" id="jsonMethodName" placeholder="e.g., SayHello"/>
                 </div>
 
                 <div class="form-group">
@@ -477,12 +477,12 @@
             <div id="binaryTestPanel" class="test-panel">
                 <div class="form-group">
                     <label for="binaryServiceName">Service Name</label>
-                    <input type="text" id="binaryServiceName" placeholder="e.g., Greeter" />
+                    <input type="text" id="binaryServiceName" placeholder="e.g., Greeter"/>
                 </div>
 
                 <div class="form-group">
                     <label for="binaryMethodName">Method Name</label>
-                    <input type="text" id="binaryMethodName" placeholder="e.g., SayHello" />
+                    <input type="text" id="binaryMethodName" placeholder="e.g., SayHello"/>
                 </div>
 
                 <div class="form-group">

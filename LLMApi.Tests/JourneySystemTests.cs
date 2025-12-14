@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,9 +11,9 @@ namespace LLMApi.Tests;
 
 public class JourneySystemTests
 {
+    private readonly IMemoryCache _memoryCache;
     private readonly Mock<ILogger<JourneyRegistry>> _registryLoggerMock;
     private readonly Mock<ILogger<JourneySessionManager>> _sessionLoggerMock;
-    private readonly IMemoryCache _memoryCache;
 
     public JourneySystemTests()
     {
@@ -62,13 +63,13 @@ public class JourneySystemTests
         var options = new LLMockApiOptions();
         var registry = new JourneyRegistry(_registryLoggerMock.Object, CreateOptionsMonitor(options));
         var journey = new JourneyTemplate(
-            Name: "test-journey",
-            Modality: JourneyModality.Rest,
-            Weight: 1.0,
-            PromptHints: null,
-            Steps: new List<JourneyStepTemplate>
+            "test-journey",
+            JourneyModality.Rest,
+            1.0,
+            null,
+            new List<JourneyStepTemplate>
             {
-                new("GET", "/api/users", null, null, "Get users", null)
+                new("GET", "/api/users", null, null, "Get users")
             });
 
         // Act
@@ -89,11 +90,11 @@ public class JourneySystemTests
         var registry = new JourneyRegistry(_registryLoggerMock.Object, CreateOptionsMonitor(options));
 
         registry.RegisterJourney(new JourneyTemplate("rest-1", JourneyModality.Rest, 1.0, null,
-            new List<JourneyStepTemplate> { new("GET", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("GET", "/api") }));
         registry.RegisterJourney(new JourneyTemplate("graphql-1", JourneyModality.GraphQL, 1.0, null,
-            new List<JourneyStepTemplate> { new("POST", "/graphql", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("POST", "/graphql") }));
         registry.RegisterJourney(new JourneyTemplate("rest-2", JourneyModality.Rest, 1.0, null,
-            new List<JourneyStepTemplate> { new("POST", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("POST", "/api") }));
 
         // Act
         var restJourneys = registry.GetJourneysByModality(JourneyModality.Rest);
@@ -111,7 +112,7 @@ public class JourneySystemTests
         var options = new LLMockApiOptions();
         var registry = new JourneyRegistry(_registryLoggerMock.Object, CreateOptionsMonitor(options));
         registry.RegisterJourney(new JourneyTemplate("to-remove", JourneyModality.Rest, 1.0, null,
-            new List<JourneyStepTemplate> { new("GET", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("GET", "/api") }));
 
         // Act
         var removed = registry.RemoveJourney("to-remove");
@@ -131,10 +132,10 @@ public class JourneySystemTests
 
         // High weight journey
         registry.RegisterJourney(new JourneyTemplate("high-weight", JourneyModality.Rest, 100.0, null,
-            new List<JourneyStepTemplate> { new("GET", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("GET", "/api") }));
         // Very low weight journey
         registry.RegisterJourney(new JourneyTemplate("low-weight", JourneyModality.Rest, 0.001, null,
-            new List<JourneyStepTemplate> { new("GET", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("GET", "/api") }));
 
         // Act - select many times
         var selections = new Dictionary<string, int> { { "high-weight", 0 }, { "low-weight", 0 } };
@@ -199,8 +200,8 @@ public class JourneySystemTests
         registry.RegisterJourney(new JourneyTemplate("test-journey", JourneyModality.Rest, 1.0, null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/users/{{userId}}", null, null, "Get user", null),
-                new("POST", "/api/orders", null, null, "Create order", null)
+                new("GET", "/api/users/{{userId}}", null, null, "Get user"),
+                new("POST", "/api/orders", null, null, "Create order")
             }));
 
         var sessionManager = new JourneySessionManager(
@@ -234,9 +235,9 @@ public class JourneySystemTests
         registry.RegisterJourney(new JourneyTemplate("test-journey", JourneyModality.Rest, 1.0, null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null),
-                new("GET", "/api/step3", null, null, "Step 3", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2"),
+                new("GET", "/api/step3", null, null, "Step 3")
             }));
 
         var sessionManager = new JourneySessionManager(
@@ -289,7 +290,7 @@ public class JourneySystemTests
         var options = new LLMockApiOptions { ContextExpirationMinutes = 15 };
         var registry = new JourneyRegistry(_registryLoggerMock.Object, CreateOptionsMonitor(options));
         registry.RegisterJourney(new JourneyTemplate("test-journey", JourneyModality.Rest, 1.0, null,
-            new List<JourneyStepTemplate> { new("GET", "/api", null, null, null, null) }));
+            new List<JourneyStepTemplate> { new("GET", "/api") }));
 
         var sessionManager = new JourneySessionManager(
             _sessionLoggerMock.Object,
@@ -317,8 +318,8 @@ public class JourneySystemTests
         registry.RegisterJourney(new JourneyTemplate("test-journey", JourneyModality.Rest, 1.0, null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/users", null, null, "Get users", null),
-                new("POST", "/api/orders", null, null, "Create order", null)
+                new("GET", "/api/users", null, null, "Get users"),
+                new("POST", "/api/orders", null, null, "Create order")
             }));
 
         var sessionManager = new JourneySessionManager(
@@ -357,7 +358,7 @@ public class JourneySystemTests
             {
                 new("GET", "/api/products", null, null, "Browse products",
                     new JourneyStepPromptHints(
-                        HighlightFields: new List<string> { "name", "price" },
+                        new List<string> { "name", "price" },
                         LureFields: new List<string> { "internalSku" },
                         Tone: "engaging"))
             });
@@ -409,20 +410,20 @@ public class JourneySystemTests
     {
         // Arrange
         var influence = new JourneyPromptInfluence(
-            JourneyName: "test-journey",
-            Modality: JourneyModality.Rest,
-            Scenario: "E-commerce",
-            DataStyle: "Realistic",
-            RiskFlavor: "Payment",
-            RandomnessProfile: "medium",
-            StepDescription: "Browse products",
-            Tone: "engaging",
-            RandomnessSeed: "abc123",
-            PromotedContext: new Dictionary<string, string> { { "userId", "123" } },
-            DemotedContext: new Dictionary<string, string>(),
-            HighlightFields: new List<string> { "name" },
-            LureFields: new List<string> { "secret" },
-            RawStepHints: new Dictionary<string, object>());
+            "test-journey",
+            JourneyModality.Rest,
+            "E-commerce",
+            "Realistic",
+            "Payment",
+            "medium",
+            "Browse products",
+            "engaging",
+            "abc123",
+            new Dictionary<string, string> { { "userId", "123" } },
+            new Dictionary<string, string>(),
+            new List<string> { "name" },
+            new List<string> { "secret" },
+            new Dictionary<string, object>());
 
         // Act
         var formatted = JourneyPromptInfluencer.FormatInfluenceForPrompt(influence);
@@ -512,8 +513,8 @@ public class JourneySystemTests
         // Arrange
         var steps = new List<JourneyStepTemplate>
         {
-            new("GET", "/api/step1", null, null, "Step 1", null),
-            new("GET", "/api/step2", null, null, "Step 2", null)
+            new("GET", "/api/step1", null, null, "Step 1"),
+            new("GET", "/api/step2", null, null, "Step 2")
         };
         var template = new JourneyTemplate("test", JourneyModality.Rest, 1.0, null, steps);
         var instance = new JourneyInstance("session-1", template, new Dictionary<string, string>(), steps, 1);
@@ -528,7 +529,7 @@ public class JourneySystemTests
         // Arrange
         var steps = new List<JourneyStepTemplate>
         {
-            new("GET", "/api/step1", null, null, "Step 1", null)
+            new("GET", "/api/step1", null, null, "Step 1")
         };
         var template = new JourneyTemplate("test", JourneyModality.Rest, 1.0, null, steps);
         var instance = new JourneyInstance("session-1", template, new Dictionary<string, string>(), steps, 1);
@@ -544,8 +545,8 @@ public class JourneySystemTests
         // Arrange
         var steps = new List<JourneyStepTemplate>
         {
-            new("GET", "/api/step1", null, null, "Step 1", null),
-            new("GET", "/api/step2", null, null, "Step 2", null)
+            new("GET", "/api/step1", null, null, "Step 1"),
+            new("GET", "/api/step2", null, null, "Step 2")
         };
         var template = new JourneyTemplate("test", JourneyModality.Rest, 1.0, null, steps);
         var instance = new JourneyInstance("session-1", template, new Dictionary<string, string>(), steps, 0);
@@ -567,8 +568,8 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journey=ecommerce-browse");
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?journey=ecommerce-browse");
 
         // Act
         var result = extractor.ExtractJourneyName(context.Request, null);
@@ -582,7 +583,7 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        var context = new DefaultHttpContext();
         context.Request.Headers["X-Journey"] = "auth-flow";
 
         // Act
@@ -597,7 +598,7 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        var context = new DefaultHttpContext();
         context.Request.ContentType = "application/json";
 
         // Act
@@ -612,8 +613,8 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyRandom=true");
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?journeyRandom=true");
 
         // Act
         var result = extractor.ExtractJourneyRandom(context.Request);
@@ -627,8 +628,8 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyModality=GraphQL");
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?journeyModality=GraphQL");
 
         // Act
         var result = extractor.ExtractJourneyModality(context.Request);
@@ -642,8 +643,8 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journey=from-query");
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?journey=from-query");
         context.Request.Headers["X-Journey"] = "from-header";
 
         // Act
@@ -667,7 +668,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -676,8 +678,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2")
             });
         registry.RegisterJourney(template);
 
@@ -705,7 +707,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -714,8 +717,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2")
             });
         registry.RegisterJourney(template);
 
@@ -745,7 +748,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -754,7 +758,7 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null)
+                new("GET", "/api/step1", null, null, "Step 1")
             });
         registry.RegisterJourney(template);
 
@@ -762,9 +766,9 @@ public class JourneySystemTests
         var instance = sessionManager.GetOrCreateJourney(
             "session-123",
             "test-journey",
-            startRandom: false,
-            modality: null,
-            contextSharedData: null);
+            false,
+            null,
+            null);
 
         // Assert
         Assert.NotNull(instance);
@@ -782,7 +786,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -791,8 +796,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2")
             });
         registry.RegisterJourney(template);
 
@@ -805,10 +810,10 @@ public class JourneySystemTests
         // Act
         var instance = sessionManager.GetOrCreateJourney(
             "session-123",
-            journeyName: null, // No explicit journey specified
-            startRandom: false,
-            modality: null,
-            contextSharedData: contextSharedData);
+            null, // No explicit journey specified
+            false,
+            null,
+            contextSharedData);
 
         // Assert
         Assert.NotNull(instance);
@@ -825,8 +830,8 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        context.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?journeyId=jrn_123456_abc");
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString("?journeyId=jrn_123456_abc");
 
         // Act
         var result = extractor.ExtractJourneyId(context.Request, null);
@@ -840,7 +845,7 @@ public class JourneySystemTests
     {
         // Arrange
         var extractor = new JourneyExtractor();
-        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        var context = new DefaultHttpContext();
         context.Request.Headers["X-Journey-Id"] = "jrn_789_xyz";
 
         // Act
@@ -873,7 +878,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         // Register two different journey templates
         var ecommerceJourney = new JourneyTemplate(
@@ -883,8 +889,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/products", null, null, "Browse products", null),
-                new("GET", "/api/products/*", null, null, "View product", null)
+                new("GET", "/api/products", null, null, "Browse products"),
+                new("GET", "/api/products/*", null, null, "View product")
             });
 
         var authJourney = new JourneyTemplate(
@@ -894,8 +900,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("POST", "/api/auth/login", null, null, "Login", null),
-                new("GET", "/api/auth/profile", null, null, "Get profile", null)
+                new("POST", "/api/auth/login", null, null, "Login"),
+                new("GET", "/api/auth/profile", null, null, "Get profile")
             });
 
         registry.RegisterJourney(ecommerceJourney);
@@ -931,7 +937,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -940,9 +947,9 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null),
-                new("GET", "/api/step3", null, null, "Step 3", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2"),
+                new("GET", "/api/step3", null, null, "Step 3")
             });
         registry.RegisterJourney(template);
 
@@ -975,7 +982,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -984,7 +992,7 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null)
+                new("GET", "/api/step1", null, null, "Step 1")
             });
         registry.RegisterJourney(template);
 
@@ -1010,7 +1018,8 @@ public class JourneySystemTests
         };
         var optionsMonitor = CreateOptionsMonitor(options);
         var registry = new JourneyRegistry(_registryLoggerMock.Object, optionsMonitor);
-        var sessionManager = new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
+        var sessionManager =
+            new JourneySessionManager(_sessionLoggerMock.Object, optionsMonitor, registry, _memoryCache);
 
         var template = new JourneyTemplate(
             "test-journey",
@@ -1019,8 +1028,8 @@ public class JourneySystemTests
             null,
             new List<JourneyStepTemplate>
             {
-                new("GET", "/api/step1", null, null, "Step 1", null),
-                new("GET", "/api/step2", null, null, "Step 2", null)
+                new("GET", "/api/step1", null, null, "Step 1"),
+                new("GET", "/api/step2", null, null, "Step 2")
             });
         registry.RegisterJourney(template);
 

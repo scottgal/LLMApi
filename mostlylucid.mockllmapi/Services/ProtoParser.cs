@@ -4,7 +4,7 @@ using mostlylucid.mockllmapi.Models;
 namespace mostlylucid.mockllmapi.Services;
 
 /// <summary>
-/// Simple parser for .proto files to extract service and message definitions
+///     Simple parser for .proto files to extract service and message definitions
 /// </summary>
 public class ProtoParser
 {
@@ -19,17 +19,11 @@ public class ProtoParser
 
         // Extract syntax
         var syntaxMatch = Regex.Match(protoContent, @"syntax\s*=\s*""(proto[23])""");
-        if (syntaxMatch.Success)
-        {
-            definition.Syntax = syntaxMatch.Groups[1].Value;
-        }
+        if (syntaxMatch.Success) definition.Syntax = syntaxMatch.Groups[1].Value;
 
         // Extract package
         var packageMatch = Regex.Match(protoContent, @"package\s+([a-zA-Z0-9_.]+)\s*;");
-        if (packageMatch.Success)
-        {
-            definition.Package = packageMatch.Groups[1].Value;
-        }
+        if (packageMatch.Success) definition.Package = packageMatch.Groups[1].Value;
 
         // Extract messages
         definition.Messages = ParseMessages(protoContent);
@@ -120,7 +114,9 @@ public class ProtoParser
         var methods = new List<ProtoMethod>();
 
         // Match RPC definitions: rpc MethodName (stream? InputType) returns (stream? OutputType);
-        var methodRegex = new Regex(@"rpc\s+([a-zA-Z0-9_]+)\s*\(\s*(stream\s+)?([a-zA-Z0-9_.]+)\s*\)\s*returns\s*\(\s*(stream\s+)?([a-zA-Z0-9_.]+)\s*\)");
+        var methodRegex =
+            new Regex(
+                @"rpc\s+([a-zA-Z0-9_]+)\s*\(\s*(stream\s+)?([a-zA-Z0-9_.]+)\s*\)\s*returns\s*\(\s*(stream\s+)?([a-zA-Z0-9_.]+)\s*\)");
         var matches = methodRegex.Matches(serviceBody);
 
         foreach (Match match in matches)
@@ -141,7 +137,7 @@ public class ProtoParser
     }
 
     /// <summary>
-    /// Generates a JSON shape from a proto message for LLM prompt
+    ///     Generates a JSON shape from a proto message for LLM prompt
     /// </summary>
     public string GenerateJsonShape(ProtoMessage message, List<ProtoMessage> allMessages)
     {
@@ -152,13 +148,9 @@ public class ProtoParser
             var fieldValue = GetFieldPlaceholder(field, allMessages);
 
             if (field.Repeated)
-            {
                 fields.Add($"\"{field.Name}\": [{fieldValue}]");
-            }
             else
-            {
                 fields.Add($"\"{field.Name}\": {fieldValue}");
-            }
         }
 
         return "{ " + string.Join(", ", fields) + " }";
@@ -182,10 +174,7 @@ public class ProtoParser
     private string GenerateNestedMessageShape(string messageType, List<ProtoMessage> allMessages)
     {
         var nestedMessage = allMessages.FirstOrDefault(m => m.Name == messageType);
-        if (nestedMessage != null)
-        {
-            return GenerateJsonShape(nestedMessage, allMessages);
-        }
+        if (nestedMessage != null) return GenerateJsonShape(nestedMessage, allMessages);
         return "{}"; // Unknown type
     }
 }

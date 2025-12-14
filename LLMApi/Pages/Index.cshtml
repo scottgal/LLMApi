@@ -1,5 +1,5 @@
 @page
-@model LLMApi.Pages.IndexModel
+@model IndexModel
 
 @{
     ViewData["Title"] = "SignalR Demo";
@@ -119,105 +119,109 @@
 }
 
 <div hx-ext="signalr" style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
-        <h3 style="margin-top: 0;">How It Works</h3>
-        <ol style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
-            <li><strong>Enter a context name</strong> - A unique identifier for your data stream (e.g., "weather", "stocks", "sensors")</li>
-            <li><strong>Describe what you want</strong> - Use plain English to describe the data structure you need</li>
-            <li><strong>Click Create & Subscribe</strong> - The LLM generates appropriate JSON schema and starts streaming data</li>
-            <li><strong>Watch live updates</strong> - New data appears every 5 seconds in real-time!</li>
-        </ol>
+    <h3 style="margin-top: 0;">How It Works</h3>
+    <ol style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+        <li><strong>Enter a context name</strong> - A unique identifier for your data stream (e.g., "weather", "stocks", "sensors")</li>
+        <li><strong>Describe what you want</strong> - Use plain English to describe the data structure you need</li>
+        <li><strong>Click Create & Subscribe</strong> - The LLM generates appropriate JSON schema and starts streaming data</li>
+        <li><strong>Watch live updates</strong> - New data appears every 5 seconds in real-time!</li>
+    </ol>
 
-        <details style="margin-top: 15px;" open>
-            <summary style="cursor: pointer; font-weight: 500; color: #007bff;">Quick Start Examples (Click to Launch)</summary>
-            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 14px;">IoT Sensors</h4>
-                        <p style="margin: 5px 0; font-size: 13px; color: #666;">
-                            Temperature sensors with device ID, current temperature in Celsius, battery percentage, and last reading timestamp
-                        </p>
-                    </div>
-                    <button type="button" class="quick-start-btn" data-name="iot-sensors" data-description="Temperature sensors with device ID, current temperature in Celsius, battery percentage, and last reading timestamp" style="background: #28a745; white-space: nowrap;">Launch</button>
+    <details style="margin-top: 15px;" open>
+        <summary style="cursor: pointer; font-weight: 500; color: #007bff;">Quick Start Examples (Click to Launch)</summary>
+        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+            <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 14px;">IoT Sensors</h4>
+                    <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                        Temperature sensors with device ID, current temperature in Celsius, battery percentage, and last reading timestamp
+                    </p>
                 </div>
-
-                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 14px;">Stock Market</h4>
-                        <p style="margin: 5px 0; font-size: 13px; color: #666;">
-                            Real-time stock prices with ticker symbol, current price, daily change percentage, trading volume, and market cap
-                        </p>
-                    </div>
-                    <button type="button" class="quick-start-btn" data-name="stock-market" data-description="Real-time stock prices with ticker symbol, current price, daily change percentage, trading volume, and market cap" style="background: #28a745; white-space: nowrap;">Launch</button>
-                </div>
-
-                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 14px;">E-commerce Orders</h4>
-                        <p style="margin: 5px 0; font-size: 13px; color: #666;">
-                            Recent orders with order ID, customer name, order total, status (pending/shipped/delivered), and items array containing SKU and quantity
-                        </p>
-                    </div>
-                    <button type="button" class="quick-start-btn" data-name="ecommerce-orders" data-description="Recent orders with order ID, customer name, order total, status (pending/shipped/delivered), and items array containing SKU and quantity" style="background: #28a745; white-space: nowrap;">Launch</button>
-                </div>
-
-                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 14px;">Server Metrics</h4>
-                        <p style="margin: 5px 0; font-size: 13px; color: #666;">
-                            Server monitoring data with hostname, CPU usage percentage, memory usage in GB, disk space available, and active connections count
-                        </p>
-                    </div>
-                    <button type="button" class="quick-start-btn" data-name="server-metrics" data-description="Server monitoring data with hostname, CPU usage percentage, memory usage in GB, disk space available, and active connections count" style="background: #28a745; white-space: nowrap;">Launch</button>
-                </div>
-
-                <div style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0; font-size: 14px;">Gaming Leaderboard</h4>
-                        <p style="margin: 5px 0; font-size: 13px; color: #666;">
-                            Gaming leaderboard entries with player name, score, rank, level, country code, and online status
-                        </p>
-                    </div>
-                    <button type="button" class="quick-start-btn" data-name="gaming-leaderboard" data-description="Gaming leaderboard entries with player name, score, rank, level, country code, and online status" style="background: #28a745; white-space: nowrap;">Launch</button>
-                </div>
+                <button type="button" class="quick-start-btn" data-name="iot-sensors" data-description="Temperature sensors with device ID, current temperature in Celsius, battery percentage, and last reading timestamp" style="background: #28a745; white-space: nowrap;">Launch</button>
             </div>
-        </details>
 
-        <details style="margin-top: 15px;">
-            <summary style="cursor: pointer; font-weight: 500; color: #007bff;">View API Documentation</summary>
-            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 13px;">
-                <h4 style="margin-top: 0;">Management API Endpoints</h4>
+            <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 14px;">Stock Market</h4>
+                    <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                        Real-time stock prices with ticker symbol, current price, daily change percentage, trading volume, and market cap
+                    </p>
+                </div>
+                <button type="button" class="quick-start-btn" data-name="stock-market" data-description="Real-time stock prices with ticker symbol, current price, daily change percentage, trading volume, and market cap" style="background: #28a745; white-space: nowrap;">Launch</button>
+            </div>
 
-                <p><strong>POST /api/mock/contexts</strong> - Create new context</p>
-                <pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto;">
+            <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 14px;">E-commerce Orders</h4>
+                    <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                        Recent orders with order ID, customer name, order total, status (pending/shipped/delivered), and items array containing SKU and quantity
+                    </p>
+                </div>
+                <button type="button" class="quick-start-btn" data-name="ecommerce-orders" data-description="Recent orders with order ID, customer name, order total, status (pending/shipped/delivered), and items array containing SKU and quantity" style="background: #28a745; white-space: nowrap;">Launch</button>
+            </div>
+
+            <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 14px;">Server Metrics</h4>
+                    <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                        Server monitoring data with hostname, CPU usage percentage, memory usage in GB, disk space available, and active connections count
+                    </p>
+                </div>
+                <button type="button" class="quick-start-btn" data-name="server-metrics" data-description="Server monitoring data with hostname, CPU usage percentage, memory usage in GB, disk space available, and active connections count" style="background: #28a745; white-space: nowrap;">Launch</button>
+            </div>
+
+            <div style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 4px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0; font-size: 14px;">Gaming Leaderboard</h4>
+                    <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                        Gaming leaderboard entries with player name, score, rank, level, country code, and online status
+                    </p>
+                </div>
+                <button type="button" class="quick-start-btn" data-name="gaming-leaderboard" data-description="Gaming leaderboard entries with player name, score, rank, level, country code, and online status" style="background: #28a745; white-space: nowrap;">Launch</button>
+            </div>
+        </div>
+    </details>
+
+    <details style="margin-top: 15px;">
+        <summary style="cursor: pointer; font-weight: 500; color: #007bff;">View API Documentation</summary>
+        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 13px;">
+            <h4 style="margin-top: 0;">Management API Endpoints</h4>
+
+            <p><strong>POST /api/mock/contexts</strong> - Create new context</p>
+            <pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto;">
 {
   "name": "weather",
   "description": "Weather data with temp, condition, humidity"
 }</pre>
 
-                <p><strong>GET /api/mock/contexts</strong> - List all contexts</p>
-                <p><strong>GET /api/mock/contexts/{name}</strong> - Get specific context</p>
-                <p><strong>DELETE /api/mock/contexts/{name}</strong> - Delete context</p>
+            <p><strong>GET /api/mock/contexts</strong> - List all contexts</p>
+            <p><strong>GET /api/mock/contexts/{name}</strong> - Get specific context</p>
+            <p><strong>DELETE /api/mock/contexts/{name}</strong> - Delete context</p>
 
-                <h4 style="margin-top: 15px;">SignalR Hub</h4>
-                <p><strong>Hub URL:</strong> /hub/mock</p>
-                <p><strong>Methods:</strong></p>
-                <ul style="margin: 5px 0;">
-                    <li><code>SubscribeToContext(contextName)</code> - Start receiving data</li>
-                    <li><code>UnsubscribeFromContext(contextName)</code> - Stop receiving data</li>
-                </ul>
-                <p><strong>Events:</strong></p>
-                <ul style="margin: 5px 0;">
-                    <li><code>DataUpdate</code> - Receives generated data</li>
-                    <li><code>Subscribed</code> - Subscription confirmation</li>
-                    <li><code>Unsubscribed</code> - Unsubscription confirmation</li>
-                </ul>
-            </div>
-        </details>
+            <h4 style="margin-top: 15px;">SignalR Hub</h4>
+            <p><strong>Hub URL:</strong> /hub/mock</p>
+            <p>
+                <strong>Methods:</strong>
+            </p>
+            <ul style="margin: 5px 0;">
+                <li><code>SubscribeToContext(contextName)</code> - Start receiving data</li>
+                <li><code>UnsubscribeFromContext(contextName)</code> - Stop receiving data</li>
+            </ul>
+            <p>
+                <strong>Events:</strong>
+            </p>
+            <ul style="margin: 5px 0;">
+                <li><code>DataUpdate</code> - Receives generated data</li>
+                <li><code>Subscribed</code> - Subscription confirmation</li>
+                <li><code>Unsubscribed</code> - Unsubscription confirmation</li>
+            </ul>
+        </div>
+    </details>
 
-        <details style="margin-top: 15px;">
-            <summary style="cursor: pointer; font-weight: 500; color: #007bff;">View JavaScript Integration Example</summary>
-            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                <pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 12px;">
+    <details style="margin-top: 15px;">
+        <summary style="cursor: pointer; font-weight: 500; color: #007bff;">View JavaScript Integration Example</summary>
+        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+            <pre style="background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 12px;">
 <code>// Connect to SignalR hub
 const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hub/mock")
@@ -249,64 +253,64 @@ await connection.invoke("SubscribeToContext", "mydata");
 
 // Unsubscribe when done
 await connection.invoke("UnsubscribeFromContext", "mydata");</code></pre>
+        </div>
+    </details>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <div class="card">
+        <h2>Create Context</h2>
+        <form id="contextForm"
+              hx-post="/api/mock/contexts"
+              hx-encoding="json"
+              hx-swap="none"
+              hx-vals="js:{ method: 'GET', path: '/' + document.getElementById('contextName').value }"
+              hx-on:htmx:beforeRequest="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').textContent='Creating...';"
+              hx-on:htmx:afterRequest="this.querySelector('button[type=submit]').disabled=false; this.querySelector('button[type=submit]').textContent='Create & Subscribe';"
+              hx-on:htmx:afterOnLoad="if (event.detail.xhr.status===200) { htmx.trigger(document.body, 'signalr:subscribe', {detail:{context: document.getElementById('contextName').value}}); document.getElementById('formStatus').textContent='Context \' ' + document.getElementById('contextName').value + ' \' created successfully!'; document.getElementById('formStatus').className='status show success'; this.reset(); setTimeout(()=>document.getElementById('formStatus').classList.remove('show'), 5000);} else { try { const res=JSON.parse(event.detail.xhr.responseText); document.getElementById('formStatus').textContent=res.error || 'Failed to create context'; } catch { document.getElementById('formStatus').textContent='Failed to create context'; } document.getElementById('formStatus').className='status show error'; }">
+            <div class="form-group">
+                <label for="contextName">Context Name *</label>
+                <input type="text" id="contextName" name="name" required
+                       placeholder="e.g., mydata, sensors, stocks"/>
+                <p class="help-text">Used to identify this SignalR context</p>
             </div>
-        </details>
-    </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <div class="card">
-            <h2>Create Context</h2>
-            <form id="contextForm"
-                  hx-post="/api/mock/contexts"
-                  hx-encoding="json"
-                  hx-swap="none"
-                  hx-vals="js:{ method: 'GET', path: '/' + document.getElementById('contextName').value }"
-                  hx-on:htmx:beforeRequest="this.querySelector('button[type=submit]').disabled=true; this.querySelector('button[type=submit]').textContent='Creating...';"
-                  hx-on:htmx:afterRequest="this.querySelector('button[type=submit]').disabled=false; this.querySelector('button[type=submit]').textContent='Create & Subscribe';"
-                  hx-on:htmx:afterOnLoad="if (event.detail.xhr.status===200) { htmx.trigger(document.body, 'signalr:subscribe', {detail:{context: document.getElementById('contextName').value}}); document.getElementById('formStatus').textContent='Context \' ' + document.getElementById('contextName').value + ' \' created successfully!'; document.getElementById('formStatus').className='status show success'; this.reset(); setTimeout(()=>document.getElementById('formStatus').classList.remove('show'), 5000);} else { try { const res=JSON.parse(event.detail.xhr.responseText); document.getElementById('formStatus').textContent=res.error || 'Failed to create context'; } catch { document.getElementById('formStatus').textContent='Failed to create context'; } document.getElementById('formStatus').className='status show error'; }">
-                <div class="form-group">
-                    <label for="contextName">Context Name *</label>
-                    <input type="text" id="contextName" name="name" required
-                           placeholder="e.g., mydata, sensors, stocks" />
-                    <p class="help-text">Used to identify this SignalR context</p>
-                </div>
-
-                <div class="form-group">
-                    <label for="description">Description *</label>
-                    <textarea id="description" name="description" required
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <textarea id="description" name="description" required
                               placeholder="Describe what data you want in plain English&#10;&#10;Example: I want stock market data with symbol, price, change percentage, and trading volume"></textarea>
-                    <p class="help-text">The LLM will generate appropriate JSON schema from this</p>
-                </div>
-
-                <button type="submit">Create & Subscribe</button>
-
-                <div id="formStatus" class="status"></div>
-            </form>
-        </div>
-
-        <div class="card">
-            <h2>
-                Active Contexts
-                <button type="button" onclick="refreshContextList()" style="background: #6c757d; padding: 5px 10px; font-size: 12px; margin-left: 10px;">Refresh</button>
-            </h2>
-            <div id="contextList" style="max-height: 400px; overflow-y: auto;">
-                <p style="color: #999; text-align: center; padding: 20px;">Loading...</p>
+                <p class="help-text">The LLM will generate appropriate JSON schema from this</p>
             </div>
-        </div>
 
-        <div class="card">
-            <h2>
-                Live Data
-                <span id="connectionStatus" class="connection-status disconnected">Disconnected</span>
-            </h2>
-            <div id="currentContext" style="margin-bottom: 10px; color: #666;">
-                No context selected
-            </div>
-            <div id="dataDisplay" class="data-display">
-                <p style="color: #999;">Create a context to start receiving data...</p>
-            </div>
+            <button type="submit">Create & Subscribe</button>
+
+            <div id="formStatus" class="status"></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>
+            Active Contexts
+            <button type="button" onclick="refreshContextList()" style="background: #6c757d; padding: 5px 10px; font-size: 12px; margin-left: 10px;">Refresh</button>
+        </h2>
+        <div id="contextList" style="max-height: 400px; overflow-y: auto;">
+            <p style="color: #999; text-align: center; padding: 20px;">Loading...</p>
         </div>
     </div>
+
+    <div class="card">
+        <h2>
+            Live Data
+            <span id="connectionStatus" class="connection-status disconnected">Disconnected</span>
+        </h2>
+        <div id="currentContext" style="margin-bottom: 10px; color: #666;">
+            No context selected
+        </div>
+        <div id="dataDisplay" class="data-display">
+            <p style="color: #999;">Create a context to start receiving data...</p>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>

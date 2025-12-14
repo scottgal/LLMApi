@@ -1,18 +1,19 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.Services.Tools;
-using System.Text.Json;
 
 namespace mostlylucid.mockllmapi;
 
 /// <summary>
-/// API endpoints for unit test generation with Pyguin + LLM fallback
+///     API endpoints for unit test generation with Pyguin + LLM fallback
 /// </summary>
 internal static class UnitTestEndpoints
 {
     /// <summary>
-    /// Generates unit tests for a tool with Pyguin (primary) and LLM (fallback)
-    /// POST /api/tools/generate-tests
+    ///     Generates unit tests for a tool with Pyguin (primary) and LLM (fallback)
+    ///     POST /api/tools/generate-tests
     /// </summary>
     internal static async Task<IResult> HandleGenerateTests(
         HttpContext ctx,
@@ -25,20 +26,13 @@ internal static class UnitTestEndpoints
             // Parse request
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync(cancellationToken);
-            var request = JsonSerializer.Deserialize<GenerateTestsRequest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var request = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.GenerateTestsRequest);
 
             if (request == null || string.IsNullOrWhiteSpace(request.ToolName))
-            {
                 return Results.BadRequest(new { error = "ToolName is required" });
-            }
 
             if (string.IsNullOrWhiteSpace(request.SourceCode))
-            {
                 return Results.BadRequest(new { error = "SourceCode is required" });
-            }
 
             logger.LogInformation("Generating unit tests for tool: {ToolName}", request.ToolName);
 
@@ -67,20 +61,18 @@ internal static class UnitTestEndpoints
                     pyguinError = result.PyguinError
                 });
             }
-            else
-            {
-                logger.LogWarning("Failed to generate tests for {ToolName}: {Error}",
-                    request.ToolName, result.Error);
 
-                return Results.Json(new
-                {
-                    success = false,
-                    toolName = result.ToolName,
-                    error = result.Error,
-                    pyguinAttempted = result.PyguinAttempted,
-                    pyguinError = result.PyguinError
-                }, statusCode: 500);
-            }
+            logger.LogWarning("Failed to generate tests for {ToolName}: {Error}",
+                request.ToolName, result.Error);
+
+            return Results.Json(new
+            {
+                success = false,
+                toolName = result.ToolName,
+                error = result.Error,
+                pyguinAttempted = result.PyguinAttempted,
+                pyguinError = result.PyguinError
+            }, statusCode: 500);
         }
         catch (Exception ex)
         {
@@ -90,8 +82,8 @@ internal static class UnitTestEndpoints
     }
 
     /// <summary>
-    /// Reviews code for correctness using LLM
-    /// POST /api/tools/review-code
+    ///     Reviews code for correctness using LLM
+    ///     POST /api/tools/review-code
     /// </summary>
     internal static async Task<IResult> HandleReviewCode(
         HttpContext ctx,
@@ -104,15 +96,10 @@ internal static class UnitTestEndpoints
             // Parse request
             using var reader = new StreamReader(ctx.Request.Body);
             var json = await reader.ReadToEndAsync(cancellationToken);
-            var request = JsonSerializer.Deserialize<ReviewCodeRequest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var request = JsonSerializer.Deserialize(json, LLMockSerializerContext.CaseInsensitiveInstance.ReviewCodeRequest);
 
             if (request == null || string.IsNullOrWhiteSpace(request.SourceCode))
-            {
                 return Results.BadRequest(new { error = "SourceCode is required" });
-            }
 
             logger.LogInformation("Reviewing code for: {Name}", request.Name ?? "unnamed");
 
@@ -121,26 +108,22 @@ internal static class UnitTestEndpoints
             var result = await generator.GenerateTestsAsync(
                 request.Name ?? "CodeReview",
                 request.SourceCode,
-                existingTests: null,
+                null,
                 cancellationToken);
 
             if (result.Success && !string.IsNullOrEmpty(result.CodeReview))
-            {
                 return Results.Ok(new
                 {
                     success = true,
                     codeReview = result.CodeReview,
                     generatedTests = result.GeneratedTests
                 });
-            }
-            else
+
+            return Results.Json(new
             {
-                return Results.Json(new
-                {
-                    success = false,
-                    error = result.Error ?? "Code review failed"
-                }, statusCode: 500);
-            }
+                success = false,
+                error = result.Error ?? "Code review failed"
+            }, statusCode: 500);
         }
         catch (Exception ex)
         {
@@ -150,8 +133,8 @@ internal static class UnitTestEndpoints
     }
 
     /// <summary>
-    /// Gets the test output directory info
-    /// GET /api/tools/test-output
+    ///     Gets the test output directory info
+    ///     GET /api/tools/test-output
     /// </summary>
     internal static IResult HandleGetTestOutput(UnitTestGenerator generator)
     {
@@ -160,7 +143,6 @@ internal static class UnitTestEndpoints
 
         List<object> files;
         if (exists)
-        {
             files = Directory.GetFiles(directory, "*.cs")
                 .Select(f => new
                 {
@@ -172,11 +154,8 @@ internal static class UnitTestEndpoints
                 .Take(50)
                 .Cast<object>()
                 .ToList();
-        }
         else
-        {
             files = new List<object>();
-        }
 
         return Results.Ok(new
         {
@@ -188,8 +167,8 @@ internal static class UnitTestEndpoints
     }
 
     /// <summary>
-    /// Downloads a specific generated test file
-    /// GET /api/tools/test-output/{fileName}
+    ///     Downloads a specific generated test file
+    ///     GET /api/tools/test-output/{fileName}
     /// </summary>
     internal static IResult HandleDownloadTestFile(
         string fileName,
@@ -200,31 +179,9 @@ internal static class UnitTestEndpoints
 
         var filePath = Path.Combine(generator.GetTestOutputDirectory(), fileName);
 
-        if (!File.Exists(filePath))
-        {
-            return Results.NotFound(new { error = $"Test file not found: {fileName}" });
-        }
+        if (!File.Exists(filePath)) return Results.NotFound(new { error = $"Test file not found: {fileName}" });
 
         var fileBytes = File.ReadAllBytes(filePath);
         return Results.File(fileBytes, "text/plain", fileName);
     }
-}
-
-/// <summary>
-/// Request to generate unit tests
-/// </summary>
-internal class GenerateTestsRequest
-{
-    public string ToolName { get; set; } = string.Empty;
-    public string SourceCode { get; set; } = string.Empty;
-    public string? ExistingTests { get; set; }
-}
-
-/// <summary>
-/// Request to review code
-/// </summary>
-internal class ReviewCodeRequest
-{
-    public string? Name { get; set; }
-    public string SourceCode { get; set; } = string.Empty;
 }

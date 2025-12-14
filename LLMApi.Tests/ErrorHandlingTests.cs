@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -7,8 +9,8 @@ using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Models;
 using mostlylucid.mockllmapi.RequestHandlers;
 using mostlylucid.mockllmapi.Services;
-using System.Text;
-using System.Text.Json;
+using mostlylucid.mockllmapi.Services.Providers;
+using mostlylucid.mockllmapi.Services.Tools;
 
 namespace LLMApi.Tests;
 
@@ -16,8 +18,8 @@ public class ErrorHandlingTests
 {
     private static IContextStore CreateContextStore()
     {
-        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
-            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var memoryCache = new MemoryCache(
+            new MemoryCacheOptions());
         return new MemoryCacheContextStore(memoryCache, NullLogger<MemoryCacheContextStore>.Instance);
     }
 
@@ -172,8 +174,8 @@ public class ErrorHandlingTests
         var doc = JsonDocument.Parse(json);
         var message = doc.RootElement.GetProperty("error").GetProperty("message").GetString();
         Assert.Contains("\\\"", json); // Escaped quotes in raw JSON
-        Assert.Contains("\\n", json);  // Escaped newline in raw JSON
-        Assert.Contains("\\t", json);  // Escaped tab in raw JSON
+        Assert.Contains("\\n", json); // Escaped newline in raw JSON
+        Assert.Contains("\\t", json); // Escaped tab in raw JSON
     }
 
     #endregion
@@ -202,7 +204,8 @@ public class ErrorHandlingTests
         // Arrange
         var extractor = new ShapeExtractor();
         var context = new DefaultHttpContext();
-        context.Request.QueryString = new QueryString("?error=403&errorMessage=Access%20denied&errorDetails=Insufficient%20permissions");
+        context.Request.QueryString =
+            new QueryString("?error=403&errorMessage=Access%20denied&errorDetails=Insufficient%20permissions");
 
         // Act
         var shapeInfo = extractor.ExtractShapeInfo(context.Request, null);
@@ -258,14 +261,14 @@ public class ErrorHandlingTests
         var extractor = new ShapeExtractor();
         var context = new DefaultHttpContext();
         var shapeJson = """
-        {
-            "$error": {
-                "code": 422,
-                "message": "Validation failed",
-                "details": "Email format invalid"
-            }
-        }
-        """;
+                        {
+                            "$error": {
+                                "code": 422,
+                                "message": "Validation failed",
+                                "details": "Email format invalid"
+                            }
+                        }
+                        """;
         context.Request.QueryString = new QueryString($"?shape={Uri.EscapeDataString(shapeJson)}");
 
         // Act
@@ -303,14 +306,14 @@ public class ErrorHandlingTests
         var context = new DefaultHttpContext();
         context.Request.ContentType = "application/json";
         var body = """
-        {
-            "error": {
-                "code": 409,
-                "message": "Resource conflict",
-                "details": "User already exists"
-            }
-        }
-        """;
+                   {
+                       "error": {
+                           "code": 409,
+                           "message": "Resource conflict",
+                           "details": "User already exists"
+                       }
+                   }
+                   """;
 
         // Act
         var shapeInfo = extractor.ExtractShapeInfo(context.Request, body);
@@ -366,12 +369,12 @@ public class ErrorHandlingTests
         var extractor = new ShapeExtractor();
         var context = new DefaultHttpContext();
         var shapeJson = """
-        {
-            "$error": 404,
-            "id": "string",
-            "name": "string"
-        }
-        """;
+                        {
+                            "$error": 404,
+                            "id": "string",
+                            "name": "string"
+                        }
+                        """;
         context.Request.QueryString = new QueryString($"?shape={Uri.EscapeDataString(shapeJson)}");
 
         // Act
@@ -419,43 +422,54 @@ public class ErrorHandlingTests
         var contextExtractor = new ContextExtractor();
         var journeyExtractor = new JourneyExtractor();
         var contextStore = CreateContextStore();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
+        var contextManager =
+            new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
         var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
-        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
+        var providerFactory = new LlmProviderFactory(NullLogger<LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance,
+            backendSelector, providerFactory);
         var cacheManager = new CacheManager(options, NullLogger<CacheManager>.Instance);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
-        var rateLimitService = new mostlylucid.mockllmapi.Services.RateLimitService(options);
-        var batchingCoordinator = new mostlylucid.mockllmapi.Services.BatchingCoordinator(llmClient, rateLimitService, options, NullLogger<mostlylucid.mockllmapi.Services.BatchingCoordinator>.Instance);
+        var rateLimitService = new RateLimitService(options);
+        var batchingCoordinator = new BatchingCoordinator(llmClient, rateLimitService, options,
+            NullLogger<BatchingCoordinator>.Instance);
 
         // Journey system (minimal setup for tests)
-        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var memoryCache = new MemoryCache(new MemoryCacheOptions());
         var journeyRegistry = new JourneyRegistry(NullLogger<JourneyRegistry>.Instance, optionsMonitor.Object);
-        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance, optionsMonitor.Object, journeyRegistry, memoryCache);
+        var journeySessionManager = new JourneySessionManager(NullLogger<JourneySessionManager>.Instance,
+            optionsMonitor.Object, journeyRegistry, memoryCache);
         var journeyPromptInfluencer = new JourneyPromptInfluencer();
 
         // Tool system (minimal setup for tests)
-        var toolExecutors = new mostlylucid.mockllmapi.Services.Tools.IToolExecutor[] { };
-        var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
-        var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
+        var toolExecutors = new IToolExecutor[] { };
+        var toolRegistry = new ToolRegistry(toolExecutors, options, NullLogger<ToolRegistry>.Instance);
+        var toolOrchestrator =
+            new ToolOrchestrator(toolRegistry, memoryCache, options, NullLogger<ToolOrchestrator>.Instance);
 
         // AutoShape system
-        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
-        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(memoryCache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
-        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+        var shapeExtractorFromResponse =
+            new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new MemoryCacheShapeStore(memoryCache, NullLogger<MemoryCacheShapeStore>.Instance);
+        var autoShapeManager = new AutoShapeManager(options, shapeStore, shapeExtractorFromResponse,
+            NullLogger<AutoShapeManager>.Instance);
 
-        var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, journeyExtractor, contextManager,
-            journeySessionManager, journeyPromptInfluencer, promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager, NullLogger<RegularRequestHandler>.Instance);
+        var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, journeyExtractor,
+            contextManager,
+            journeySessionManager, journeyPromptInfluencer, promptBuilder, llmClient, cacheManager, delayHelper,
+            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager,
+            NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");
         context.Response.Body = new MemoryStream();
 
         // Act
-        var result = await handler.HandleRequestAsync("GET", "/api/test", null, context.Request, context, CancellationToken.None);
+        var result = await handler.HandleRequestAsync("GET", "/api/test", null, context.Request, context,
+            CancellationToken.None);
 
         // Assert
         Assert.Equal(503, context.Response.StatusCode);
@@ -477,23 +491,28 @@ public class ErrorHandlingTests
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
         var contextStore = CreateContextStore();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
+        var contextManager =
+            new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
         var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
-        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
+        var providerFactory = new LlmProviderFactory(NullLogger<LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance,
+            backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
 
         // AutoShape system
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
-        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(cache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
-        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+        var shapeExtractorFromResponse =
+            new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
+        var autoShapeManager = new AutoShapeManager(options, shapeStore, shapeExtractorFromResponse,
+            NullLogger<AutoShapeManager>.Instance);
 
         var handler = new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, NullLogger<GraphQLRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager,
+            NullLogger<GraphQLRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         // Use non-sensitive error message (avoid words that trigger redaction like "auth", "token")
@@ -526,30 +545,36 @@ public class ErrorHandlingTests
         var shapeExtractor = new ShapeExtractor();
         var contextExtractor = new ContextExtractor();
         var contextStore = CreateContextStore();
-        var contextManager = new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
+        var contextManager =
+            new OpenApiContextManager(NullLogger<OpenApiContextManager>.Instance, options, contextStore);
         var validationService = new InputValidationService(NullLogger<InputValidationService>.Instance);
         var promptBuilder = new PromptBuilder(options, validationService, NullLogger<PromptBuilder>.Instance);
         var backendSelector = new LlmBackendSelector(options, NullLogger<LlmBackendSelector>.Instance);
-        var providerFactory = new mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory(NullLogger<mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory>.Instance);
-        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
+        var providerFactory = new LlmProviderFactory(NullLogger<LlmProviderFactory>.Instance);
+        var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance,
+            backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
 
         // AutoShape system
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
-        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(cache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
-        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+        var shapeExtractorFromResponse =
+            new ShapeExtractorFromResponse(NullLogger<ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new MemoryCacheShapeStore(cache, NullLogger<MemoryCacheShapeStore>.Instance);
+        var autoShapeManager = new AutoShapeManager(options, shapeStore, shapeExtractorFromResponse,
+            NullLogger<AutoShapeManager>.Instance);
 
         var handler = new StreamingRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, NullLogger<StreamingRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager,
+            NullLogger<StreamingRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=429&errorMessage=Rate%20limit%20exceeded");
         context.Response.Body = new MemoryStream();
 
         // Act
-        await handler.HandleStreamingRequestAsync("GET", "/api/test", null, context.Request, context, CancellationToken.None);
+        await handler.HandleStreamingRequestAsync("GET", "/api/test", null, context.Request, context,
+            CancellationToken.None);
 
         // Assert
         Assert.Equal(429, context.Response.StatusCode);
@@ -572,19 +597,23 @@ public class ErrorHandlingTests
 
     private class MockHttpClientFactory : IHttpClientFactory
     {
-        public HttpClient CreateClient(string name) => new HttpClient();
+        public HttpClient CreateClient(string name)
+        {
+            return new HttpClient();
+        }
     }
 
     private class FakeLlmClient : LlmClient
     {
         public FakeLlmClient(IOptions<LLMockApiOptions> options, IHttpClientFactory httpClientFactory,
-            Microsoft.Extensions.Logging.ILogger<LlmClient> logger, LlmBackendSelector backendSelector,
-            mostlylucid.mockllmapi.Services.Providers.LlmProviderFactory providerFactory)
+            ILogger<LlmClient> logger, LlmBackendSelector backendSelector,
+            LlmProviderFactory providerFactory)
             : base(options, httpClientFactory, logger, backendSelector, providerFactory)
         {
         }
 
-        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default, int? maxTokens = null, Microsoft.AspNetCore.Http.HttpRequest? request = null)
+        public override Task<string> GetCompletionAsync(string prompt, CancellationToken cancellationToken = default,
+            int? maxTokens = null, HttpRequest? request = null)
         {
             return Task.FromResult("""{"id": 1, "name": "Test"}""");
         }

@@ -3,7 +3,6 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-      xmlns:local="clr-namespace:LLMockApiClient.Pages"
       xmlns:controls="clr-namespace:LLMockApiClient.Controls"
       mc:Ignorable="d"
       d:DesignHeight="800" d:DesignWidth="1200"
@@ -11,23 +10,23 @@
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="✨ OpenAPI Specification Generator" FontSize="28" FontWeight="SemiBold"/>
+            <TextBlock Text="✨ OpenAPI Specification Generator" FontSize="28" FontWeight="SemiBold" />
             <TextBlock Text="Generate complete OpenAPI 3.0 specifications from natural language descriptions"
-                       FontSize="14" Opacity="0.7" Margin="0,8,0,0"/>
+                       FontSize="14" Opacity="0.7" Margin="0,8,0,0" />
         </StackPanel>
 
         <!-- Main Content -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="20"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left Panel - Input -->
@@ -36,62 +35,74 @@
                     BorderThickness="1" CornerRadius="8" Padding="20">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="Describe Your API" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,16"/>
+                        <TextBlock Text="Describe Your API" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,16" />
 
                         <!-- Example Descriptions -->
                         <Expander Header="💡 Example Descriptions" IsExpanded="True" Margin="0,0,0,20">
                             <StackPanel Margin="12,8,0,0">
                                 <Button Content="eCommerce site selling toggles"
-                                        Click="ExampleButton_Click" Tag="An ecommerce site that sells toggles (the switches). Include products, shopping cart, orders, and customer management."
-                                        HorizontalAlignment="Stretch" Margin="0,0,0,8" HorizontalContentAlignment="Left"/>
+                                        Click="ExampleButton_Click"
+                                        Tag="An ecommerce site that sells toggles (the switches). Include products, shopping cart, orders, and customer management."
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                        HorizontalContentAlignment="Left" />
                                 <Button Content="Task management API"
-                                        Click="ExampleButton_Click" Tag="A task management API with projects, tasks, users, comments, and file attachments. Tasks should have priorities and due dates."
-                                        HorizontalAlignment="Stretch" Margin="0,0,0,8" HorizontalContentAlignment="Left"/>
+                                        Click="ExampleButton_Click"
+                                        Tag="A task management API with projects, tasks, users, comments, and file attachments. Tasks should have priorities and due dates."
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                        HorizontalContentAlignment="Left" />
                                 <Button Content="Restaurant booking system"
-                                        Click="ExampleButton_Click" Tag="A restaurant booking system with restaurants, menus, reservations, and customer reviews. Include table availability and waitlist management."
-                                        HorizontalAlignment="Stretch" Margin="0,0,0,8" HorizontalContentAlignment="Left"/>
+                                        Click="ExampleButton_Click"
+                                        Tag="A restaurant booking system with restaurants, menus, reservations, and customer reviews. Include table availability and waitlist management."
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                        HorizontalContentAlignment="Left" />
                                 <Button Content="Social media platform"
-                                        Click="ExampleButton_Click" Tag="A social media platform API with users, posts, comments, likes, followers, and direct messaging."
-                                        HorizontalAlignment="Stretch" Margin="0,0,0,8" HorizontalContentAlignment="Left"/>
+                                        Click="ExampleButton_Click"
+                                        Tag="A social media platform API with users, posts, comments, likes, followers, and direct messaging."
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                        HorizontalContentAlignment="Left" />
                                 <Button Content="Fitness tracking app"
-                                        Click="ExampleButton_Click" Tag="A fitness tracking app with workouts, exercises, nutrition logging, progress tracking, and goal setting."
-                                        HorizontalAlignment="Stretch" Margin="0,0,0,8" HorizontalContentAlignment="Left"/>
+                                        Click="ExampleButton_Click"
+                                        Tag="A fitness tracking app with workouts, exercises, nutrition logging, progress tracking, and goal setting."
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                        HorizontalContentAlignment="Left" />
                             </StackPanel>
                         </Expander>
 
                         <!-- Description Input -->
-                        <TextBlock Text="System Description" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="System Description" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <TextBox x:Name="DescriptionTextBox"
                                  Height="150"
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto"
                                  Padding="8"
-                                 Margin="0,0,0,16"/>
+                                 Margin="0,0,0,16" />
 
                         <!-- Context Name -->
-                        <TextBlock Text="Context Name (Optional)" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Context Name (Optional)" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <TextBox x:Name="ContextNameTextBox"
                                  Height="32"
                                  Padding="8"
-                                 Margin="0,0,0,4"/>
+                                 Margin="0,0,0,4" />
                         <TextBlock Text="Used to identify this API configuration. Auto-generated if empty."
-                                   FontSize="12" Opacity="0.7" Margin="0,0,0,16"/>
+                                   FontSize="12" Opacity="0.7" Margin="0,0,0,16" />
 
                         <!-- Base Path -->
-                        <TextBlock Text="Base Path" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Base Path" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <TextBox x:Name="BasePathTextBox"
                                  Height="32"
                                  Text="/api/v1"
                                  Padding="8"
-                                 Margin="0,0,0,4"/>
+                                 Margin="0,0,0,4" />
                         <TextBlock Text="URL path prefix for all endpoints"
-                                   FontSize="12" Opacity="0.7" Margin="0,0,0,16"/>
+                                   FontSize="12" Opacity="0.7" Margin="0,0,0,16" />
 
                         <!-- Options -->
-                        <TextBlock Text="Options" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                        <CheckBox x:Name="AutoSetupCheckBox" Content="Automatically set up API endpoints" IsChecked="True" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="GenerateUICheckBox" Content="Generate demo UI (experimental)" IsChecked="False" Margin="0,0,0,16"/>
+                        <TextBlock Text="Options" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <CheckBox x:Name="AutoSetupCheckBox" Content="Automatically set up API endpoints"
+                                  IsChecked="True" Margin="0,0,0,8" />
+                        <CheckBox x:Name="GenerateUICheckBox" Content="Generate demo UI (experimental)"
+                                  IsChecked="False" Margin="0,0,0,16" />
 
                         <!-- Generate Button -->
                         <Button x:Name="GenerateButton"
@@ -101,7 +112,7 @@
                                 FontSize="16"
                                 FontWeight="SemiBold"
                                 Margin="0,16,0,0"
-                                HorizontalAlignment="Stretch"/>
+                                HorizontalAlignment="Stretch" />
 
                         <!-- Status Message -->
                         <Border x:Name="StatusBorder"
@@ -109,7 +120,7 @@
                                 Margin="0,16,0,0"
                                 Padding="12"
                                 CornerRadius="4">
-                            <TextBlock x:Name="StatusText" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
@@ -121,31 +132,37 @@
                     BorderThickness="1" CornerRadius="8" Padding="20">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Generated OpenAPI Specification" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,16"/>
+                    <TextBlock Grid.Row="0" Text="Generated OpenAPI Specification" FontSize="20" FontWeight="SemiBold"
+                               Margin="0,0,0,16" />
 
                     <!-- Placeholder -->
-                    <StackPanel x:Name="PlaceholderPanel" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="📝" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <StackPanel x:Name="PlaceholderPanel" Grid.Row="1" VerticalAlignment="Center"
+                                HorizontalAlignment="Center">
+                        <TextBlock Text="📝" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16" />
                         <TextBlock Text="Your generated OpenAPI specification will appear here"
-                                   TextAlignment="Center" Opacity="0.7"/>
+                                   TextAlignment="Center" Opacity="0.7" />
                     </StackPanel>
 
                     <!-- Output Content -->
-                    <ScrollViewer x:Name="OutputScrollViewer" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                        <controls:JsonViewer x:Name="SpecViewer"/>
+                    <ScrollViewer x:Name="OutputScrollViewer" Grid.Row="1" Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto">
+                        <controls:JsonViewer x:Name="SpecViewer" />
                     </ScrollViewer>
 
                     <!-- Actions -->
-                    <StackPanel x:Name="ActionsPanel" Grid.Row="2" Visibility="Collapsed" Orientation="Horizontal" Margin="0,16,0,0">
-                        <Button Content="📋 Copy Specification" Click="CopyButton_Click" Margin="0,0,8,0" Padding="12,8"/>
-                        <Button Content="💾 Download JSON" Click="DownloadButton_Click" Margin="0,0,8,0" Padding="12,8"/>
-                        <Button x:Name="ViewInSwaggerButton" Content="📖 View in Browser" Click="ViewInBrowserButton_Click"
-                                Visibility="Collapsed" Padding="12,8"/>
+                    <StackPanel x:Name="ActionsPanel" Grid.Row="2" Visibility="Collapsed" Orientation="Horizontal"
+                                Margin="0,16,0,0">
+                        <Button Content="📋 Copy Specification" Click="CopyButton_Click" Margin="0,0,8,0"
+                                Padding="12,8" />
+                        <Button Content="💾 Download JSON" Click="DownloadButton_Click" Margin="0,0,8,0" Padding="12,8" />
+                        <Button x:Name="ViewInSwaggerButton" Content="📖 View in Browser"
+                                Click="ViewInBrowserButton_Click"
+                                Visibility="Collapsed" Padding="12,8" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -154,9 +171,9 @@
         <!-- Loading Overlay -->
         <Grid x:Name="LoadingOverlay" Grid.RowSpan="2" Background="#88000000" Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <controls:LoadingSpinner Width="64" Height="64" Margin="0,0,0,16"/>
+                <controls:LoadingSpinner Width="64" Height="64" Margin="0,0,0,16" />
                 <TextBlock x:Name="LoadingText" Text="Generating specification..."
-                           Foreground="White" FontSize="16" HorizontalAlignment="Center"/>
+                           Foreground="White" FontSize="16" HorizontalAlignment="Center" />
             </StackPanel>
         </Grid>
     </Grid>
