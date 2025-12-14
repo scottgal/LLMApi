@@ -21,6 +21,7 @@ public class StreamingRequestHandler
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
     private readonly ChunkingCoordinator _chunkingCoordinator;
+    private readonly AutoShapeManager _autoShapeManager;
     private readonly ILogger<StreamingRequestHandler> _logger;
 
     private const int MaxSchemaHeaderLength = 4000;
@@ -34,6 +35,7 @@ public class StreamingRequestHandler
         LlmClient llmClient,
         DelayHelper delayHelper,
         ChunkingCoordinator chunkingCoordinator,
+        AutoShapeManager autoShapeManager,
         ILogger<StreamingRequestHandler> logger)
     {
         _options = options.Value;
@@ -44,6 +46,7 @@ public class StreamingRequestHandler
         _llmClient = llmClient;
         _delayHelper = delayHelper;
         _chunkingCoordinator = chunkingCoordinator;
+        _autoShapeManager = autoShapeManager;
         _logger = logger;
     }
 
@@ -152,6 +155,22 @@ public class StreamingRequestHandler
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
 
+        // Apply autoshape if no explicit shape is provided
+        if (string.IsNullOrWhiteSpace(shapeInfo.Shape))
+        {
+            var autoShape = _autoShapeManager.GetShapeForRequest(request, shapeInfo);
+            if (!string.IsNullOrWhiteSpace(autoShape))
+            {
+                shapeInfo = new ShapeInfo
+                {
+                    Shape = autoShape,
+                    CacheCount = shapeInfo.CacheCount,
+                    IsJsonSchema = shapeInfo.IsJsonSchema,
+                    ErrorConfig = shapeInfo.ErrorConfig
+                };
+            }
+        }
+
         // Determine SSE mode
         var sseMode = GetSseMode(request);
 
@@ -258,6 +277,9 @@ public class StreamingRequestHandler
                     {
                         _contextManager.AddToContext(contextName, method, fullPathWithQuery, body, finalJson);
                     }
+
+                    // Store shape from response if autoshape is enabled
+                    _autoShapeManager.StoreShapeFromResponse(request, finalJson);
 
                     // Include schema in final event payload if enabled
                     object finalPayload;

@@ -289,14 +289,19 @@ public class LLMockApiServiceTests
         var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
         var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, opts, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
 
+        // AutoShape system
+        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(memoryCache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
+        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(opts, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+
         var regularHandler = new mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler(
             opts, shapeExtractor, contextExtractor, journeyExtractor, contextManager, journeySessionManager, journeyPromptInfluencer,
             promptBuilder, llmClient, cacheManager, delayHelper,
-            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
+            chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager, NullLogger<mostlylucid.mockllmapi.RequestHandlers.RegularRequestHandler>.Instance);
 
         var streamingHandler = new mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler(
             opts, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper,
-            chunkingCoordinator, NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
+            chunkingCoordinator, autoShapeManager, NullLogger<mostlylucid.mockllmapi.RequestHandlers.StreamingRequestHandler>.Instance);
 
         return new LLMockApiService(regularHandler, streamingHandler);
     }

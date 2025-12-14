@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -50,9 +51,16 @@ public class GraphQLRequestHandlerTests
         }
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
+
+        // Create AutoShapeManager dependencies
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(cache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
+        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+
         var logger = NullLogger<GraphQLRequestHandler>.Instance;
 
-        return new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, chunkingCoordinator, logger);
+        return new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager, promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, logger);
     }
 
     private DefaultHttpContext CreateHttpContext(string? body = null)

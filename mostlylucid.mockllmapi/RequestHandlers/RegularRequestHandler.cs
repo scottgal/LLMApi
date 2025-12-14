@@ -28,6 +28,7 @@ public class RegularRequestHandler
     private readonly RateLimitService _rateLimitService;
     private readonly BatchingCoordinator _batchingCoordinator;
     private readonly ToolOrchestrator _toolOrchestrator;
+    private readonly AutoShapeManager _autoShapeManager;
     private readonly ILogger<RegularRequestHandler> _logger;
 
     private const int MaxSchemaHeaderLength = 4000;
@@ -48,6 +49,7 @@ public class RegularRequestHandler
         RateLimitService rateLimitService,
         BatchingCoordinator batchingCoordinator,
         ToolOrchestrator toolOrchestrator,
+        AutoShapeManager autoShapeManager,
         ILogger<RegularRequestHandler> logger)
     {
         _options = options.Value;
@@ -65,6 +67,7 @@ public class RegularRequestHandler
         _rateLimitService = rateLimitService;
         _batchingCoordinator = batchingCoordinator;
         _toolOrchestrator = toolOrchestrator;
+        _autoShapeManager = autoShapeManager;
         _logger = logger;
     }
 
@@ -87,6 +90,22 @@ public class RegularRequestHandler
 
         // Extract shape information
         var shapeInfo = _shapeExtractor.ExtractShapeInfo(request, body);
+
+        // Apply autoshape if no explicit shape is provided
+        if (string.IsNullOrWhiteSpace(shapeInfo.Shape))
+        {
+            var autoShape = _autoShapeManager.GetShapeForRequest(request, shapeInfo);
+            if (!string.IsNullOrWhiteSpace(autoShape))
+            {
+                shapeInfo = new ShapeInfo
+                {
+                    Shape = autoShape,
+                    CacheCount = shapeInfo.CacheCount,
+                    IsJsonSchema = shapeInfo.IsJsonSchema,
+                    ErrorConfig = shapeInfo.ErrorConfig
+                };
+            }
+        }
 
         // Check if error simulation is requested
         if (shapeInfo.ErrorConfig != null)
@@ -346,8 +365,16 @@ public class RegularRequestHandler
                     metadata = r.Metadata
                 })
             };
-            return System.Text.Json.JsonSerializer.Serialize(wrappedResponse, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var wrappedContent = System.Text.Json.JsonSerializer.Serialize(wrappedResponse, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+            // Store shape from response if autoshape is enabled
+            _autoShapeManager.StoreShapeFromResponse(request, wrappedContent);
+
+            return wrappedContent;
         }
+
+        // Store shape from response if autoshape is enabled
+        _autoShapeManager.StoreShapeFromResponse(request, content);
 
         return content;
     }

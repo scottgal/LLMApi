@@ -341,6 +341,27 @@ public class LLMockApiOptions
 
     #endregion
 
+    #region AutoShape Options
+
+    /// <summary>
+    /// Enable automatic shape memory (default: true)
+    /// When enabled, the first response to an endpoint automatically defines the JSON shape
+    /// for subsequent requests to that endpoint (unless an explicit shape is provided).
+    /// Helps maintain consistent response structures across multiple calls to the same endpoint.
+    /// Can be overridden per-request with ?autoshape=true/false query parameter or X-Auto-Shape header.
+    /// </summary>
+    public bool EnableAutoShape { get; set; } = true;
+
+    /// <summary>
+    /// Sliding expiration in minutes for auto-learned shapes (default: 15 minutes)
+    /// Shape memories are automatically removed after this period of inactivity.
+    /// Each request to the same endpoint refreshes the expiration timer.
+    /// Set higher for long-running test sessions, lower to allow shapes to evolve more frequently.
+    /// </summary>
+    public int ShapeExpirationMinutes { get; set; } = 15;
+
+    #endregion
+
     #region Journeys Options
 
     /// <summary>

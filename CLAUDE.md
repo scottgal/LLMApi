@@ -113,6 +113,110 @@ The repository contains three projects:
 3. Fall back to first enabled backend in `Backends` array
 4. If no backends configured, use legacy `BaseUrl`/`ModelName`
 
+## AutoShape Feature (Shape Memory)
+
+The autoshape feature automatically remembers the JSON structure of the first response to an endpoint and reuses it for subsequent requests, ensuring consistent response structures across multiple calls to the same logical endpoint.
+
+### Key Components
+
+**Services/AutoShapeManager.cs**
+- Main coordinator for autoshape operations
+- Checks if autoshape is enabled (config + per-request override)
+- Retrieves shapes from memory when no explicit shape is provided
+- Stores shapes after successful responses
+
+**Services/IShapeStore.cs + MemoryCacheShapeStore.cs**
+- Interface and in-memory implementation for shape storage
+- Uses IMemoryCache with sliding expiration (default: 15 minutes)
+- Thread-safe with concurrent dictionary tracking
+- Automatic cleanup on expiration
+
+**Services/ShapeExtractorFromResponse.cs**
+- Extracts JSON structure from response data
+- Creates simplified templates (e.g., `{"name": "", "id": 0, "active": true}`)
+- Validates responses (skips error responses)
+- Handles objects, arrays, and nested structures
+
+**Services/PathNormalizer.cs**
+- Normalizes endpoint paths for grouping
+- Converts `/api/mock/users/123` → `/api/mock/users/{id}`
+- Recognizes UUIDs, numeric IDs, and alphanumeric patterns
+- Preserves known keywords (api, users, products, etc.)
+
+### Configuration
+
+Add to `appsettings.json` (mostlylucid.mockllmapi section):
+
+```json
+{
+  "mostlylucid.mockllmapi": {
+    "EnableAutoShape": true,               // Global enable/disable (default: true)
+    "ShapeExpirationMinutes": 15          // Sliding expiration for shapes (default: 15)
+  }
+}
+```
+
+### Per-Request Override
+
+Enable or disable autoshape for specific requests:
+
+```http
+# Enable/disable autoshape
+GET /api/mock/users?autoshape=true
+# or
+GET /api/mock/users
+X-Auto-Shape: true
+
+# Renew/replace existing shape (if stored shape is bad)
+GET /api/mock/users?renewshape=true
+# or
+GET /api/mock/users
+X-Renew-Shape: true
+```
+
+**Using renewshape:**
+- Forces generation of a new shape, replacing the stored one
+- Useful when the first response had a bad/unexpected structure
+- The new response will define the shape going forward
+- Example: If `/api/mock/users/1` had incomplete data, call `/api/mock/users/1?renewshape=true` to reset it
+
+### Behavior
+
+**When autoshape is enabled:**
+
+1. **First request to `/api/mock/users/123`:**
+   - No explicit shape provided
+   - No shape in memory
+   - Generates response freely
+   - Extracts structure: `{"id": 0, "name": "", "email": ""}`
+   - Stores under normalized path: `/api/mock/users/{id}`
+
+2. **Second request to `/api/mock/users/456`:**
+   - No explicit shape provided
+   - Finds stored shape for `/api/mock/users/{id}`
+   - Uses stored shape to guide LLM generation
+   - Response follows same structure as first request
+
+3. **Request with explicit shape:**
+   - Autoshape is **skipped** (explicit shape takes precedence)
+   - Explicit shape used directly
+
+### Important Notes
+
+- **Enabled by default**: Automatically active to match user expectations (can be disabled via config)
+- **Explicit shapes take precedence**: If you provide a shape via query param, header, or body, autoshape is not applied
+- **Path normalization**: Different IDs to same endpoint share the same shape (e.g., `/users/1`, `/users/2`, `/users/abc` all use same shape)
+- **Sliding expiration**: Shapes automatically expire after inactivity (configurable)
+- **Works across all endpoint types**: Regular, streaming, and GraphQL
+- **Error responses ignored**: Only successful JSON responses are used for shape extraction
+
+### Integration Points
+
+Autoshape is integrated into:
+- `RegularRequestHandler` (Regular requests in RegularRequestHandler.cs:94-108 and :376-377)
+- `StreamingRequestHandler` (Streaming requests in StreamingRequestHandler.cs:158-172 and :281-282)
+- `GraphQLRequestHandler` (GraphQL requests in GraphQLRequestHandler.cs:132-133)
+
 ## Development Commands
 
 ### Build Everything

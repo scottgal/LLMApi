@@ -20,6 +20,7 @@ public class GraphQLRequestHandler
     private readonly LlmClient _llmClient;
     private readonly DelayHelper _delayHelper;
     private readonly ChunkingCoordinator _chunkingCoordinator;
+    private readonly AutoShapeManager _autoShapeManager;
     private readonly ILogger<GraphQLRequestHandler> _logger;
 
     public GraphQLRequestHandler(
@@ -31,6 +32,7 @@ public class GraphQLRequestHandler
         LlmClient llmClient,
         DelayHelper delayHelper,
         ChunkingCoordinator chunkingCoordinator,
+        AutoShapeManager autoShapeManager,
         ILogger<GraphQLRequestHandler> logger)
     {
         _options = options.Value;
@@ -41,6 +43,7 @@ public class GraphQLRequestHandler
         _llmClient = llmClient;
         _delayHelper = delayHelper;
         _chunkingCoordinator = chunkingCoordinator;
+        _autoShapeManager = autoShapeManager;
         _logger = logger;
     }
 
@@ -125,6 +128,9 @@ public class GraphQLRequestHandler
                     {
                         _contextManager.AddToContext(contextName, "POST", "/graphql", body, graphQLResponse);
                     }
+
+                    // Store shape from response if autoshape is enabled
+                    _autoShapeManager.StoreShapeFromResponse(request, graphQLResponse);
 
                     // Success! Return the valid response
                     if (attempt > 1)

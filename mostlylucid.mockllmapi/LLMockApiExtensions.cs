@@ -259,6 +259,17 @@ public static class LlMockApiExtensions
                 var options = sp.GetRequiredService<IOptions<LLMockApiOptions>>().Value;
                 return new MemoryCacheContextStore(cache, logger, options.ContextExpirationMinutes);
             });
+
+            // Register autoshape services (shape memory for endpoint consistency)
+            services.AddScoped<ShapeExtractorFromResponse>();
+            services.AddSingleton<IShapeStore>(sp =>
+            {
+                var cache = sp.GetRequiredService<IMemoryCache>();
+                var logger = sp.GetRequiredService<ILogger<MemoryCacheShapeStore>>();
+                var options = sp.GetRequiredService<IOptions<LLMockApiOptions>>().Value;
+                return new MemoryCacheShapeStore(cache, logger, options.ShapeExpirationMinutes);
+            });
+            services.AddScoped<AutoShapeManager>();
         }
     }
 

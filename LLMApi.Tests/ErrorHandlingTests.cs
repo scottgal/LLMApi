@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -440,8 +441,13 @@ public class ErrorHandlingTests
         var toolRegistry = new mostlylucid.mockllmapi.Services.Tools.ToolRegistry(toolExecutors, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolRegistry>.Instance);
         var toolOrchestrator = new mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator(toolRegistry, memoryCache, options, NullLogger<mostlylucid.mockllmapi.Services.Tools.ToolOrchestrator>.Instance);
 
+        // AutoShape system
+        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(memoryCache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
+        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+
         var handler = new RegularRequestHandler(options, shapeExtractor, contextExtractor, journeyExtractor, contextManager,
-            journeySessionManager, journeyPromptInfluencer, promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, NullLogger<RegularRequestHandler>.Instance);
+            journeySessionManager, journeyPromptInfluencer, promptBuilder, llmClient, cacheManager, delayHelper, chunkingCoordinator, rateLimitService, batchingCoordinator, toolOrchestrator, autoShapeManager, NullLogger<RegularRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=503");
@@ -477,8 +483,15 @@ public class ErrorHandlingTests
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
+
+        // AutoShape system
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(cache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
+        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+
         var handler = new GraphQLRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, chunkingCoordinator, NullLogger<GraphQLRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, NullLogger<GraphQLRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=401&errorMessage=Token%20expired");
@@ -517,8 +530,15 @@ public class ErrorHandlingTests
         var llmClient = new FakeLlmClient(options, new MockHttpClientFactory(), NullLogger<LlmClient>.Instance, backendSelector, providerFactory);
         var delayHelper = new DelayHelper(options);
         var chunkingCoordinator = new ChunkingCoordinator(NullLogger<ChunkingCoordinator>.Instance, options);
+
+        // AutoShape system
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var shapeExtractorFromResponse = new mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse(NullLogger<mostlylucid.mockllmapi.Services.ShapeExtractorFromResponse>.Instance);
+        var shapeStore = new mostlylucid.mockllmapi.Services.MemoryCacheShapeStore(cache, NullLogger<mostlylucid.mockllmapi.Services.MemoryCacheShapeStore>.Instance, 15);
+        var autoShapeManager = new mostlylucid.mockllmapi.Services.AutoShapeManager(options, shapeStore, shapeExtractorFromResponse, NullLogger<mostlylucid.mockllmapi.Services.AutoShapeManager>.Instance);
+
         var handler = new StreamingRequestHandler(options, shapeExtractor, contextExtractor, contextManager,
-            promptBuilder, llmClient, delayHelper, chunkingCoordinator, NullLogger<StreamingRequestHandler>.Instance);
+            promptBuilder, llmClient, delayHelper, chunkingCoordinator, autoShapeManager, NullLogger<StreamingRequestHandler>.Instance);
 
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString("?error=429&errorMessage=Rate%20limit%20exceeded");
