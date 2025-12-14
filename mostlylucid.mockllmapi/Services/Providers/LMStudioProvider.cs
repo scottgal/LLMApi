@@ -50,8 +50,9 @@ public class LMStudioProvider : ILlmProvider
         response.EnsureSuccessStatusCode();
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<ChatCompletionLite?>(responseText);
-        return result.HasValue ? result.Value.FirstContent ?? "{}" : "{}";
+        // Use source-generated JSON serialization for .NET 10 AOT compatibility
+        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
+        return result.FirstContent ?? "{}";
     }
 
     public async Task<HttpResponseMessage> GetStreamingCompletionAsync(
@@ -101,12 +102,13 @@ public class LMStudioProvider : ILlmProvider
         response.EnsureSuccessStatusCode();
 
         var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<ChatCompletionLite?>(responseText);
+        // Use source-generated JSON serialization for .NET 10 AOT compatibility
+        var result = JsonSerializer.Deserialize(responseText, ChatCompletionSerializerContext.Default.ChatCompletionLite);
         var list = new List<string>();
 
-        if (result.HasValue && result.Value.Choices != null)
+        if (result.Choices != null)
         {
-            foreach (var choice in result.Value.Choices)
+            foreach (var choice in result.Choices)
             {
                 if (!string.IsNullOrEmpty(choice.Message.Content))
                     list.Add(choice.Message.Content);
