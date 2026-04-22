@@ -16,6 +16,7 @@ public class DaemonController : IAsyncDisposable
 
     public static readonly string SocketPath = Path.Combine(LLMockDir, "llmock.sock");
     public static readonly string PidFilePath = Path.Combine(LLMockDir, "llmock.pid");
+    public static readonly string PortFilePath = Path.Combine(LLMockDir, "llmock.port");
     public static readonly string LogFilePath = Path.Combine(LLMockDir, "llmock.log");
 
     private Socket? _serverSocket;
@@ -25,7 +26,7 @@ public class DaemonController : IAsyncDisposable
     /// <summary>
     /// Start the Unix socket server (daemon side). Call once after app starts.
     /// </summary>
-    public async Task StartServerAsync(CancellationToken ct)
+    public async Task StartServerAsync(CancellationToken ct, int port = 5555)
     {
         Directory.CreateDirectory(LLMockDir);
 
@@ -37,8 +38,9 @@ public class DaemonController : IAsyncDisposable
         _serverSocket.Bind(new UnixDomainSocketEndPoint(SocketPath));
         _serverSocket.Listen(10);
 
-        // Write PID file
+        // Write PID and port files
         await File.WriteAllTextAsync(PidFilePath, Environment.ProcessId.ToString(), ct);
+        await File.WriteAllTextAsync(PortFilePath, port.ToString(), ct);
 
         // Accept clients in background
         _ = AcceptClientsAsync(ct);
@@ -189,7 +191,18 @@ public class DaemonController : IAsyncDisposable
 
         if (File.Exists(SocketPath)) File.Delete(SocketPath);
         if (File.Exists(PidFilePath)) File.Delete(PidFilePath);
+        if (File.Exists(PortFilePath)) File.Delete(PortFilePath);
 
         await ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Returns the port the running daemon is listening on, or 5555 as fallback.
+    /// </summary>
+    public static int GetRunningPort()
+    {
+        if (!File.Exists(PortFilePath)) return 5555;
+        if (int.TryParse(File.ReadAllText(PortFilePath).Trim(), out var port)) return port;
+        return 5555;
     }
 }

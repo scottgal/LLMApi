@@ -1,4 +1,5 @@
 using LLMock.Cli.Commands;
+using LLMock.Cli.Daemon;
 using Serilog;
 
 namespace LLMock.Cli;
@@ -92,7 +93,8 @@ internal class Program
         for (var i = 0; i < args.Length - 1; i++)
             if (args[i] is "--port" or "-p" && int.TryParse(args[i + 1], out var p))
                 return p;
-        return 5555;
+        // Fall back to stored port from running daemon
+        return DaemonController.GetRunningPort();
     }
 
     private static int ShowHelpReturn() { ShowHelp(); return 0; }

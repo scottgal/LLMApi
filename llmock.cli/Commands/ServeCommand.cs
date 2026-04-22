@@ -185,7 +185,7 @@ public static class ServeCommand
 
         // Daemon IPC socket
         await using var daemonController = new DaemonController();
-        await daemonController.StartServerAsync(ct);
+        await daemonController.StartServerAsync(ct, port);
 
         // Broadcast stats every second
         _ = BroadcastStatsAsync(daemonController, port, ct);

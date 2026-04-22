@@ -27,6 +27,7 @@ public static class StopCommand
 
         if (File.Exists(DaemonController.SocketPath)) File.Delete(DaemonController.SocketPath);
         if (File.Exists(DaemonController.PidFilePath)) File.Delete(DaemonController.PidFilePath);
+        if (File.Exists(DaemonController.PortFilePath)) File.Delete(DaemonController.PortFilePath);
 
         Console.WriteLine("✓");
         return 0;

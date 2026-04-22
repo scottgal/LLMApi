@@ -17,7 +17,7 @@ public static class StatusCommand
 
         try
         {
-            var port = 5555;
+            var port = DaemonController.GetRunningPort();
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
             var json = await http.GetStringAsync($"http://localhost:{port}/api/dashboard/stats", ct);
             using var doc = JsonDocument.Parse(json);
