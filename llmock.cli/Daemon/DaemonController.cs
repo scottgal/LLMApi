@@ -63,7 +63,7 @@ public class DaemonController : IAsyncDisposable
 
     private async Task HandleClientAsync(Socket client, CancellationToken ct)
     {
-        var buf = new byte[256];
+        var buf = new byte[4096];
         try
         {
             while (!ct.IsCancellationRequested)
@@ -113,8 +113,20 @@ public class DaemonController : IAsyncDisposable
         await client.SendAsync(bytes, ct);
 
         var buf = new byte[4096];
-        var read = await client.ReceiveAsync(buf, ct);
-        return read > 0 ? Encoding.UTF8.GetString(buf, 0, read).Trim() : null;
+        var pending = new StringBuilder();
+
+        while (true)
+        {
+            var read = await client.ReceiveAsync(buf, ct);
+            if (read == 0) break;
+
+            pending.Append(Encoding.UTF8.GetString(buf, 0, read));
+            var text = pending.ToString();
+            var newlineIdx = text.IndexOf('\n');
+            if (newlineIdx >= 0)
+                return text[..newlineIdx].Trim();
+        }
+        return null;
     }
 
     /// <summary>
