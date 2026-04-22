@@ -176,7 +176,7 @@ internal class Program
                 {
                     Name = backend ?? "cli",
                     Provider = backend ?? "ollama",
-                    ModelName = model ?? "llama3",
+                    ModelName = model ?? "gemma4:4b",
                     BaseUrl = baseUrl ?? "http://localhost:11434/v1/",
                     ApiKey = apiKey,
                     Enabled = true
@@ -201,13 +201,13 @@ internal class Program
                     {
                         Name = "ollama",
                         Provider = "ollama",
-                        ModelName = "llama3",
+                        ModelName = "gemma4:4b",
                         BaseUrl = "http://localhost:11434/v1/",
                         Enabled = true
                     }
                 ];
 
-                Log.Information("Using default LLM backend: ollama/llama3 at http://localhost:11434/v1/");
+                Log.Information("Using default LLM backend: ollama/gemma4:4b at http://localhost:11434/v1/");
             }
         });
 

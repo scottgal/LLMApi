@@ -19,10 +19,10 @@ public class LLMockApiOptions
     public string BaseUrl { get; set; } = "http://localhost:11434/v1/";
 
     /// <summary>
-    ///     Model name to use (default: llama3)
+    ///     Model name to use (default: gemma4:4b)
     ///     DEPRECATED: Use LlmBackends instead for multiple backend support
     /// </summary>
-    public string ModelName { get; set; } = "llama3";
+    public string ModelName { get; set; } = "gemma4:4b";
 
     /// <summary>
     ///     Multiple LLM backend configurations (introduced in v1.8.0)
@@ -44,6 +44,9 @@ public class LLMockApiOptions
     ///     and output (generation), as well as chunking for large responses.
     ///     Common values by model:
     ///     - gemma3:4b: 4096
+    ///     - gemma4:4b: 128000 (recommended default)
+    ///     - gemma4:2b: 128000
+    ///     - gemma4:12b: 128000
     ///     - llama3: 8192
     ///     - mistral:7b: 8192
     ///     - mistral-nemo: 32768 (or up to 128000 if configured in Ollama)

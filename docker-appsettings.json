@@ -8,7 +8,7 @@
   "AllowedHosts": "*",
   "MockLlmApi": {
     "BaseUrl": "http://ollama:11434/v1/",
-    "ModelName": "llama3",
+    "ModelName": "gemma4:4b",
     "Temperature": 1.2,
     "TimeoutSeconds": 30,
     "MaxContextWindow": 8192,
