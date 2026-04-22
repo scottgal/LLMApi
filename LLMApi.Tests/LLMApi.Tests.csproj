@@ -44,6 +44,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LLMApi\LLMApi.csproj" />
     <ProjectReference Include="..\mostlylucid.mockllmapi\mostlylucid.mockllmapi.csproj" />
+    <ProjectReference Include="..\llmock.cli\llmock.cli.csproj" />
   </ItemGroup>
 
 </Project>
