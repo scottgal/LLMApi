@@ -44,7 +44,13 @@ internal class Program
         for (var i = 0; i < args.Length; i++)
             switch (args[i])
             {
-                case "--port" or "-p" when i + 1 < args.Length: port = int.Parse(args[++i]); break;
+                case "--port" or "-p" when i + 1 < args.Length:
+                    if (!int.TryParse(args[++i], out port))
+                    {
+                        Console.WriteLine($"  Invalid port: '{args[i]}' — expected an integer.");
+                        return 1;
+                    }
+                    break;
                 case "--spec" or "-s" when i + 1 < args.Length: specs.Add(args[++i]); break;
                 case "--backend" or "-b" when i + 1 < args.Length: backend = args[++i]; break;
                 case "--model" or "-m" when i + 1 < args.Length: model = args[++i]; break;

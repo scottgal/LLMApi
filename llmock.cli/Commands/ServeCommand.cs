@@ -29,12 +29,14 @@ public static class ServeCommand
         if (daemon)
         {
             var self = Environment.ProcessPath ?? "llmock";
-            var daemonArgs = BuildDaemonArgs(port, specs, backend, model, baseUrl, apiKey, configFile, pack);
-            var psi = new System.Diagnostics.ProcessStartInfo(self, daemonArgs)
+            var daemonArgsList = BuildDaemonArgs(port, specs, backend, model, baseUrl, apiKey, configFile, pack);
+            var psi = new System.Diagnostics.ProcessStartInfo(self)
             {
-                UseShellExecute = true,
-                CreateNoWindow = true,
+                UseShellExecute = false,
+                CreateNoWindow = false,
             };
+            foreach (var arg in daemonArgsList)
+                psi.ArgumentList.Add(arg);
             System.Diagnostics.Process.Start(psi);
             Console.WriteLine($"  LLMock started in background on :{port}");
             Console.WriteLine("  Run 'llmock status' to check. 'llmock stop' to stop.");
@@ -197,16 +199,18 @@ public static class ServeCommand
 
         if (!headless)
         {
-            // Open dashboard
+            // Open dashboard; run until user quits (q) or server stops
             var poller = new DashboardPoller(port);
             var renderer = new DashboardRenderer(poller);
-            await renderer.RunAsync(ct);
+            await Task.WhenAny(renderer.RunAsync(ct), serverTask);
         }
         else
         {
             Log.Information("LLMock listening on :{Port} (headless)", port);
-            await serverTask;
         }
+
+        // Always await the server task to surface any startup exceptions
+        await serverTask;
 
         return 0;
     }
@@ -259,7 +263,7 @@ public static class ServeCommand
             }
     }
 
-    private static string BuildDaemonArgs(int port, string[] specs, string? backend, string? model,
+    private static List<string> BuildDaemonArgs(int port, string[] specs, string? backend, string? model,
         string? baseUrl, string? apiKey, string? configFile, string? pack)
     {
         var parts = new List<string> { "serve", "--headless", "--port", port.ToString() };
@@ -270,7 +274,7 @@ public static class ServeCommand
         if (configFile != null) { parts.Add("--config"); parts.Add(configFile); }
         if (pack != null) { parts.Add("--pack"); parts.Add(pack); }
         foreach (var spec in specs) { parts.Add("--spec"); parts.Add(spec); }
-        return string.Join(" ", parts);
+        return parts;
     }
 
     private static string GetVersion() =>
