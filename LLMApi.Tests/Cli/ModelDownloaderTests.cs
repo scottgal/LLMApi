@@ -53,6 +53,6 @@ public class ModelDownloaderTests
         Assert.False(string.IsNullOrWhiteSpace(opts.DownloadUrl));
         // ExpectedSha256 may be a placeholder at dev time — assert it is non-null (not empty string)
         // rather than asserting a specific value, since the real SHA256 is set at release time.
-        Assert.NotNull(opts.ExpectedSha256);
+        Assert.False(string.IsNullOrWhiteSpace(opts.ExpectedSha256));
     }
 }
