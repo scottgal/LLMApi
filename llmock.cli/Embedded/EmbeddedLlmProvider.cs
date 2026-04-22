@@ -1,5 +1,4 @@
 using System.Net;
-using System.Runtime.InteropServices;
 using System.Text;
 using LLama;
 using LLama.Common;
@@ -17,7 +16,7 @@ public sealed class EmbeddedLlmProvider : ILlmProvider, IAsyncDisposable
     public const string ProviderName = "embedded";
 
     private readonly ILogger<EmbeddedLlmProvider>? _logger;
-    private readonly object _loadLock = new();
+    private readonly Lock _loadLock = new();
 
     private LLamaWeights? _weights;
     private ModelParams? _modelParams;
@@ -31,17 +30,8 @@ public sealed class EmbeddedLlmProvider : ILlmProvider, IAsyncDisposable
     public string Name => ProviderName;
 
     /// <summary>
-    /// Checks whether Apple Metal (GPU) acceleration is available on this platform.
-    /// </summary>
-    public static bool IsMetalAvailable()
-    {
-        return RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-               && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-    }
-
-    /// <summary>
     /// Loads a GGUF model file into memory. Thread-safe; skips if already loaded.
-    /// Sets GPU layers to 99 on Metal-capable hardware, 0 otherwise.
+    /// CPU-only: no GPU layers are used.
     /// </summary>
     public void LoadModel(string modelPath)
     {
@@ -53,13 +43,10 @@ public sealed class EmbeddedLlmProvider : ILlmProvider, IAsyncDisposable
                 return;
             }
 
-            var gpuLayers = IsMetalAvailable() ? 99 : 0;
-            _logger?.LogInformation("Loading GGUF model from {Path} with {GpuLayers} GPU layers",
-                modelPath, gpuLayers);
+            _logger?.LogInformation("Loading GGUF model from {Path} (CPU-only)", modelPath);
 
             _modelParams = new ModelParams(modelPath)
             {
-                GpuLayerCount = gpuLayers,
                 ContextSize = 2048
             };
 
@@ -84,11 +71,20 @@ public sealed class EmbeddedLlmProvider : ILlmProvider, IAsyncDisposable
         int? maxTokens,
         CancellationToken cancellationToken)
     {
-        EnsureModelLoaded();
+        LLamaWeights weights;
+        ModelParams modelParams;
+
+        lock (_loadLock)
+        {
+            if (_weights == null || _modelParams == null)
+                throw new InvalidOperationException("Embedded model not loaded. Call LoadModel() first.");
+            weights = _weights;
+            modelParams = _modelParams;
+        }
 
         var inferenceParams = CreateInferenceParams(temperature, maxTokens);
 
-        var executor = new StatelessExecutor(_weights!, _modelParams!, _logger);
+        var executor = new StatelessExecutor(weights, modelParams, _logger);
 
         var sb = new StringBuilder();
         await foreach (var token in executor.InferAsync(prompt, inferenceParams, cancellationToken))
@@ -146,12 +142,6 @@ public sealed class EmbeddedLlmProvider : ILlmProvider, IAsyncDisposable
 
         _logger?.LogDebug("EmbeddedLlmProvider disposed");
         await ValueTask.CompletedTask;
-    }
-
-    private void EnsureModelLoaded()
-    {
-        if (_weights is null)
-            throw new InvalidOperationException("Embedded model not loaded. Call LoadModel() first.");
     }
 
     private static InferenceParams CreateInferenceParams(double temperature, int? maxTokens)

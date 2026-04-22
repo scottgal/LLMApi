@@ -11,18 +11,6 @@ public class EmbeddedLlmProviderTests
     }
 
     [Fact]
-    public void IsMetalAvailable_ReturnsFalseOnNonArmMac()
-    {
-        var isArm = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
-                    == System.Runtime.InteropServices.Architecture.Arm64;
-        var isMac = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-            System.Runtime.InteropServices.OSPlatform.OSX);
-
-        var expectedMetal = isArm && isMac;
-        Assert.Equal(expectedMetal, EmbeddedLlmProvider.IsMetalAvailable());
-    }
-
-    [Fact]
     public void ConfigureClient_DoesNotThrow()
     {
         var provider = new EmbeddedLlmProvider(null!);
