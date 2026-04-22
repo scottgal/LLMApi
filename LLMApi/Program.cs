@@ -4,6 +4,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Readers;
 using mostlylucid.mockllmapi;
 using mostlylucid.mockllmapi.Services;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,36 +20,33 @@ builder.Services.AddLLMockOpenApi(builder.Configuration);
 // Add Razor Pages
 builder.Services.AddRazorPages();
 
-// Add Swagger/OpenAPI documentation for the demo API itself
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+// OpenAPI documentation (dev mode only — exposed via Scalar UI)
+builder.Services.AddOpenApi(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        Title = "LLMock API Demo",
-        Version = "v2.1.0",
-        Description =
-            "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, comprehensive validation suite, and enhanced chunking reliability.",
-        Contact = new OpenApiContact
+        document.Info = new()
         {
-            Name = "GitHub Repository",
-            Url = new Uri("https://github.com/scottgallant/mostlylucid.mockllmapi")
-        }
+            Title = "LLMock API Demo",
+            Version = "v2.1.0",
+            Description = "Interactive demo of the LLMock API library showcasing mock endpoints, SignalR streaming, OpenAPI integration, gRPC support, and the API Holodeck honeypot.",
+        };
+        return Task.CompletedTask;
     });
 });
 
 var app = builder.Build();
 
-// Enable Swagger middleware
-app.UseSwagger();
-app.UseSwaggerUI(options =>
+// Expose OpenAPI + Scalar UI in development only
+if (app.Environment.IsDevelopment())
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "LLMock API Demo v2.1.0");
-    options.RoutePrefix = "swagger"; // Access at /swagger
-    options.DocumentTitle = "LLMock API Documentation";
-    options.EnableDeepLinking();
-    options.DisplayRequestDuration();
-});
+    app.MapOpenApi(); // serves /openapi/v1.json
+    app.MapScalarApiReference(options =>
+    {
+        options.Title = "LLMock API";
+        options.Theme = ScalarTheme.DeepSpace;
+    }); // serves /scalar/v1
+}
 
 // Use static files
 app.UseStaticFiles();
