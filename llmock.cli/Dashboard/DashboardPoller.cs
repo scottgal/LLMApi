@@ -31,11 +31,11 @@ public class DashboardPoller
                 var prev = _current;
                 _current = ParseStats(json, prev);
                 onUpdate();
+
+                await Task.Delay(500, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
             catch { /* server not yet ready, retry */ }
-
-            await Task.Delay(500, ct).ConfigureAwait(false);
         }
     }
 
