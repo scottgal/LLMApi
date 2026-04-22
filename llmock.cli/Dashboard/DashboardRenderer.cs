@@ -53,7 +53,8 @@ public class DashboardRenderer
                     }
                 }
 
-                await Task.Delay(50, cts.Token).ConfigureAwait(false);
+                try { await Task.Delay(50, cts.Token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
             }
 
             try { await pollerTask; } catch (OperationCanceledException) { /* expected */ }
@@ -99,7 +100,7 @@ public class DashboardRenderer
         var fillLen = innerWidth - leftLen - rightLen;
         if (fillLen < 0) fillLen = 0;
 
-        lines.Add(TL + H + title + Repeat(H, fillLen / 2) + portLabel + Repeat(H, fillLen - fillLen / 2 + 1) + TR);
+        lines.Add(TL + H + title + Repeat(H, fillLen / 2) + portLabel + Repeat(H, fillLen - fillLen / 2) + TR);
 
         // ── Requests/s row ─────────────────────────────────────────────────────
         var sparkline = string.Join("", state.SparklineHistory.TakeLast(40));
